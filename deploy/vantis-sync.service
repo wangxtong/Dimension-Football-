@@ -1,0 +1,31 @@
+[Unit]
+Description=Synchronize Dimension Football from the public Git main branch
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/var/lib/vantis-sync
+ExecStart=/opt/vantis/current/deploy/sync.sh
+TimeoutStartSec=10min
+TimeoutStopSec=30s
+UMask=0027
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vantis-sync
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/vantis /var/lib/vantis-sync /run/lock
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Root may publish releases; downloaded collector tests run as the vantis user.

@@ -8,13 +8,14 @@ die() { printf 'Install failed: %s\n' "$*" >&2; exit 1; }
 [[ ${EUID} -eq 0 ]] || die 'Run this script as root.'
 [[ $# -le 1 ]] || die 'Usage: install.sh [SOURCE_DIR]'
 [[ -d /run/systemd/system ]] || die 'This server must be running systemd.'
-for command_name in systemctl getent useradd install tar flock readlink runuser; do
+for command_name in systemctl getent useradd install tar flock readlink runuser git curl timeout; do
   command -v "$command_name" >/dev/null || die "Missing command: $command_name"
 done
 
 source_dir=$(cd -- "${1:-$(dirname -- "${BASH_SOURCE[0]}")/..}" && pwd -P)
-[[ -f "$source_dir/deploy/release.sh" && -f "$source_dir/deploy/vantis-collector.service" \
-  && -f "$source_dir/deploy/vantis-collector.timer" ]] || die 'Source directory is missing deployment files.'
+for deployment_file in release.sh sync.sh vantis-collector.service vantis-collector.timer vantis-sync.service vantis-sync.timer; do
+  [[ -f "$source_dir/deploy/$deployment_file" ]] || die "Missing deployment file: $deployment_file"
+done
 
 exec 8>/run/lock/vantis-install.lock
 flock -n 8 || die 'Another installation is running.'
@@ -35,12 +36,13 @@ fi
 getent group vantis >/dev/null || die 'A group named vantis is required.'
 runuser -u vantis -- "$node_bin" --version >/dev/null || die 'The vantis user cannot execute this Node.js installation.'
 
-for managed_dir in /opt/vantis /opt/vantis/releases /etc/vantis /var/lib/vantis /var/lib/vantis/reports; do
+for managed_dir in /opt/vantis /opt/vantis/releases /etc/vantis /var/lib/vantis /var/lib/vantis/reports /var/lib/vantis-sync; do
   [[ ! -L "$managed_dir" ]] || die "Managed directory must not be a symbolic link: $managed_dir"
 done
 install -d -o root -g root -m 0755 /opt/vantis /opt/vantis/releases
 install -d -o root -g vantis -m 0750 /etc/vantis
 install -d -o vantis -g vantis -m 0750 /var/lib/vantis /var/lib/vantis/reports
+install -d -o root -g root -m 0755 /var/lib/vantis-sync
 # Preserve existing contents while allowing the service user to resume old state.
 chown -hR vantis:vantis /var/lib/vantis
 [[ ! -L /etc/vantis/collector.env && ! -L /etc/vantis/node-path ]] || die 'Configuration files must not be symbolic links.'
@@ -69,12 +71,16 @@ mv -T -- "$node_path_tmp" /etc/vantis/node-path
 
 install -o root -g root -m 0644 "$source_dir/deploy/vantis-collector.service" /etc/systemd/system/vantis-collector.service
 install -o root -g root -m 0644 "$source_dir/deploy/vantis-collector.timer" /etc/systemd/system/vantis-collector.timer
+install -o root -g root -m 0644 "$source_dir/deploy/vantis-sync.service" /etc/systemd/system/vantis-sync.service
+install -o root -g root -m 0644 "$source_dir/deploy/vantis-sync.timer" /etc/systemd/system/vantis-sync.timer
 bash "$source_dir/deploy/release.sh" "$source_dir"
 systemctl daemon-reload
-systemctl enable --now vantis-collector.timer
+systemctl enable --now vantis-collector.timer vantis-sync.timer
 
 printf '%s\n' \
   'Installed. Fill one credential in /etc/vantis/collector.env using a local editor.' \
   'Then verify one run: systemctl start vantis-collector.service' \
   'Logs: journalctl -u vantis-collector.service -n 100 --no-pager' \
-  'Schedule: systemctl list-timers vantis-collector.timer'
+  'Schedule: systemctl list-timers vantis-collector.timer vantis-sync.timer' \
+  'Git main is checked every two minutes; tested commits are published automatically.' \
+  'Sync logs: journalctl -u vantis-sync.service -n 100 --no-pager'

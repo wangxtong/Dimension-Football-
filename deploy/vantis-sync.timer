@@ -1,0 +1,11 @@
+[Unit]
+Description=Check the Dimension Football public Git main branch every two minutes
+
+[Timer]
+OnCalendar=*-*-* *:00/2:00
+Persistent=true
+AccuracySec=15s
+Unit=vantis-sync.service
+
+[Install]
+WantedBy=timers.target

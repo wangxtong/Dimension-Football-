@@ -8,9 +8,11 @@ umask 027
 die() { printf 'Release failed: %s\n' "$*" >&2; exit 1; }
 [[ ${EUID} -eq 0 ]] || die 'Run this script as root.'
 [[ $# -le 1 ]] || die 'Usage: release.sh [SOURCE_DIR]'
-for command_name in tar flock find readlink; do
+for command_name in tar flock find readlink runuser; do
   command -v "$command_name" >/dev/null || die "Missing command: $command_name"
 done
+source_commit=${VANTIS_COMMIT:-}
+[[ -z "$source_commit" || "$source_commit" =~ ^[0-9a-fA-F]{40}$ ]] || die 'VANTIS_COMMIT must be a full 40-character Git commit SHA.'
 [[ -f /etc/vantis/node-path && ! -L /etc/vantis/node-path ]] || die 'Run deploy/install.sh first.'
 IFS= read -r node_bin < /etc/vantis/node-path
 [[ "$node_bin" == /* && -x "$node_bin" ]] || die 'The configured Node.js executable is unavailable.'
@@ -49,9 +51,15 @@ chown -R root:root "$stage_dir"
 find "$stage_dir" -type d -exec chmod 0755 {} +
 find "$stage_dir" -type f -exec chmod 0644 {} +
 chmod 0755 "$stage_dir"/deploy/*.sh
+if [[ -n "$source_commit" ]]; then
+  printf '%s\n' "${source_commit,,}" > "$stage_dir/.source-commit"
+  chmod 0644 "$stage_dir/.source-commit"
+fi
 
 # This loads the CLI and its imports without network access or state writes.
-"$node_bin" "$stage_dir/collector/run.mjs" --help >/dev/null
+runuser -u vantis -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+  HOME=/var/lib/vantis USER=vantis LOGNAME=vantis LANG=C.UTF-8 \
+  "$node_bin" "$stage_dir/collector/run.mjs" --help >/dev/null
 mv -- "$stage_dir" "$release_dir"
 ln -s -- "$release_dir" "$link_path"
 mv -Tf -- "$link_path" /opt/vantis/current
@@ -59,3 +67,4 @@ mv -Tf -- "$link_path" /opt/vantis/current
 # An active collector keeps using its existing release; the next run uses current.
 # No release/state/credential directories are deleted or overwritten here.
 printf 'Published release: %s\n' "$release_dir"
+[[ -z "$source_commit" ]] || printf 'Source commit: %s\n' "${source_commit,,}"
