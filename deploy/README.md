@@ -65,6 +65,8 @@ sudo bash /opt/vantis/deployment/release.sh /path/to/source
 
 定时器每小时整点执行，开机后补一次停机期间错过的任务。systemd 不会同时启动两个相同服务实例；采集程序也使用检查点锁。系统日志的跨重启保留策略沿用服务器现有 journald 配置。
 
+`vantis-collector.service` 与 `vantis-sync.service` 都是一次性任务（oneshot）。成功结束后显示 `inactive/dead` 属于正常状态；请同时检查 `Result=success`、`ExecMainStatus=0` 和定时器的下次执行时间。可用 `systemctl show vantis-collector.service vantis-sync.service -p Result -p ExecMainStatus` 查看上轮结果，用 `systemctl list-timers --all vantis-collector.timer vantis-sync.timer` 查看自动运行计划。
+
 不要给云效配置输出凭据的命令或 shell 跟踪模式。修改服务器配置无需重新发布代码。若更新部署工具或 systemd 单元，使用新工具包重新执行引导或安装脚本；普通 Git 同步只更新程序源码。需要停用定时采集时执行：
 
 ```sh
