@@ -9,7 +9,7 @@ die() { printf 'Sync failed: %s\n' "$*" >&2; exit 1; }
 for command_name in git curl tar timeout runuser find flock readlink mktemp; do
   command -v "$command_name" >/dev/null || die "Missing command: $command_name"
 done
-for managed_dir in /opt/vantis /opt/vantis/releases /etc/vantis /var/lib/vantis-sync; do
+for managed_dir in /opt/vantis /opt/vantis/releases /opt/vantis/deployment /etc/vantis /var/lib/vantis-sync; do
   [[ -d "$managed_dir" && ! -L "$managed_dir" ]] || die "Invalid managed directory: $managed_dir"
 done
 [[ -f /etc/vantis/node-path && ! -L /etc/vantis/node-path ]] || die 'The Node.js path file is unavailable.'
@@ -20,7 +20,8 @@ exec 6>/run/lock/vantis-sync.lock
 flock -n 6 || die 'Another synchronization is running.'
 current_dir=$(readlink -f /opt/vantis/current)
 [[ "$current_dir" == /opt/vantis/releases/* && -d "$current_dir" ]] || die 'Current release is outside the managed releases directory.'
-[[ -f "$current_dir/deploy/release.sh" && ! -L "$current_dir/deploy/release.sh" ]] || die 'The installed release script is unavailable.'
+release_script=/opt/vantis/deployment/release.sh
+[[ -f "$release_script" && ! -L "$release_script" ]] || die 'The independent release script is unavailable.'
 
 # Ignore user/system Git configuration and credential helpers. The source is a
 # fixed public HTTPS repository, so this check never needs credentials.
@@ -57,7 +58,7 @@ source_dir="$work_dir/source"
 mkdir -- "$source_dir"
 tar --extract --gzip --file "$work_dir/source.tar.gz" --directory "$source_dir" \
   --strip-components=1 --no-same-owner --no-same-permissions
-for source_file in package.json collector/run.mjs config/collection.json deploy/run.sh; do
+for source_file in package.json collector/run.mjs config/collection.json; do
   [[ -f "$source_dir/$source_file" ]] || die "Pinned source is missing: $source_file"
 done
 [[ -z $(find "$source_dir" -type l -print -quit) ]] || die 'Pinned source must not contain symbolic links.'
@@ -77,5 +78,5 @@ if ! (cd -- "$source_dir" && runuser -u vantis -- env -i PATH="$safe_path" \
 fi
 tail -n 10 "$work_dir/tests.log"
 # Use the installed root-owned release script, not a script from the download.
-VANTIS_COMMIT="$remote_commit" bash "$current_dir/deploy/release.sh" "$source_dir"
+VANTIS_COMMIT="$remote_commit" bash "$release_script" "$source_dir"
 printf 'Synchronized Git commit: %s\n' "$remote_commit"

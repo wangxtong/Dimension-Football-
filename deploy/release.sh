@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 027
 
 # Cloud Effect / Yunxiao host deployment command:
-# sudo bash /path/to/checked-out-source/deploy/release.sh /path/to/checked-out-source
+# sudo bash /opt/vantis/deployment/release.sh /path/to/checked-out-source
 # Run install.sh once before using this script. No credentials are accepted as arguments.
 die() { printf 'Release failed: %s\n' "$*" >&2; exit 1; }
 [[ ${EUID} -eq 0 ]] || die 'Run this script as root.'
@@ -20,7 +20,7 @@ node_major=$("$node_bin" -p 'Number(process.versions.node.split(".")[0])')
 [[ "$node_major" =~ ^[0-9]+$ ]] && (( node_major >= 24 )) || die 'Node.js 24 or later is required.'
 
 source_dir=$(cd -- "${1:-$(dirname -- "${BASH_SOURCE[0]}")/..}" && pwd -P)
-for source_file in package.json collector/run.mjs config/collection.json deploy/run.sh; do
+for source_file in package.json collector/run.mjs config/collection.json; do
   [[ -f "$source_dir/$source_file" ]] || die "Missing source file: $source_file"
 done
 
@@ -42,15 +42,15 @@ trap cleanup EXIT
 mkdir -- "$stage_dir"
 
 # Copy only runtime source, never the checkout's .git, root .env files, reports,
-# checkpoints or other workspace files. Tar does not print file contents or names.
+# checkpoints, deployment tools or other workspace files. Infrastructure lives
+# separately in /opt/vantis/deployment and is never replaced by a Git sync.
 tar -C "$source_dir" --exclude='.env' --exclude='.env.*' --exclude='node_modules' \
-  --exclude='*.log' -cf - -- collector config deploy package.json \
+  --exclude='*.log' -cf - -- collector config package.json \
   | tar -C "$stage_dir" --no-same-owner --no-same-permissions -xf -
 [[ -z $(find "$stage_dir" -type l -print -quit) ]] || die 'Runtime source must not contain symbolic links.'
 chown -R root:root "$stage_dir"
 find "$stage_dir" -type d -exec chmod 0755 {} +
 find "$stage_dir" -type f -exec chmod 0644 {} +
-chmod 0755 "$stage_dir"/deploy/*.sh
 if [[ -n "$source_commit" ]]; then
   printf '%s\n' "${source_commit,,}" > "$stage_dir/.source-commit"
   chmod 0644 "$stage_dir/.source-commit"

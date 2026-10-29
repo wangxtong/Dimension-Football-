@@ -8,13 +8,16 @@ die() { printf 'Install failed: %s\n' "$*" >&2; exit 1; }
 [[ ${EUID} -eq 0 ]] || die 'Run this script as root.'
 [[ $# -le 1 ]] || die 'Usage: install.sh [SOURCE_DIR]'
 [[ -d /run/systemd/system ]] || die 'This server must be running systemd.'
-for command_name in systemctl getent useradd install tar flock readlink runuser git curl timeout; do
+for command_name in systemctl getent useradd install tar flock readlink runuser git curl timeout sha256sum; do
   command -v "$command_name" >/dev/null || die "Missing command: $command_name"
 done
 
 source_dir=$(cd -- "${1:-$(dirname -- "${BASH_SOURCE[0]}")/..}" && pwd -P)
-for deployment_file in release.sh sync.sh vantis-collector.service vantis-collector.timer vantis-sync.service vantis-sync.timer; do
-  [[ -f "$source_dir/deploy/$deployment_file" ]] || die "Missing deployment file: $deployment_file"
+deployment_files=(bootstrap.sh install.sh release.sh run.sh sync.sh vantis-collector.service vantis-collector.timer vantis-sync.service vantis-sync.timer)
+[[ -d "$source_dir/deploy" && ! -L "$source_dir/deploy" ]] || die 'Deployment source must be a regular directory.'
+for deployment_file in "${deployment_files[@]}"; do
+  [[ -f "$source_dir/deploy/$deployment_file" && ! -L "$source_dir/deploy/$deployment_file" ]] \
+    || die "Missing regular deployment file: $deployment_file"
 done
 
 exec 8>/run/lock/vantis-install.lock
@@ -36,10 +39,10 @@ fi
 getent group vantis >/dev/null || die 'A group named vantis is required.'
 runuser -u vantis -- "$node_bin" --version >/dev/null || die 'The vantis user cannot execute this Node.js installation.'
 
-for managed_dir in /opt/vantis /opt/vantis/releases /etc/vantis /var/lib/vantis /var/lib/vantis/reports /var/lib/vantis-sync; do
+for managed_dir in /opt/vantis /opt/vantis/releases /opt/vantis/deployment /etc/vantis /var/lib/vantis /var/lib/vantis/reports /var/lib/vantis-sync; do
   [[ ! -L "$managed_dir" ]] || die "Managed directory must not be a symbolic link: $managed_dir"
 done
-install -d -o root -g root -m 0755 /opt/vantis /opt/vantis/releases
+install -d -o root -g root -m 0755 /opt/vantis /opt/vantis/releases /opt/vantis/deployment
 install -d -o root -g vantis -m 0750 /etc/vantis
 install -d -o vantis -g vantis -m 0750 /var/lib/vantis /var/lib/vantis/reports
 install -d -o root -g root -m 0755 /var/lib/vantis-sync
@@ -69,12 +72,28 @@ chown root:vantis "$node_path_tmp"
 chmod 0640 "$node_path_tmp"
 mv -T -- "$node_path_tmp" /etc/vantis/node-path
 
+# Infrastructure is maintained independently of the Git collector releases.
+# Replace each complete root-owned file atomically, including during upgrades.
+for deployment_file in "${deployment_files[@]}"; do
+  [[ ! -L "/opt/vantis/deployment/$deployment_file" ]] || die "Installed deployment tool must not be a symbolic link: $deployment_file"
+  tool_mode=0644
+  [[ "$deployment_file" != *.sh ]] || tool_mode=0755
+  tool_temp="/opt/vantis/deployment/.$deployment_file-$$"
+  install -o root -g root -m "$tool_mode" "$source_dir/deploy/$deployment_file" "$tool_temp"
+  mv -T -- "$tool_temp" "/opt/vantis/deployment/$deployment_file"
+done
+tooling_digest=$(cd -- "$source_dir/deploy" && sha256sum "${deployment_files[@]}" | sha256sum)
+tooling_digest=${tooling_digest%% *}
+printf '%s\n' "$tooling_digest" > "/opt/vantis/deployment/.tool-version-$$"
+chmod 0644 "/opt/vantis/deployment/.tool-version-$$"
+mv -T -- "/opt/vantis/deployment/.tool-version-$$" /opt/vantis/deployment/.tool-version
+
 install -o root -g root -m 0644 "$source_dir/deploy/vantis-collector.service" /etc/systemd/system/vantis-collector.service
 install -o root -g root -m 0644 "$source_dir/deploy/vantis-collector.timer" /etc/systemd/system/vantis-collector.timer
 install -o root -g root -m 0644 "$source_dir/deploy/vantis-sync.service" /etc/systemd/system/vantis-sync.service
 install -o root -g root -m 0644 "$source_dir/deploy/vantis-sync.timer" /etc/systemd/system/vantis-sync.timer
-bash "$source_dir/deploy/release.sh" "$source_dir"
 systemctl daemon-reload
+bash /opt/vantis/deployment/release.sh "$source_dir"
 systemctl enable --now vantis-collector.timer vantis-sync.timer
 
 printf '%s\n' \
@@ -83,4 +102,5 @@ printf '%s\n' \
   'Logs: journalctl -u vantis-collector.service -n 100 --no-pager' \
   'Schedule: systemctl list-timers vantis-collector.timer vantis-sync.timer' \
   'Git main is checked every two minutes; tested commits are published automatically.' \
-  'Sync logs: journalctl -u vantis-sync.service -n 100 --no-pager'
+  'Sync logs: journalctl -u vantis-sync.service -n 100 --no-pager' \
+  "Independent deployment-tool SHA256: $tooling_digest"

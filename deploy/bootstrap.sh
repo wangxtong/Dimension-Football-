@@ -3,13 +3,26 @@ set -Eeuo pipefail
 umask 027
 
 # Run on the target Linux host as root. The commit is mandatory and immutable.
-# Usage: bash bootstrap.sh <40-character-Git-commit>
+# Usage: bash bootstrap.sh <40-character-Git-commit> [--deployment-dir /absolute/tools-directory]
 # No credentials are downloaded, accepted as arguments, or written by this script.
 # Installation also enables public Git main polling every two minutes.
 die() { printf 'Bootstrap failed: %s\n' "$*" >&2; exit 1; }
 [[ ${EUID} -eq 0 ]] || die 'Run this script as root.'
-[[ $# -eq 1 && "$1" =~ ^[0-9a-fA-F]{40}$ ]] || die 'Supply one full 40-character Git commit SHA.'
+[[ $# -ge 1 && "$1" =~ ^[0-9a-fA-F]{40}$ ]] || die 'Supply one full 40-character Git commit SHA.'
 commit=${1,,}
+shift
+deployment_dir=''
+deployment_files=(bootstrap.sh install.sh release.sh run.sh sync.sh vantis-collector.service vantis-collector.timer vantis-sync.service vantis-sync.timer)
+if (( $# )); then
+  [[ $# -eq 2 && "$1" == --deployment-dir && "$2" == /* ]] \
+    || die 'Optional argument must be --deployment-dir followed by an absolute directory.'
+  [[ -d "$2" && ! -L "$2" ]] || die 'Deployment tool directory must be a real directory, not a symbolic link.'
+  deployment_dir=$(cd -- "$2" && pwd -P)
+  for deployment_file in "${deployment_files[@]}"; do
+    [[ -f "$deployment_dir/$deployment_file" && ! -L "$deployment_dir/$deployment_file" ]] \
+      || die "Missing regular deployment tool: $deployment_file"
+  done
+fi
 [[ $(uname -s) == Linux ]] || die 'This script supports Linux only.'
 [[ -d /run/systemd/system ]] || die 'This server must be running systemd.'
 case $(uname -m) in
@@ -106,6 +119,19 @@ source_dir="$work_dir/source"
 mkdir -- "$source_dir"
 tar --extract --gzip --file "$work_dir/source.tar.gz" --directory "$source_dir" \
   --strip-components=1 --no-same-owner --no-same-permissions
+if [[ -n "$deployment_dir" ]]; then
+  # The local bundle may supply newer infrastructure than the pinned collector.
+  # Only these fixed deployment filenames may be overlaid; collector is untouched.
+  [[ ! -L "$source_dir/deploy" ]] || die 'Pinned source deployment directory must not be a symbolic link.'
+  mkdir -p -- "$source_dir/deploy"
+  for deployment_file in "${deployment_files[@]}"; do
+    target_file="$source_dir/deploy/$deployment_file"
+    [[ ! -L "$target_file" && ( ! -e "$target_file" || -f "$target_file" ) ]] \
+      || die "Invalid pinned deployment target: $deployment_file"
+    install -m 0644 -- "$deployment_dir/$deployment_file" "$target_file"
+  done
+  printf '%s\n' 'Using a local deployment-tool bundle; the collector source commit is unchanged.'
+fi
 for source_file in package.json collector/run.mjs deploy/install.sh deploy/release.sh; do
   [[ -f "$source_dir/$source_file" ]] || die "The pinned source is missing: $source_file"
 done
