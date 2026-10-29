@@ -1,0 +1,230 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm, readFile, readdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { demoInput } from '../demo.mjs';
+import { DEFAULT_POLICY, fixtureKey } from '../policy.mjs';
+import { runCollection, safeDiagnostics } from '../pipeline.mjs';
+import { atomicJson, readState, acquireLock } from '../storage.mjs';
+
+const NOW = '2026-10-29T08:00:00.000Z';
+
+async function workspace(t) {
+  const directory = await mkdtemp(join(tmpdir(), 'dimension-football-test-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  return { directory, statePath: join(directory, 'state.json'), outDir: join(directory, 'reports') };
+}
+
+function syntheticInput(count = 1) {
+  const demo = demoInput(NOW);
+  const fixtures = demo.fixtures.slice(0, count).map((fixture, index) => ({ ...fixture, id: `fd-${index + 1}`, source: 'football-data' }));
+  const quotes = [], signals = [];
+  for (const fixture of fixtures) {
+    const fixtureSnapshot = Object.fromEntries(['id', 'league', 'home', 'away', 'kickoff', 'source'].map(key => [key, fixture[key]]));
+    quotes.push(...structuredClone(demo.evidence.quotes).map(row => ({ ...row, fixtureId: fixture.id, fixtureSnapshot })));
+    signals.push(...structuredClone(demo.evidence.signals).map(row => ({ ...row, fixtureId: fixture.id, fixtureSnapshot })));
+  }
+  return { fixtures, evidence: { quotes, signals, diagnostics: [] } };
+}
+
+function invocation(paths, input, extra = {}) {
+  return { ...paths, fixtures: input.fixtures, collectEvidence: async () => structuredClone(input.evidence),
+    clock: () => NOW, monotonic: () => 0, ...extra };
+}
+
+test('exhausted budget persists every fixture as pending and the next run resumes it', async t => {
+  const paths = await workspace(t), input = syntheticInput(3);
+  let tick = 0;
+  const first = await runCollection(invocation(paths, input, {
+    policy: { ...DEFAULT_POLICY, budgetMs: 100 }, monotonic: () => tick,
+    collectEvidence: async () => { tick = 100; return structuredClone(input.evidence); },
+  }));
+  assert.equal(first.report.status, 'partial');
+  assert.equal(first.report.summary.pending, 3);
+  assert.equal(first.report.summary.processed, 0);
+  const saved = await readState(paths.statePath, false);
+  assert.equal(saved.currentPool.length, 3);
+  assert.ok(Object.values(saved.entries).every(entry => entry.result.reasons.includes('BUDGET_EXHAUSTED')));
+  const second = await runCollection(invocation(paths, input, { policy: { ...DEFAULT_POLICY, budgetMs: 100 } }));
+  assert.equal(second.report.summary.pending, 0);
+  assert.equal(second.report.summary.processed, 3);
+  assert.equal(second.report.summary.candidates, 3);
+});
+
+test('an unchanged evidence checkpoint is reused on the next run', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  await runCollection(invocation(paths, input));
+  const resumed = await runCollection(invocation(paths, input));
+  assert.equal(resumed.report.summary.reused, 1);
+  assert.equal(resumed.report.summary.processed, 0);
+  assert.equal(resumed.report.summary.candidates, 1);
+  assert.equal((await readState(paths.statePath, false)).runs.length, 2);
+});
+
+test('refreshing fixture updatedAt does not starve previously pending fixtures on a small budget', async t => {
+  const paths = await workspace(t), input = syntheticInput(3);
+  const policy = { ...DEFAULT_POLICY, budgetMs: 100 };
+  async function oneFixtureRun(nowISO) {
+    let tick = 0;
+    const refreshed = { ...input, fixtures: input.fixtures.map(fixture => ({ ...fixture, updatedAt: nowISO })) };
+    return runCollection(invocation(paths, refreshed, { policy, monotonic: () => tick, clock: () => nowISO,
+      checkpoint: async (path, state) => {
+        await atomicJson(path, state);
+        if (Object.values(state.entries).some(entry => entry.checkedAt === nowISO)) tick = 100;
+      },
+    }));
+  }
+  const first = await oneFixtureRun(NOW);
+  assert.equal(first.report.summary.processed, 1);
+  assert.equal(first.report.summary.pending, 2);
+  const next = new Date(Date.parse(NOW) + 1000).toISOString();
+  const second = await oneFixtureRun(next);
+  assert.equal(second.report.summary.processed, 1);
+  const rows = new Map(second.report.results.map(row => [row.fixture.id, row]));
+  assert.equal(rows.get('fd-1').checkedAt, NOW);
+  assert.equal(rows.get('fd-2').checkedAt, next);
+});
+
+test('a candidate that expires before report completion is removed from the published report', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  let clockCalls = 0, hadCandidateCheckpoint = false;
+  const expired = new Date(Date.parse(NOW) + 300_001).toISOString();
+  const result = await runCollection(invocation(paths, input, {
+    clock: () => ++clockCalls >= 4 ? expired : NOW,
+    checkpoint: async (path, state) => {
+      hadCandidateCheckpoint ||= Object.values(state.entries).some(entry => entry.result.status === 'candidate');
+      await atomicJson(path, state);
+    },
+  }));
+  assert.equal(hadCandidateCheckpoint, true);
+  assert.equal(result.report.summary.candidates, 0);
+  assert.deepEqual(result.report.candidates, []);
+  assert.equal(result.report.results[0].result.status, 'source_insufficient');
+  assert.equal(JSON.parse(await readFile(join(paths.outDir, 'latest.json'), 'utf8')).summary.candidates, 0);
+});
+
+test('an interrupted checkpoint does not discard earlier persisted progress and releases its lock', async t => {
+  const paths = await workspace(t), input = syntheticInput(3);
+  let checkpoints = 0;
+  await assert.rejects(runCollection(invocation(paths, input, {
+    checkpoint: async (path, state) => {
+      if (++checkpoints === 3) throw new Error('simulated disk interruption');
+      await atomicJson(path, state);
+    },
+  })), /simulated disk interruption/);
+  const persisted = await readState(paths.statePath, false);
+  assert.equal(persisted.entries[fixtureKey(input.fixtures[0])].result.status, 'candidate');
+  assert.equal(persisted.entries[fixtureKey(input.fixtures[1])].result.status, 'pending');
+  assert.ok(!(await readdir(paths.directory)).some(name => name.endsWith('.lock')));
+  const resumed = await runCollection(invocation(paths, input));
+  assert.equal(resumed.report.summary.reused, 1);
+  assert.equal(resumed.report.summary.processed, 2);
+  assert.equal(resumed.report.summary.candidates, 3);
+});
+
+test('source exceptions are explicit failures and never expose thrown credentials', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  const secret = 'api-secret-do-not-persist';
+  const result = await runCollection(invocation(paths, input, {
+    collectEvidence: async () => { throw new Error(`Bearer ${secret} https://private.example/?token=${secret}`); },
+  }));
+  assert.equal(result.report.status, 'failed');
+  assert.equal(result.report.summary.candidates, 0);
+  assert.equal(result.report.diagnostics[0].code, 'SOURCE_COLLECTION_FAILED');
+  for (const file of [paths.statePath, result.files.jsonPath, result.files.briefPath, result.files.messagePath]) {
+    assert.ok(!(await readFile(file, 'utf8')).includes(secret));
+  }
+});
+
+test('valid observations are retained for source-insufficient fixtures without persisting raw source bodies', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  const secret = 'raw-source-secret-never-store';
+  input.evidence.quotes = input.evidence.quotes.filter(row => row.sourceId === 'titan007')
+    .map(row => ({ ...row, opening: undefined, rawBody: secret, authorization: secret }));
+  input.evidence.signals = input.evidence.signals.map(row => ({ ...row, headers: { authorization: secret }, rawBody: secret }));
+  input.evidence.quotes.push({ ...input.evidence.quotes[0], bookmaker: secret, validUntil: NOW });
+  input.evidence.signals.push({ ...input.evidence.signals[0], evidenceUrl: `https://www.statarea.com/?token=${secret}` });
+  const result = await runCollection(invocation(paths, input));
+  assert.equal(result.report.results[0].result.status, 'source_insufficient');
+  const saved = await readState(paths.statePath, false);
+  const observations = saved.entries[fixtureKey(input.fixtures[0])].lastEvidence;
+  assert.equal(observations.quotes.length, 2);
+  assert.equal(observations.signals.length, 1);
+  assert.equal(observations.observedAt, NOW);
+  assert.equal(observations.signals[0].probability, .6);
+  assert.equal(JSON.stringify(saved).includes(secret), false);
+  assert.equal(JSON.stringify(result.report).includes(secret), false);
+});
+
+test('budget-pending fixtures keep their last observations while a completed failed refresh records no new evidence', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  await runCollection(invocation(paths, input));
+  const key = fixtureKey(input.fixtures[0]);
+  const previous = (await readState(paths.statePath, false)).entries[key].lastEvidence;
+  const controller = new AbortController();
+  controller.abort();
+  await runCollection(invocation(paths, input, { signal: controller.signal }));
+  const pending = (await readState(paths.statePath, false)).entries[key];
+  assert.equal(pending.result.status, 'pending');
+  assert.deepEqual(pending.lastEvidence, previous);
+  const failed = await runCollection(invocation(paths, input, {
+    collectEvidence: async () => { throw new Error('network unavailable'); },
+  }));
+  assert.equal(failed.report.status, 'failed');
+  const refreshed = (await readState(paths.statePath, false)).entries[key];
+  assert.equal(refreshed.result.status, 'source_insufficient');
+  assert.deepEqual(refreshed.lastEvidence.quotes, []);
+  assert.deepEqual(refreshed.lastEvidence.signals, []);
+});
+
+test('a cancelled run writes a resumable pending checkpoint without starting collection', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  const controller = new AbortController();
+  controller.abort();
+  let calls = 0;
+  const result = await runCollection(invocation(paths, input, { signal: controller.signal,
+    collectEvidence: async () => { calls++; return structuredClone(input.evidence); },
+  }));
+  assert.equal(calls, 0);
+  assert.equal(result.report.status, 'partial');
+  assert.equal(result.report.summary.pending, 1);
+  assert.equal(result.report.summary.processed, 0);
+  assert.equal(Object.values((await readState(paths.statePath, false)).entries)[0].result.status, 'pending');
+});
+
+test('diagnostics discard bodies, headers, URL tokens and unstructured provider error messages', () => {
+  const secret = 'top-secret-do-not-persist';
+  const result = safeDiagnostics([{ id: 'provider', status: 'failed',
+    code: `request failed: https://private.example/?token=${secret}`, checkedAt: NOW,
+    headers: { authorization: secret }, body: secret, error: secret, matchedCount: 0 }]);
+  assert.equal(result[0].code, 'SOURCE_STATUS_UNKNOWN');
+  assert.equal(JSON.stringify(result).includes(secret), false);
+  for (const key of ['headers', 'body', 'error']) assert.equal(Object.hasOwn(result[0], key), false);
+});
+
+test('demo state cannot be reused for production, including with an explicit shared state path', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  const demo = await runCollection(invocation(paths, input, { simulated: true }));
+  assert.equal(demo.report.summary.candidates, 0);
+  assert.equal(demo.report.summary.simulatedCandidates, 1);
+  await assert.rejects(runCollection(invocation(paths, input)), { message: 'STATE_INVALID_OR_MODE_MISMATCH' });
+  assert.equal((await readState(paths.statePath, true)).simulated, true);
+});
+
+test('production refuses example fixtures before collecting evidence', async t => {
+  const paths = await workspace(t), demo = demoInput(NOW);
+  let calls = 0;
+  await assert.rejects(runCollection({ ...paths, fixtures: demo.fixtures, clock: () => NOW,
+    collectEvidence: async () => { calls++; return demo.evidence; } }), { message: 'EXAMPLE_FIXTURES_REQUIRE_DEMO' });
+  assert.equal(calls, 0);
+});
+
+test('state lock prevents overlapping collectors and release allows another run', async t => {
+  const paths = await workspace(t);
+  const release = await acquireLock(paths.statePath);
+  try { await assert.rejects(acquireLock(paths.statePath), { message: 'COLLECTION_ALREADY_LOCKED' }); }
+  finally { await release(); }
+  const releaseAgain = await acquireLock(paths.statePath);
+  await releaseAgain();
+});

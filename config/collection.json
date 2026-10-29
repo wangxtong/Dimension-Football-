@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "timezone": "Asia/Shanghai",
+  "intervalMinutes": 60,
+  "days": 7,
+  "budgetMs": 1200000,
+  "maxFixtures": 3000,
+  "maxFixtureAgeMs": 86400000,
+  "maxQuoteAgeMs": 300000,
+  "maxSignalAgeMs": 21600000,
+  "priceMin": 1.65,
+  "priceMax": 1.95,
+  "maxAbsHandicap": 1,
+  "maxPriceMovement": 0.15,
+  "minimumQuoteGroups": 2,
+  "requireOpening": true
+}

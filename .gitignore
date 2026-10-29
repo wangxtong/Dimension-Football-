@@ -1,0 +1,17 @@
+# Existing website checkout and personal previews are separate from this project.
+/pitchsignal/
+/*.png
+/*.jpg
+/*.tar.gz
+/verify-platform.mjs
+node_modules/
+.env
+.env.*
+!.env.example
+runtime-secrets*.json
+.collection-state/
+.collection-state-demo/
+reports/
+coverage/
+artifacts/
+*.log

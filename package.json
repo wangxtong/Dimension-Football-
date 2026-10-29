@@ -1,0 +1,13 @@
+{
+  "name": "dimension-football-collection",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "collect": "node collector/run.mjs",
+    "collect:demo": "node collector/run.mjs --demo",
+    "test": "node --test collector/test/*.test.mjs collector/sources/test/*.test.mjs",
+    "check": "node --check collector/run.mjs"
+  }
+}

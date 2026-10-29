@@ -1,0 +1,15 @@
+{
+  "description": "仅为输入格式示例，球队为虚构，日期和updatedAt必须替换成真实已核验数据。此文件不能作为生产赛程。",
+  "fixtures": [
+    {
+      "id": "example-fixture",
+      "league": "PL",
+      "home": "Example Home",
+      "away": "Example Away",
+      "kickoff": "2026-10-30T19:00:00Z",
+      "status": "SCHEDULED",
+      "source": "owner-supplied-example",
+      "updatedAt": "2026-10-29T08:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+name: 维度足球长期采集
+
+on:
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: "离线模拟（报告会明确标记模拟，不产生正式候选）"
+        type: boolean
+        required: false
+        default: false
+  # GitHub 未指定 timezone 时使用 UTC；每小时整点也对应北京时间每小时整点。
+  schedule:
+    - cron: "0 * * * *"
+
+permissions:
+  contents: read
+
+# 正在运行的一轮不被后一轮取消；同组最多一轮执行，避免检查点竞争。
+concurrency:
+  group: dimension-football-collection
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    # 默认只开放手动执行；显式开启仓库变量后才运行定时采集。
+    if: github.event_name == 'workflow_dispatch' || vars.VANTIS_COLLECTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      COLLECTION_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.demo && 'demo' || 'production' }}
+      STATE_DIR: ${{ github.event_name == 'workflow_dispatch' && inputs.demo && '.collection-state-demo' || '.collection-state' }}
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: 使用 Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: 恢复采集检查点
+        id: restore-state
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.STATE_DIR }}/state.json
+          # cache 不可覆盖；每次执行及重新执行均创建独立条目。
+          key: collection-v1-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            collection-v1-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-
+
+      - name: 执行一轮正式采集（最多 20 分钟）
+        if: env.COLLECTION_MODE == 'production'
+        env:
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+          FIXTURES_FILE: ${{ vars.FIXTURES_FILE }}
+        shell: bash
+        run: npm run collect -- --state "$STATE_DIR/state.json" --out reports --budget-minutes 20
+
+      - name: 执行一轮离线模拟（不注入生产密钥）
+        if: env.COLLECTION_MODE == 'demo'
+        shell: bash
+        run: npm run collect -- --demo --state "$STATE_DIR/state.json" --out reports --budget-minutes 20
+
+      - name: 保存最新检查点（采集失败时也尝试保存）
+        if: always() && hashFiles(format('{0}/state.json', env.STATE_DIR)) != ''
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.STATE_DIR }}/state.json
+          key: collection-v1-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: 保留本轮报告
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: collection-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
