@@ -2,6 +2,7 @@ import {fetchMarketSourceAudit} from './market-sources.mjs';
 import {fetchPredictionSignals} from './signals.mjs';
 
 export {fetchFootballFixtures, fixtureLeagues} from './fixtures.mjs';
+export {fetchApiFootballFixtures, apiFootballLeagues} from './api-football.mjs';
 
 export const sourceCapabilities = Object.freeze({
   titan007: '读取球探公开 M88、12Bet、SBOBET 的赛前全场亚洲盘。三家公司共享球探采集渠道，独立来源组均为 titan007；不含皇冠。',

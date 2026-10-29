@@ -55,6 +55,8 @@ jobs:
         if: env.COLLECTION_MODE == 'production'
         env:
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+          FOOTBALL_DATA_API_TOKEN: ${{ secrets.FOOTBALL_DATA_API_TOKEN }}
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
           FIXTURES_FILE: ${{ vars.FIXTURES_FILE }}
         shell: bash
         run: npm run collect -- --state "$STATE_DIR/state.json" --out reports --budget-minutes 20

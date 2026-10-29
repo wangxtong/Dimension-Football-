@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { readJson } from './storage.mjs';
 import { readPolicy, DEFAULT_POLICY, isoMillis } from './policy.mjs';
 import { runCollection } from './pipeline.mjs';
-import { collectPublicEvidence, fetchFootballFixtures } from './sources/index.mjs';
+import { collectPublicEvidence, fetchFootballFixtures, fetchApiFootballFixtures } from './sources/index.mjs';
 import { demoInput } from './demo.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -20,7 +20,8 @@ const HELP = `维度足球长期公开信息采集（Node.js 24+）
   --demo                   无网络模拟，使用独立检查点，生产候选始终为0
   --help                   显示帮助
 
-不指定 --input 时，使用环境变量 FOOTBALL_DATA_API_KEY 读取官方五大联赛赛程。
+不指定赛程文件时，优先使用 FOOTBALL_DATA_API_KEY（别名 FOOTBALL_DATA_API_TOKEN）；
+未配置时使用 API_FOOTBALL_KEY，分别连接 football-data.org 与 API-Football 官方接口。
 程序不需要 OpenAI API，不发送 Telegram，不调用旧站点写接口或任何下注接口。
 `;
 
@@ -82,8 +83,11 @@ export async function runCli(argv, {
     poolComplete = false; // The size of a supplied pool says nothing about global/site coverage.
     fixtureDiagnostics = [{ id: 'owner-fixtures', status: 'available', code: 'INPUT_POOL_ONLY', checkedAt: nowISO, matchedCount: fixtures.length }];
   } else {
-    if (typeof env.FOOTBALL_DATA_API_KEY !== 'string' || !env.FOOTBALL_DATA_API_KEY.trim()) throw new Error('FOOTBALL_DATA_API_KEY_OR_INPUT_REQUIRED');
-    const result = await fetchFootballFixtures({ apiKey: env.FOOTBALL_DATA_API_KEY, nowISO, days: policy.days, fetchImpl: boundedFetch() });
+    const footballDataKey = [env.FOOTBALL_DATA_API_KEY, env.FOOTBALL_DATA_API_TOKEN].find(value => typeof value === 'string' && value.trim());
+    const apiFootballKey = typeof env.API_FOOTBALL_KEY === 'string' && env.API_FOOTBALL_KEY.trim() ? env.API_FOOTBALL_KEY : null;
+    if (!footballDataKey && !apiFootballKey) throw new Error('FIXTURE_API_KEY_OR_INPUT_REQUIRED');
+    const fetchFixtures = footballDataKey ? fetchFootballFixtures : fetchApiFootballFixtures;
+    const result = await fetchFixtures({ apiKey: footballDataKey || apiFootballKey, nowISO, days: policy.days, fetchImpl: boundedFetch() });
     fixtures = result.fixtures;
     fixtureDiagnostics = result.diagnostics;
     poolComplete = fixtureDiagnostics.length === 5 && fixtureDiagnostics.every(source => ['available', 'complete'].includes(source.status));
@@ -104,7 +108,7 @@ export async function runCli(argv, {
 export const SAFE_ERRORS = new Set(['INVALID_POLICY', 'FIXTURE_POOL_INVALID_OR_TOO_LARGE', 'INVALID_FIXTURE', 'CONFLICTING_FIXTURE_ID',
   'INVALID_NOW', 'JSON_FILE_TOO_LARGE', 'COLLECTION_ALREADY_LOCKED', 'STATE_UNREADABLE', 'STATE_INVALID_OR_MODE_MISMATCH',
   'DUPLICATE_ARGUMENT', 'UNKNOWN_ARGUMENT', 'INVALID_ARGUMENT', 'CONFLICTING_ARGUMENTS', 'INVALID_BUDGET', 'INVALID_EVIDENCE_FILE',
-  'INVALID_FIXTURE_FILE', 'FOOTBALL_DATA_API_KEY_OR_INPUT_REQUIRED', 'EXAMPLE_FIXTURES_REQUIRE_DEMO']);
+  'INVALID_FIXTURE_FILE', 'FIXTURE_API_KEY_OR_INPUT_REQUIRED', 'EXAMPLE_FIXTURES_REQUIRE_DEMO']);
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const controller = new AbortController(), stop = () => controller.abort();

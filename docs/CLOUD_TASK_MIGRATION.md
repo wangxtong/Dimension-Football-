@@ -15,7 +15,7 @@
 npm test
 npm run collect -- --demo
 
-# 生产：通过环境注入 FOOTBALL_DATA_API_KEY
+# 生产：注入 FOOTBALL_DATA_API_KEY（或别名 FOOTBALL_DATA_API_TOKEN），也可改用 API_FOOTBALL_KEY
 npm run collect -- --state .collection-state/state.json --out reports --budget-minutes 20
 
 # 生产：读取自行维护的真实赛程文件
@@ -25,6 +25,8 @@ npm run collect -- --input /srv/dimension-football/fixtures.json --state /srv/di
 | 配置 | 用途 |
 | --- | --- |
 | `FOOTBALL_DATA_API_KEY` | football-data.org 官方 API token；仅通过请求头传入官方 API 主机 |
+| `FOOTBALL_DATA_API_TOKEN` | 上一项的别名；同一家 `KEY` 优先于 `TOKEN` |
+| `API_FOOTBALL_KEY` | API-Football / API-Sports 直连 token；仅当未配置 football-data.org 凭据时使用，不支持将 RapidAPI token 混用 |
 | `FIXTURES_FILE` / `--input FILE` | 改用本地真实赛程文件；数据维护方负责按时更新 |
 | `--config FILE` | 读取运行策略 JSON；默认 `config/collection.json` |
 | `--state FILE` | 检查点路径；生产默认 `.collection-state/state.json`，模拟默认 `.collection-state-demo/state.json` |
@@ -34,6 +36,22 @@ npm run collect -- --input /srv/dimension-football/fixtures.json --state /srv/di
 | `--evidence FILE --accept-reviewed-evidence` | 显式导入已人工核验的结构化证据；启用标志不是真实性证明 |
 
 不要在代码、报告、赛程或检查点中保存密钥。工作流将密钥限制在生产执行步骤的环境中，不打印环境变量或请求头。
+
+赛程选择顺序为 `--input`、`FIXTURES_FILE`、`FOOTBALL_DATA_API_KEY`、`FOOTBALL_DATA_API_TOKEN`、`API_FOOTBALL_KEY`；`--demo` 始终离线且忽略环境中的凭据。所选 API 失败不会自动向另一家发送请求。更换提供方会改变比赛 ID 和来源，检查点不会把旧服务的证据直接复用到新身份。
+
+服务器环境文件示例（只填写一种凭据的真实值，文件置于仓库外并限制为运行用户可读）：
+
+```dotenv
+FOOTBALL_DATA_API_TOKEN=YOUR_FOOTBALL_DATA_TOKEN
+```
+
+配置每小时执行以下命令，确保 Node.js 24 可在调度器的 PATH 中找到，并确保运行用户可写状态与报告目录：
+
+```sh
+cd /opt/vantis && node --env-file=/etc/vantis/collector.env collector/run.mjs --state /var/lib/vantis/state.json --out /var/lib/vantis/reports --budget-minutes 20
+```
+
+环境文件须通过 `--env-file` 显式加载。只在云效流水线中设置变量不会让服务器后续的 Cron 任务继承它。API-Football 每轮固定五次赛程请求，每小时约 120 次/天；套餐配额、`next` 参数和赛季权限不足会记录诊断，不会改用模拟数据。
 
 ## 赛程文件
 
@@ -65,6 +83,7 @@ npm run collect -- --input /srv/dimension-football/fixtures.json --state /srv/di
 | 来源 | 输出 | 没有实现的能力 |
 | --- | --- | --- |
 | football-data.org | 五大联赛未来赛前赛程 | 盘口、预测 |
+| API-Football / API-Sports | 五大联赛未来赛前赛程，可替代上一项 | 尚未接入该服务的盘口、预测等其他接口 |
 | 球探 titan007 | M88、12Bet、SBOBET 赛前全场亚洲盘快照，身份及时效核验 | 第二个独立网站来源、完整可核实初盘轨迹 |
 | Statarea | 已发布页面、严格匹配场次的 1X2 信号 | 亚洲盘赢盘概率、任意未来日期完整覆盖 |
 | 天天盈球 | 免费赛前列表的诊断 | 未核实的列表内容不会生成预测信号 |
@@ -79,7 +98,7 @@ npm run collect -- --input /srv/dimension-football/fixtures.json --state /srv/di
 ## GitHub Actions 上线与切换
 
 1. 把项目文件推送到仓库默认分支，启用 GitHub Actions。
-2. 添加仓库 Secret `FOOTBALL_DATA_API_KEY`；或添加 Variable `FIXTURES_FILE` 指向已纳入仓库且会持续更新的真实赛程 JSON。
+2. 添加一种赛程服务的仓库 Secret：`FOOTBALL_DATA_API_KEY` / `FOOTBALL_DATA_API_TOKEN`，或 `API_FOOTBALL_KEY`；也可添加 Variable `FIXTURES_FILE` 指向已纳入仓库且会持续更新的真实赛程 JSON。
 3. 手动运行工作流，先选择 `demo: true`，检查 artifact 中报告确实标记模拟；再用 `demo: false` 确认真实数据源覆盖、错误及缺失项。
 4. 确认新任务输出可以接受后，停用旧云端长期采集计划，避免两边继续重复采集。不要因此停用既有自动发布计划，除非另行决定。
 5. 将仓库 Variable `VANTIS_COLLECTION_ENABLED` 设为字符串 `true` 开启每小时调度。删除它或设为其他值会跳过计划运行；手动运行不受此开关限制。

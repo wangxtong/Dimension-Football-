@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Dimension Football collector every hour
+
+[Timer]
+OnCalendar=*-*-* *:00:00
+Persistent=true
+AccuracySec=30s
+Unit=vantis-collector.service
+
+[Install]
+WantedBy=timers.target

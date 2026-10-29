@@ -1,0 +1,33 @@
+[Unit]
+Description=Dimension Football hourly collector
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=vantis
+Group=vantis
+WorkingDirectory=/var/lib/vantis
+ExecStart=/opt/vantis/current/deploy/run.sh
+TimeoutStartSec=23min
+TimeoutStopSec=45s
+KillSignal=SIGTERM
+UMask=0027
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vantis-collector
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/vantis
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# systemd never starts a second copy while this oneshot is active. The collector
+# also holds its own checkpoint lock to protect against separate manual runs.

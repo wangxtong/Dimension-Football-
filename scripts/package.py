@@ -4,7 +4,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 root = Path(__file__).resolve().parents[1]
 files = [root / name for name in ("package.json", "README.md", ".gitignore", ".gitattributes", ".env.example")]
-for name in (".github", "collector", "config", "docs", "examples", "scripts"):
+for name in (".github", "collector", "config", "deploy", "docs", "examples", "scripts"):
     files.extend(path for path in (root / name).rglob("*") if path.is_file() and "__pycache__" not in path.parts)
 
 for path in files:
