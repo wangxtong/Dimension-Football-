@@ -82,21 +82,46 @@ function marketSourcePrices(text){
 }
 function marketSourceQuote(fixture,events,prices,source,priceData,scheduleData,now){
   const kickoff=Date.parse(fixture.kickoff);
-  const candidates=events.filter(row=>row[2]===marketSourceLeagueNames[fixture.league]&&marketSourceName(row[5])===marketSourceName(fixture.home)
-    &&marketSourceName(row[8])===marketSourceName(fixture.away)&&Math.abs(marketSourceKickoff(row)-kickoff)<=300000);
-  if(candidates.length!==1||candidates[0][13]!=='0'||marketSourceKickoff(candidates[0])<=now)return null;
-  const id=candidates[0][0],rows=prices.get(id)||[];if(rows.length!==1)return null;const row=rows[0];
-  if(row.length<19||!['0','1'].includes(row[13])||row[14]!=='0'||!/^\d{1,20}$/.test(row[1]))return null;
+  const leagueCandidates=events.filter(row=>row[2]===marketSourceLeagueNames[fixture.league]);
+  const teamCandidates=leagueCandidates.filter(row=>marketSourceName(row[5])===marketSourceName(fixture.home)&&marketSourceName(row[8])===marketSourceName(fixture.away));
+  const candidates=teamCandidates.filter(row=>Math.abs(marketSourceKickoff(row)-kickoff)<=300000);
+  const counts={leagueCandidateCount:leagueCandidates.length,teamCandidateCount:teamCandidates.length,scheduleCandidateCount:candidates.length,marketRowCount:0};
+  const rejected=note=>({quote:null,note,...counts});
+  if(!candidates.length)return rejected('fixture_identity_unmatched');
+  if(candidates.length!==1)return rejected('fixture_identity_ambiguous');
+  if(candidates[0][13]!=='0'||marketSourceKickoff(candidates[0])<=now)return rejected('not_prematch');
+  const id=candidates[0][0],rows=prices.get(id)||[];counts.marketRowCount=rows.length;
+  if(!rows.length)return rejected('market_not_published');
+  if(rows.length!==1)return rejected('market_ambiguous');const row=rows[0];
+  if(row.length<19||!['0','1'].includes(row[13])||row[14]!=='0'||!/^\d{1,20}$/.test(row[1]))return rejected('invalid_market_fields');
+  if(!row[3]?.trim()||!row[4]?.trim())return rejected('incomplete_market');
   const values=[row[2],row[3],row[4]].map(value=>/^-?\d+(?:\.\d+)?$/.test(value||'')?Number(value):NaN),[line,home,away]=values;
-  if(!Number.isFinite(line)||Math.abs(line)>10||!Number.isInteger(line*4)||![home,away].every(value=>Number.isFinite(value)&&value>0&&value<=20))return null;
+  if(!Number.isFinite(line)||Math.abs(line)>10||!Number.isInteger(line*4)||![home,away].every(value=>Number.isFinite(value)&&value>0&&value<=20))return rejected('invalid_market_fields');
   const observedAt=new Date(now).toISOString(),base={bookmaker:source.bookmaker,companyId:source.companyId,source:'titan007-public-market',
     sourceUrl:`https://live.titan007.com/index2in1.aspx?id=${source.companyId}`,sourceLabel:`${source.name}（球探公开指数）`,providerMatchId:id,
     observedAt,sourceUpdatedAt:priceData.sourceUpdatedAt,market:'asian-handicap',period:'full-time'};
-  return {...base,sourceId:source.id,provider:'titan007-public-market',scheduleUpdatedAt:scheduleData.sourceUpdatedAt,
+  const quote={...base,sourceId:source.id,provider:'titan007-public-market',scheduleUpdatedAt:scheduleData.sourceUpdatedAt,
     fixtureSnapshot:{id:fixture.id,home:fixture.home,away:fixture.away,league:fixture.league,kickoff:fixture.kickoff,source:fixture.source},
     validUntil:new Date(Math.min(now+300000,Date.parse(priceData.sourceUpdatedAt)+300000,kickoff)).toISOString(),maintenance:false,inPlay:false,closed:false,
     quotes:[{...base,selection:'home',handicap:line===0?0:-line,decimalOdds:Number((1+home).toFixed(4))},
       {...base,selection:'away',handicap:line===0?0:line,decimalOdds:Number((1+away).toFixed(4))}]};
+  if(Date.parse(quote.validUntil)<=now)return rejected('quote_expired');
+  if(!isMarketQuoteCurrent(quote,fixture,new Date(now).toISOString()))return rejected('quote_validation_failed');
+  return {quote,note:'matched',...counts};
+}
+
+function marketSourceFixtureDiagnostic(fixture,source,checkedAt,details={}){
+  const {note='fixture_ineligible',status='pending',...rest}=details;
+  return {fixtureId:typeof fixture?.id==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(fixture.id)?fixture.id:null,
+    id:source.id,sourceId:'titan007',bookmaker:source.bookmaker,companyId:source.companyId,checkedAt,
+    status,note,code:note,httpStatus:null,sourceUpdatedAt:null,scheduleUpdatedAt:null,
+    leagueCandidateCount:null,teamCandidateCount:null,scheduleCandidateCount:null,marketRowCount:null,matchedCount:0,...rest};
+}
+
+function marketSourceScheduleCoverage(events=[]){
+  const times=events.map(marketSourceKickoff).filter(Number.isFinite);
+  return {scheduleParsedCount:events.length,scheduleCoverageFrom:times.length?new Date(Math.min(...times)).toISOString():null,
+    scheduleCoverageTo:times.length?new Date(Math.max(...times)).toISOString():null};
 }
 
 export function isMarketQuoteCurrent(quote,fixture,nowISO=new Date().toISOString()){
@@ -119,32 +144,43 @@ export async function fetchMarketSourceAudit({fixtures=[],fetchImpl=fetch,nowISO
   const now=Date.parse(nowISO);
   if(!Array.isArray(fixtures)||fixtures.length>3000||!Number.isFinite(now)||typeof fetchImpl!=='function')throw new TypeError('Invalid market source request');
   const checkedAt=new Date(now).toISOString(),eligible=fixtures.filter(f=>marketSourceFixtureAllowed(f,now));
-  const sources=[],quotes=[];
+  const sources=[],quotes=[],fixtureDiagnostics=[];
   const pending=[
     {id:'singbet',name:'Singbet',url:'https://ac88dev.atlassian.net/wiki/spaces/AWA/pages/542900336/4.3.+GetMatches'},
     {id:'ibc',name:'IBC Sports',url:'https://ac88dev.atlassian.net/wiki/spaces/AWA/pages/542900336/4.3.+GetMatches'},
   ].map(source=>({...source,status:'unavailable',note:'authorization_required',reason:'已核实 Asianodds 文档提供该公司，但 GetMatches 明确要求登录生成的 AOToken；当前没有获授权的账号令牌，未发现可核实的匿名赔率源。',
     action:'需获授权的账号令牌，并复核该账号的公司可用状态；当前使用已取得的真实公开报价。',checkedAt,checkType:'configuration',evidence:[source.url,'https://ac88dev.atlassian.net/wiki/spaces/AWA/pages/352157793/3.3.+GetBookies'],matchedCount:0,parsedCount:0}));
-  if(!eligible.length)return {quotes,sources:[...marketSourceRegistry.map(source=>({...source,status:'pending',note:'no_eligible_fixtures',reason:'当前没有可严格匹配的未开赛五大联赛场次。',action:'出现覆盖范围内的未开赛比赛后自动获取。',checkedAt,matchedCount:0,parsedCount:0,evidence:marketSourceEvidence})),...pending],checkedAt};
+  if(!eligible.length)return {quotes,fixtureDiagnostics:marketSourceRegistry.flatMap(source=>fixtures.map(fixture=>marketSourceFixtureDiagnostic(fixture,source,checkedAt))),sources:[...marketSourceRegistry.map(source=>({...source,status:'pending',note:'no_eligible_fixtures',reason:'当前没有可严格匹配的未开赛五大联赛场次。',action:'出现覆盖范围内的未开赛比赛后自动获取。',checkedAt,matchedCount:0,parsedCount:0,requestedFixtureCount:fixtures.length,eligibleFixtureCount:0,unmatchedFixtureCount:0,scheduleUpdatedAt:null,...marketSourceScheduleCoverage(),evidence:marketSourceEvidence})),...pending],checkedAt};
   const results=await Promise.allSettled([marketSourceRead('bfdata_ut.js',17,fetchImpl,now),...marketSourceRegistry.map(source=>marketSourceRead(`goal${source.companyId}.xml`,source.companyId,fetchImpl,now))]);
   let events,scheduleError;
   try{if(results[0].status!=='fulfilled')throw results[0].reason;events=marketSourceSchedule(results[0].value.text);}catch(error){scheduleError=error;}
   for(let i=0;i<marketSourceRegistry.length;i++){
     const source=marketSourceRegistry[i],result=results[i+1],url=`https://live.titan007.com/index2in1.aspx?id=${source.companyId}`;
-    const common={...source,url,checkedAt,checkType:'live-feed',evidence:marketSourceEvidence,feedUrl:`https://livestatic.titan007.com/vbsxml/goal${source.companyId}.xml`};
+    const sourceUpdatedAt=result.status==='fulfilled'?result.value.sourceUpdatedAt:null;
+    const common={...source,url,checkedAt,checkType:'live-feed',evidence:marketSourceEvidence,feedUrl:`https://livestatic.titan007.com/vbsxml/goal${source.companyId}.xml`,
+      requestedFixtureCount:fixtures.length,eligibleFixtureCount:eligible.length,sourceUpdatedAt,
+      scheduleUpdatedAt:events?results[0].value.sourceUpdatedAt:null,...marketSourceScheduleCoverage(events)};
+    for(const fixture of fixtures)if(!eligible.includes(fixture))fixtureDiagnostics.push(marketSourceFixtureDiagnostic(fixture,source,checkedAt));
     try{
       if(result.status!=='fulfilled')throw result.reason;const priceData=result.value,parsed=marketSourcePrices(priceData.text);
       if(scheduleError)throw scheduleError;
-      const matched=eligible.map(fixture=>({fixtureId:fixture.id,quote:marketSourceQuote(fixture,events,parsed.markets,source,priceData,results[0].value,now)})).filter(item=>item.quote&&isMarketQuoteCurrent(item.quote,eligible.find(f=>f.id===item.fixtureId),checkedAt));
+      const inspected=eligible.map(fixture=>({fixture,...marketSourceQuote(fixture,events,parsed.markets,source,priceData,results[0].value,now)}));
+      const matched=inspected.filter(item=>item.quote).map(item=>({fixtureId:item.fixture.id,quote:item.quote}));
+      for(const {fixture,quote,...details} of inspected)fixtureDiagnostics.push(marketSourceFixtureDiagnostic(fixture,source,checkedAt,
+        {...details,status:quote?'available':'pending',httpStatus:priceData.httpStatus,sourceUpdatedAt:priceData.sourceUpdatedAt,
+          scheduleUpdatedAt:results[0].value.sourceUpdatedAt,matchedCount:quote?1:0}));
       quotes.push(...matched);
       sources.push({...common,status:matched.length?'available':'pending',note:matched.length?`matched_${matched.length}`:'no_fixture_match',httpStatus:priceData.httpStatus,
-        sourceUpdatedAt:priceData.sourceUpdatedAt,parsedCount:parsed.parsedCount,matchedCount:matched.length,
+        sourceUpdatedAt:priceData.sourceUpdatedAt,parsedCount:parsed.parsedCount,matchedCount:matched.length,unmatchedFixtureCount:eligible.length-matched.length,
         reason:matched.length?`已读取并严格匹配 ${matched.length} 场真实赛前亚洲盘。`:`公开快照含 ${parsed.parsedCount} 场指数，但当前赛程没有通过球队、联赛、开赛时间及开盘状态核验的报价。`,
         action:'每轮采集时获取；盘口及水位分别显示，三家公司共享球探来源组，不计为三个独立来源。'});
     }catch(error){
-      sources.push({...common,status:'unavailable',note:error?.code||'network_unavailable',httpStatus:error?.status||null,matchedCount:0,parsedCount:0,
+      const note=Object.hasOwn(marketSourceFailureReasons,error?.code)?error.code:'network_unavailable';
+      for(const fixture of eligible)fixtureDiagnostics.push(marketSourceFixtureDiagnostic(fixture,source,checkedAt,{status:'unavailable',note,
+        httpStatus:error?.status||null,sourceUpdatedAt,scheduleUpdatedAt:common.scheduleUpdatedAt}));
+      sources.push({...common,status:'unavailable',note,httpStatus:error?.status||null,matchedCount:0,parsedCount:0,unmatchedFixtureCount:eligible.length,
         reason:(scheduleError===error?'赛程身份快照校验失败，无法安全关联到比赛：':'')+(marketSourceFailureReasons[error?.code]||marketSourceFailureReasons.network_unavailable),action:'保留具体错误代码，下一轮自动重新核验；失效报价不参与比较。'});
     }
   }
-  return {quotes,sources:[...sources,...pending],checkedAt};
+  return {quotes,sources:[...sources,...pending],fixtureDiagnostics,checkedAt};
 }

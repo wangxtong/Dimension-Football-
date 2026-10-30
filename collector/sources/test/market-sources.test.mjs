@@ -31,6 +31,17 @@ test('three separately attributed real bookmaker feeds share one strict schedule
   for(const {url,options} of calls){assert.equal(new URL(url).hostname,'livestatic.titan007.com');assert.equal(options.redirect,'manual');assert.equal(options.method,'GET');assert.ok(options.signal instanceof AbortSignal);}
   for(const source of result.sources.slice(0,3)){assert.equal(source.status,'available');assert.equal(source.matchedCount,1);assert.equal(source.parsedCount,1);assert.equal(source.httpStatus,200);assert.equal(source.evidence.length,3);}
   assert.ok(result.quotes.every(item=>isMarketQuoteCurrent(item.quote,fixture,now)));
+  assert.equal(result.fixtureDiagnostics.length,3);
+  for(const diagnostic of result.fixtureDiagnostics){
+    assert.equal(diagnostic.fixtureId,fixture.id);assert.equal(diagnostic.sourceId,'titan007');assert.equal(diagnostic.note,'matched');
+    assert.equal(diagnostic.code,'matched');assert.equal(diagnostic.status,'available');assert.equal(diagnostic.matchedCount,1);
+    assert.equal(diagnostic.scheduleCandidateCount,1);assert.equal(diagnostic.marketRowCount,1);
+    assert.equal(diagnostic.sourceUpdatedAt,'2026-10-27T08:29:55.000Z');assert.equal(diagnostic.scheduleUpdatedAt,'2026-10-27T08:29:55.000Z');
+  }
+  for(const source of result.sources.slice(0,3)){
+    assert.equal(source.requestedFixtureCount,1);assert.equal(source.eligibleFixtureCount,1);assert.equal(source.unmatchedFixtureCount,0);
+    assert.equal(source.scheduleParsedCount,1);assert.equal(source.scheduleCoverageFrom,fixture.kickoff);assert.equal(source.scheduleCoverageTo,fixture.kickoff);
+  }
 });
 
 test('different bookmaker prices remain different and zero handicap has no negative zero',async()=>{
@@ -99,4 +110,76 @@ test('Singbet and IBC state the actual authorization blocker without fabricating
   const {result,calls}=await read();assert.equal(calls.length,4);
   for(const source of result.sources.slice(3)){assert.equal(source.status,'unavailable');assert.equal(source.note,'authorization_required');assert.equal(source.checkType,'configuration');assert.equal(source.httpStatus,undefined);assert.equal(source.matchedCount,0);assert.match(source.reason,/AOToken/);}
   assert.deepEqual(marketSourceRegistry.map(s=>s.companyId),[17,24,31]);
+});
+
+test('per-fixture diagnostics distinguish absent and ambiguous identities from non-prematch events',async()=>{
+  const cases=[
+    {sched:schedule({2:'意乙'}),note:'fixture_identity_unmatched',leagueCount:0,teamCount:0,candidateCount:0},
+    {sched:schedule({5:'尤文图斯'}),note:'fixture_identity_unmatched',leagueCount:1,teamCount:0,candidateCount:0},
+    {sched:schedule({11:'02:00'}),note:'fixture_identity_unmatched',leagueCount:1,teamCount:1,candidateCount:0},
+    {sched:schedule()+schedule(),note:'fixture_identity_ambiguous',leagueCount:2,teamCount:2,candidateCount:2},
+    {sched:schedule({13:'1'}),note:'not_prematch',leagueCount:1,teamCount:1,candidateCount:1},
+  ];
+  for(const expected of cases){
+    const {result}=await read({sched:expected.sched});assert.equal(result.quotes.length,0);assert.equal(result.fixtureDiagnostics.length,3);
+    for(const diagnostic of result.fixtureDiagnostics){
+      assert.equal(diagnostic.note,expected.note);assert.equal(diagnostic.status,'pending');assert.equal(diagnostic.matchedCount,0);
+      assert.equal(diagnostic.leagueCandidateCount,expected.leagueCount);assert.equal(diagnostic.teamCandidateCount,expected.teamCount);
+      assert.equal(diagnostic.scheduleCandidateCount,expected.candidateCount);assert.equal(diagnostic.marketRowCount,0);
+    }
+  }
+});
+
+test('API-Football team aliases match a same-day schedule while preserving the original fixture identity',async()=>{
+  const input={...fixture,league:'FL1',home:'Le Havre',away:'Paris Saint Germain'};
+  const {result}=await read({sched:schedule({2:'法甲',5:'勒阿弗尔',8:'巴黎圣日尔曼'})},{fixtures:[input]});
+  assert.equal(result.quotes.length,3);assert.ok(result.fixtureDiagnostics.every(d=>d.note==='matched'));
+  for(const {quote} of result.quotes){
+    assert.equal(quote.fixtureSnapshot.home,input.home);assert.equal(quote.fixtureSnapshot.away,input.away);
+    assert.equal(isMarketQuoteCurrent(quote,input,now),true);
+  }
+});
+
+test('missing, ambiguous, one-sided and illegal market rows retain their actual rejection cause',async()=>{
+  const cases=[
+    {rows:'',note:'market_not_published',count:0},
+    {rows:market()+market(),note:'market_ambiguous',count:2},
+    {rows:market({3:''}),note:'incomplete_market',count:1},
+    {rows:market({4:''}),note:'incomplete_market',count:1},
+    {rows:market({2:'0.1'}),note:'invalid_market_fields',count:1},
+    {rows:market({3:'NaN'}),note:'invalid_market_fields',count:1},
+    {rows:market({14:'1'}),note:'invalid_market_fields',count:1},
+  ];
+  for(const expected of cases){
+    const {result}=await read({rows:expected.rows});assert.equal(result.quotes.length,0);
+    for(const diagnostic of result.fixtureDiagnostics){
+      assert.equal(diagnostic.note,expected.note);assert.equal(diagnostic.scheduleCandidateCount,1);
+      assert.equal(diagnostic.marketRowCount,expected.count);assert.equal(diagnostic.matchedCount,0);
+    }
+  }
+});
+
+test('stale source failures and exact-boundary expired quotes are attributed per fixture and bookmaker',async()=>{
+  const {result}=await read({byCompany:{17:{updated:'Tue, 27 Oct 2026 08:24:59 GMT'},24:{updated:'Tue, 27 Oct 2026 08:25:00 GMT'}}});
+  assert.deepEqual(result.quotes.map(item=>item.quote.sourceId),['sbobet']);
+  assert.deepEqual(result.fixtureDiagnostics.map(d=>[d.id,d.note,d.status]),[
+    ['m88','stale_snapshot','unavailable'],['12bet','quote_expired','pending'],['sbobet','matched','available']]);
+  assert.ok(result.fixtureDiagnostics.every(d=>d.fixtureId===fixture.id&&d.scheduleUpdatedAt==='2026-10-27T08:29:55.000Z'));
+  assert.equal(result.fixtureDiagnostics[0].marketRowCount,null,'a failed fetch has no verified row count');
+  assert.equal(result.fixtureDiagnostics[1].marketRowCount,1);
+  assert.deepEqual(result.sources.slice(0,3).map(source=>source.unmatchedFixtureCount),[1,1,0]);
+});
+
+test('schedule failures propagate to every eligible fixture while ineligible inputs make no matching claim',async()=>{
+  const ineligible={...fixture,id:'started',status:'IN_PLAY'};
+  const {result}=await read({sched:'not a schedule'},{fixtures:[fixture,ineligible]});
+  assert.equal(result.fixtureDiagnostics.length,6);
+  assert.ok(result.fixtureDiagnostics.filter(d=>d.fixtureId===fixture.id).every(d=>d.note==='invalid_schedule'&&d.status==='unavailable'));
+  assert.ok(result.fixtureDiagnostics.filter(d=>d.fixtureId===ineligible.id).every(d=>d.note==='fixture_ineligible'&&d.status==='pending'));
+  for(const source of result.sources.slice(0,3)){
+    assert.equal(source.scheduleParsedCount,0);assert.equal(source.scheduleCoverageFrom,null);assert.equal(source.scheduleCoverageTo,null);
+    assert.equal(source.requestedFixtureCount,2);assert.equal(source.eligibleFixtureCount,1);
+  }
+  const empty=await read({}, {fixtures:[ineligible]});assert.equal(empty.calls.length,0);
+  assert.equal(empty.result.fixtureDiagnostics.length,3);assert.ok(empty.result.fixtureDiagnostics.every(d=>d.note==='fixture_ineligible'));
 });

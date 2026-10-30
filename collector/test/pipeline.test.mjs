@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { demoInput } from '../demo.mjs';
 import { DEFAULT_POLICY, fixtureKey } from '../policy.mjs';
-import { runCollection, safeDiagnostics } from '../pipeline.mjs';
+import { runCollection, safeDiagnostics, safeMarketDiagnostics } from '../pipeline.mjs';
 import { atomicJson, readState, acquireLock } from '../storage.mjs';
 
 const NOW = '2026-10-29T08:00:00.000Z';
@@ -201,6 +201,45 @@ test('diagnostics discard bodies, headers, URL tokens and unstructured provider 
   assert.equal(result[0].code, 'SOURCE_STATUS_UNKNOWN');
   assert.equal(JSON.stringify(result).includes(secret), false);
   for (const key of ['headers', 'body', 'error']) assert.equal(Object.hasOwn(result[0], key), false);
+});
+
+test('per-fixture market diagnostics survive checkpoints and reports without changing evidence gates', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  input.evidence.quotes = [];
+  input.evidence.fixtureDiagnostics = [{ fixtureId: 'fd-1', id: 'm88', status: 'pending', code: 'fixture_identity_unmatched',
+    checkedAt: NOW, httpStatus: 200, scheduleCandidateCount: 0, marketRowCount: 0, matchedCount: 0,
+    sourceUpdatedAt: NOW, scheduleUpdatedAt: NOW, body: 'private-body-do-not-store', headers: { authorization: 'private-token' } }];
+  input.evidence.diagnostics = [{ id: 'm88', status: 'available', code: 'matched_1', checkedAt: NOW,
+    parsedCount: 37, matchedCount: 1, scheduleParsedCount: 120, requestedFixtureCount: 1,
+    sourceUpdatedAt: NOW, scheduleCoverageFrom: NOW, scheduleCoverageTo: '2026-10-30T20:00:00.000Z' }];
+  const result = await runCollection(invocation(paths, input));
+  assert.equal(result.report.summary.candidates, 0);
+  assert.deepEqual(result.report.results[0].result.reasons, ['NO_FRESH_COMPLETE_ASIAN_MARKET']);
+  assert.equal(result.report.results[0].marketDiagnostics[0].code, 'fixture_identity_unmatched');
+  assert.equal(result.report.marketDiagnostics[0].bookmaker, 'M88');
+  assert.equal(result.report.diagnostics[0].parsedCount, 37);
+  assert.equal(result.report.diagnostics[0].scheduleCoverageTo, '2026-10-30T20:00:00.000Z');
+  const state = await readState(paths.statePath, false);
+  assert.deepEqual(state.entries[fixtureKey(input.fixtures[0])].marketDiagnostics, result.report.marketDiagnostics);
+  assert.match(await readFile(result.files.messagePath, 'utf8'), /赛程身份未匹配/);
+  assert.equal(JSON.stringify(result.report).includes('private-'), false);
+});
+
+test('market diagnostics whitelist known codes and companies and reject unrelated fixture ids', () => {
+  const { fixtures } = syntheticInput();
+  const rows = safeMarketDiagnostics([
+    { fixtureId: 'fd-1', id: 'm88', status: 'pending', code: 'secret_value', bookmaker: 'secret_value', companyId: 999,
+      scheduleCandidateCount: -1, marketRowCount: 'secret_value', rawBody: 'secret_value' },
+    { fixtureId: 'not-in-pool', id: 'm88', code: 'matched' },
+    { fixtureId: 'fd-1', id: 'unknown', code: 'matched' },
+  ], fixtures);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].code, 'SOURCE_STATUS_UNKNOWN');
+  assert.equal(rows[0].bookmaker, 'M88');
+  assert.equal(rows[0].companyId, 17);
+  assert.equal(Object.hasOwn(rows[0], 'scheduleCandidateCount'), false);
+  assert.equal(Object.hasOwn(rows[0], 'marketRowCount'), false);
+  assert.equal(JSON.stringify(rows).includes('secret_value'), false);
 });
 
 test('demo state cannot be reused for production, including with an explicit shared state path', async t => {

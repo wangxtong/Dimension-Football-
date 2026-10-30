@@ -76,6 +76,22 @@ API-Football 每轮向五个联赛各请求一次 `next=99`，再按精确未来
 
 ## 输出和目录
 
+### 全部赛事逐项分析
+
+`analyze:full` 是独立的离线分析入口，与亚洲盘候选筛选分别统计。每场都会执行赛程身份、近况、主客场、交锋、休息间隔、伤停、首发、胜平负、大小球2.5、亚洲盘事实、独立预测及正式门槛检查；某项缺数据不会停止其它维度。输入须为已授权取得的 API-Football 响应，不会联网或读取密钥。
+
+```sh
+npm run analyze:full -- --evidence /path/to/evidence.json --markets /path/to/snapshot.json --history /path/to/history.json --independent reports/latest.json --out outputs/full-analysis
+```
+
+`evidence.json` 包含 `{fixtures, evidence}`：`fixtures` 为本项目标准赛程，`evidence` 为带 `kind`（`fixtures/history/injuries/lineups/predictions`）、逐场 `fixtureId` 及原始官方 `data` 的响应。赔率输入为 `{fetchedAt, fixtures:[{fixture, pages:[{data,fetchedAt,httpDate}]}]}`；`history` 是 `{data}` 响应数组；`independent` 是现有采集报告。完整原始记录应保存在仓库外或 Git 忽略目录中。
+
+输出独立 HTML 和 JSON，按最新官方赛程核验旧赔率的身份，保留每家公司的配对报价、更新时间、全部缺项和唯一市场参考方向。去水概率只描述价格；不代表真实胜率。3小时研究参考与5分钟正式报价时效分开，正式推荐仍需原有完整评估，不会因为报告已生成而自动变成可下注。空伤停记录、尚未公布首发和缺初盘轨迹分别报告。
+
+只生成报告，不会自动发送频道消息。`collector/run.mjs --deep-analysis` 会先完成原有证据筛选，再对同一完整输入池补取上述官方材料并生成 `reports/full-analysis/latest.html` 与 JSON；缺亚洲盘不会阻止补取其它维度。仅配置 `API_FOOTBALL_KEY`、未指定输入文件的正式采集也默认启用此流程，因此已安装的 ECS 启动脚本在同步新版运行源码后同样生效。深度模式必须配置 `API_FOOTBALL_KEY`，明确优先采用该服务的赛程ID，避免跨供应商ID误配。每轮官方深度请求预算最多250次，超预算逐项记录未取得材料；正式候选数量与逐项分析覆盖量分开。
+
+API-Football 单服务的 ECS 在同步该版本运行源码后，每轮自动启用逐项分析，无需替换独立部署脚本；只配置 football-data 的原有采集仍可运行。现有服务不因本地文件改动而更新，必须完成Git同步及服务器版本切换。48场规模每小时运行至多约6,000次深度请求/天，另计基础赛程请求；大输入池需要更高配额或数据缓存，不能把尚未取到的记录当成完整证据。
+
 每轮在 `reports/` 生成带 UTC 时间戳的 JSON、简报与消息草稿，以及 `latest.json`、`latest-brief.md`、`latest-message.md`。消息草稿只是文件，不会发送到外部服务。
 
 ```text

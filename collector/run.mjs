@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { readJson } from './storage.mjs';
 import { readPolicy, DEFAULT_POLICY, isoMillis } from './policy.mjs';
@@ -18,6 +19,7 @@ const HELP = `维度足球长期公开信息采集（Node.js 24+）
   --evidence FILE          外部证据 {"quotes": [...], "signals": [...]}，默认不受信任
   --accept-reviewed-evidence 明确确认这些证据已由所有者核验；来源/身份/时间仍逐项检查
   --demo                   无网络模拟，使用独立检查点，生产候选始终为0
+  --deep-analysis          用 API_FOOTBALL_KEY 对全部赛事逐项取证并输出独立HTML/JSON分析
   --help                   显示帮助
 
 不指定赛程文件时，优先使用 FOOTBALL_DATA_API_KEY（别名 FOOTBALL_DATA_API_TOKEN）；
@@ -29,7 +31,7 @@ export function parseArgs(argv) {
   const result = {};
   for (let index = 0; index < argv.length; index++) {
     const argument = argv[index];
-    if (['--demo', '--help', '--accept-reviewed-evidence'].includes(argument)) {
+    if (['--demo', '--help', '--accept-reviewed-evidence', '--deep-analysis'].includes(argument)) {
       const key = argument.slice(2); if (Object.hasOwn(result, key)) throw new Error('DUPLICATE_ARGUMENT'); result[key] = true; continue;
     }
     if (!['--input', '--state', '--out', '--config', '--budget-minutes', '--evidence'].includes(argument)) throw new Error('UNKNOWN_ARGUMENT');
@@ -37,7 +39,7 @@ export function parseArgs(argv) {
     if (!value || value.startsWith('--') || Object.hasOwn(result, key)) throw new Error('INVALID_ARGUMENT');
     result[key] = value;
   }
-  if (result['accept-reviewed-evidence'] && !result.evidence || result.demo && (result.input || result.evidence)) throw new Error('CONFLICTING_ARGUMENTS');
+  if (result['accept-reviewed-evidence'] && !result.evidence || result.demo && (result.input || result.evidence || result['deep-analysis'])) throw new Error('CONFLICTING_ARGUMENTS');
   if (result['budget-minutes'] !== undefined) {
     const minutes = Number(result['budget-minutes']);
     if (!Number.isFinite(minutes) || minutes <= 0 || minutes > 20 || minutes * 60_000 < 100) throw new Error('INVALID_BUDGET');
@@ -58,6 +60,7 @@ export async function runCli(argv, {
 } = {}) {
   const options = parseArgs(argv);
   if (options.help) { stdout(HELP); return { help: true, exitCode: 0 }; }
+  if (options['deep-analysis'] && (typeof env.API_FOOTBALL_KEY !== 'string' || !env.API_FOOTBALL_KEY.trim())) throw new Error('DEEP_ANALYSIS_API_KEY_REQUIRED');
   const policy = readPolicy(await readJson(options.config ? resolve(cwd, options.config) : resolve(ROOT, 'config/collection.json')));
   if (options.budgetMs !== undefined) policy.budgetMs = options.budgetMs;
   const startedTick = performance.now(), remaining = () => Math.max(0, policy.budgetMs - (performance.now() - startedTick));
@@ -75,6 +78,9 @@ export async function runCli(argv, {
   const abortSignal = signal;
   let fixtures, fixtureDiagnostics = [], poolComplete = true, simulated = !!options.demo, demo;
   const inputFile = options.input || (!simulated && env.FIXTURES_FILE);
+  const deepAnalysis = options['deep-analysis'] || (!simulated && !inputFile
+    && typeof env.API_FOOTBALL_KEY === 'string' && env.API_FOOTBALL_KEY.trim()
+    && ![env.FOOTBALL_DATA_API_KEY, env.FOOTBALL_DATA_API_TOKEN].some(value => typeof value === 'string' && value.trim()));
   if (simulated) { demo = demoInput(nowISO); fixtures = demo.fixtures; }
   else if (inputFile) {
     const input = await readJson(resolve(cwd, inputFile));
@@ -86,8 +92,9 @@ export async function runCli(argv, {
     const footballDataKey = [env.FOOTBALL_DATA_API_KEY, env.FOOTBALL_DATA_API_TOKEN].find(value => typeof value === 'string' && value.trim());
     const apiFootballKey = typeof env.API_FOOTBALL_KEY === 'string' && env.API_FOOTBALL_KEY.trim() ? env.API_FOOTBALL_KEY : null;
     if (!footballDataKey && !apiFootballKey) throw new Error('FIXTURE_API_KEY_OR_INPUT_REQUIRED');
-    const fetchFixtures = footballDataKey ? fetchFootballFixtures : fetchApiFootballFixtures;
-    const result = await fetchFixtures({ apiKey: footballDataKey || apiFootballKey, nowISO, days: policy.days, fetchImpl: boundedFetch() });
+    const useApiFootball = options['deep-analysis'] || !footballDataKey;
+    const fetchFixtures = useApiFootball ? fetchApiFootballFixtures : fetchFootballFixtures;
+    const result = await fetchFixtures({ apiKey: useApiFootball ? apiFootballKey : footballDataKey, nowISO, days: policy.days, fetchImpl: boundedFetch() });
     fixtures = result.fixtures;
     fixtureDiagnostics = result.diagnostics;
     poolComplete = fixtureDiagnostics.length === 5 && fixtureDiagnostics.every(source => ['available', 'complete'].includes(source.status));
@@ -102,13 +109,35 @@ export async function runCli(argv, {
   const s = result.report.summary;
   stdout(`${simulated ? '【模拟验证】' : '【真实采集】'}${result.report.status}；输入池${s.total}场，本轮深查${s.processed}场，待续查${s.pending}场，生产候选${s.candidates}场。\n`);
   stdout(`报告：${result.files.briefPath}\n详细：${result.files.messagePath}\n`);
+  if (deepAnalysis) {
+    const [{ fetchFullAnalysisData }, { buildFullAnalysis, renderFullAnalysisHtml }] = await Promise.all([
+      import('./sources/full-analysis.mjs'), import('./full-report.mjs'),
+    ]);
+    const data = await fetchFullAnalysisData({ fixtures, apiKey: env.API_FOOTBALL_KEY, nowISO: clock(),
+      clock, fetchImpl: boundedFetch(signal), signal, maxRequests: 250 });
+    const analysis = buildFullAnalysis({ evidence: data.evidence, marketSnapshot: data.marketSnapshot,
+      priorHistory: data.priorHistory, independentReport: result.report });
+    analysis.collectionStatus = data.status;
+    analysis.collectionCoverage = data.coverage;
+    const fullDirectory = resolve(outDir, 'full-analysis');
+    await mkdir(fullDirectory, { recursive: true });
+    for (const [name, value] of Object.entries({ 'evidence.json': data.evidence, 'markets.json': data.marketSnapshot,
+      'history.json': data.priorHistory, 'diagnostics.json': data.diagnostics, 'latest.json': analysis })) {
+      await writeFile(resolve(fullDirectory, name), JSON.stringify(value, null, 2));
+    }
+    const fullHtml = resolve(fullDirectory, 'latest.html');
+    await writeFile(fullHtml, renderFullAnalysisHtml(analysis));
+    result.fullAnalysis = analysis;
+    result.fullAnalysisFiles = { html: fullHtml, json: resolve(fullDirectory, 'latest.json') };
+    stdout(`逐项分析：${analysis.summary.processedAllDimensions}/${analysis.summary.fixtures}场；身份核验${analysis.summary.identityVerified}场；胜平负报价${analysis.summary.withMatchWinnerMarket}场；大小球报价${analysis.summary.withGoalsMarket}场。\n${fullHtml}\n`);
+  }
   return { ...result, exitCode };
 }
 
 export const SAFE_ERRORS = new Set(['INVALID_POLICY', 'FIXTURE_POOL_INVALID_OR_TOO_LARGE', 'INVALID_FIXTURE', 'CONFLICTING_FIXTURE_ID',
   'INVALID_NOW', 'JSON_FILE_TOO_LARGE', 'COLLECTION_ALREADY_LOCKED', 'STATE_UNREADABLE', 'STATE_INVALID_OR_MODE_MISMATCH',
   'DUPLICATE_ARGUMENT', 'UNKNOWN_ARGUMENT', 'INVALID_ARGUMENT', 'CONFLICTING_ARGUMENTS', 'INVALID_BUDGET', 'INVALID_EVIDENCE_FILE',
-  'INVALID_FIXTURE_FILE', 'FIXTURE_API_KEY_OR_INPUT_REQUIRED', 'EXAMPLE_FIXTURES_REQUIRE_DEMO']);
+  'INVALID_FIXTURE_FILE', 'FIXTURE_API_KEY_OR_INPUT_REQUIRED', 'EXAMPLE_FIXTURES_REQUIRE_DEMO', 'DEEP_ANALYSIS_API_KEY_REQUIRED']);
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const controller = new AbortController(), stop = () => controller.abort();

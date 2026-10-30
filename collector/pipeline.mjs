@@ -13,7 +13,34 @@ export function safeDiagnostics(rows = []) {
     httpStatus: Number.isInteger(row.httpStatus) && row.httpStatus >= 100 && row.httpStatus <= 599 ? row.httpStatus : null,
     responseAt: Number.isFinite(isoMillis(row.responseAt)) ? row.responseAt : null,
     matchedCount: Number.isSafeInteger(row.matchedCount) && row.matchedCount >= 0 ? row.matchedCount : 0,
+    ...Object.fromEntries(['parsedCount', 'scheduleParsedCount', 'requestedFixtureCount', 'eligibleFixtureCount', 'unmatchedFixtureCount']
+      .filter(key => Number.isSafeInteger(row[key]) && row[key] >= 0 && row[key] <= 3000).map(key => [key, row[key]])),
+    ...Object.fromEntries(['sourceUpdatedAt', 'scheduleUpdatedAt', 'scheduleCoverageFrom', 'scheduleCoverageTo']
+      .filter(key => Number.isFinite(isoMillis(row[key]))).map(key => [key, row[key]])),
   }));
+}
+
+const marketDiagnosticCodes = new Set(['fixture_ineligible', 'fixture_identity_unmatched', 'fixture_identity_ambiguous',
+  'not_prematch', 'market_not_published', 'market_ambiguous', 'invalid_market_fields', 'incomplete_market',
+  'quote_expired', 'quote_validation_failed', 'matched', 'access_denied', 'authorization_required', 'rate_limited', 'http_unavailable',
+  'stale_snapshot', 'empty_snapshot', 'snapshot_too_large', 'timeout', 'network_unavailable', 'invalid_schedule',
+  'invalid_snapshot', 'maintenance']);
+const marketCompanies = { m88: ['M88', 17], '12bet': ['12Bet', 24], sbobet: ['SBOBET', 31] };
+
+// Keep per-fixture failure facts before the adapter discards unusable prices.
+// Provider bodies, URLs, arbitrary error text and credentials are never retained.
+export function safeMarketDiagnostics(rows = [], fixtures = []) {
+  if (!Array.isArray(rows)) return [];
+  const ids = new Set(fixtures.map(f => f.id));
+  return rows.slice(0, 9000).filter(row => row && ids.has(row.fixtureId) && Object.hasOwn(marketCompanies, row.id)).map(row => {
+    const [bookmaker, companyId] = marketCompanies[row.id], code = row.code || row.note;
+    return {
+      ...safeDiagnostics([{ ...row, code: marketDiagnosticCodes.has(code) ? code : 'SOURCE_STATUS_UNKNOWN' }])[0],
+      fixtureId: row.fixtureId, sourceId: 'titan007', bookmaker, companyId,
+      ...Object.fromEntries(['leagueCandidateCount', 'teamCandidateCount', 'scheduleCandidateCount', 'marketRowCount']
+        .filter(key => Number.isSafeInteger(row[key]) && row[key] >= 0 && row[key] <= 3000).map(key => [key, row[key]])),
+    };
+  });
 }
 
 const LIMITATIONS = [
@@ -61,6 +88,10 @@ export async function runCollection({
     }
     evidence.quotes.push(...importedEvidence.quotes);
     evidence.signals.push(...importedEvidence.signals);
+    const marketDiagnostics = safeMarketDiagnostics(evidence.fixtureDiagnostics, eligible), marketDiagnosticIndex = new Map();
+    for (const row of marketDiagnostics) {
+      const values = marketDiagnosticIndex.get(row.fixtureId) || []; values.push(row); marketDiagnosticIndex.set(row.fixtureId, values);
+    }
     const quoteIndex = new Map(), signalIndex = new Map();
     for (const [rows, index] of [[evidence.quotes, quoteIndex], [evidence.signals, signalIndex]]) for (const row of rows) {
       const values = index.get(row?.fixtureId) || []; values.push(row); index.set(row?.fixtureId, values);
@@ -72,6 +103,7 @@ export async function runCollection({
     for (const { fixture, entry } of queue) {
       if (remaining() <= 0) { entry.result = { status: 'pending', reasons: ['BUDGET_EXHAUSTED'] }; continue; }
       const now = clock(), rows = { quotes: quoteIndex.get(fixture.id) || [], signals: signalIndex.get(fixture.id) || [] };
+      entry.marketDiagnostics = marketDiagnosticIndex.get(fixture.id) || [];
       const hash = digest({ rows, identity: fixtureKey(fixture), status: fixture.status, policyHash });
       if (entry.result.status !== 'pending' && entry.evidenceHash === hash && isoMillis(entry.nextReviewAt) > isoMillis(now)) { reused++; continue; }
       const result = evaluateFixture(fixture, rows, now, policy);
@@ -99,7 +131,7 @@ export async function runCollection({
       candidates: count('candidate'), simulatedCandidates: count('simulated_candidate'), avoid: count('avoid'), sourceInsufficient: count('source_insufficient') };
     const report = { version: 1, task: '维度足球长期公开信息采集', simulated, timezone: 'Asia/Shanghai', startedAt, completedAt,
       poolComplete, status: sourceFailed ? 'failed' : summary.pending || hasSourceIssue || !poolComplete ? 'partial' : 'complete',
-      summary, diagnostics, results, limitations: LIMITATIONS, policy,
+      summary, diagnostics, marketDiagnostics, results, limitations: LIMITATIONS, policy,
       candidates: simulated ? [] : results.filter(row => row.result.status === 'candidate') };
     state.runs = [...state.runs.slice(-49), { startedAt, completedAt, status: report.status, summary }];
     await checkpoint(statePath, state);
