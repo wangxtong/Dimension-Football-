@@ -64,6 +64,17 @@ test('argument validation rejects contradictory input, accidental evidence accep
     ['--accept-reviewed-evidence'], ['--budget-minutes', '21'], ['--budget-minutes', '0'],
     ['--input'], ['--demo', '--demo'], ['--unknown']]) assert.throws(() => parseArgs(argv));
   assert.equal(parseArgs(['--budget-minutes', '20']).budgetMs, 1_200_000);
+  assert.equal(parseArgs(['--deep-analysis'])['deep-analysis'], true);
+  assert.throws(() => parseArgs(['--demo', '--deep-analysis']), { message: 'CONFLICTING_ARGUMENTS' });
+});
+
+test('deep analysis requires the specifically authorized provider key before any network request', async t => {
+  const cwd = await workspace(t);
+  let calls = 0;
+  await assert.rejects(runCli(['--deep-analysis'], { cwd, env: { FOOTBALL_DATA_API_TOKEN: 'other-provider-key' },
+    fetchImpl: async () => { calls++; throw new Error('Must not fetch'); }, stdout: () => {} }),
+  { message: 'DEEP_ANALYSIS_API_KEY_REQUIRED' });
+  assert.equal(calls, 0);
 });
 
 test('accepts both providers and the token alias with deterministic preference and no credential persistence', async t => {

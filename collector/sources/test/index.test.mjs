@@ -50,6 +50,14 @@ test('normalization keeps two prices per bookmaker and one shared provider indep
   }
   assert.equal(result.signals.length, 0);
   assert.ok(sourceCapabilities.statarea.includes('1X2'));
+  assert.equal(result.fixtureDiagnostics.length, 3);
+  assert.ok(result.fixtureDiagnostics.every(d => d.fixtureId === fixture.id && d.sourceId === 'titan007'
+    && d.code === 'matched' && d.matchedCount === 1));
+  assert.deepEqual(result.fixtureDiagnostics.map(d => d.bookmaker), ['M88', '12Bet', 'SBOBET']);
+  const source = result.diagnostics.find(d => d.id === 'm88');
+  assert.equal(source.scheduleCoverageFrom, fixture.kickoff);
+  assert.equal(source.scheduleCoverageTo, fixture.kickoff);
+  assert.equal(source.scheduleUpdatedAt, '2026-10-27T08:29:55.000Z');
 });
 
 test('oversized or invalid fixture request fails before fetching and is never silently truncated', async () => {

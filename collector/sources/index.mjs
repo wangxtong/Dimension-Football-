@@ -49,5 +49,6 @@ export async function collectPublicEvidence({fixtures = [], nowISO = new Date().
     ...predictions.sources.map(source => ({...source, sourceId: source.id, independenceGroup: source.id,
       capability: sourceCapabilities[source.id]})),
   ];
-  return {quotes, signals: predictions.signals.map(signal => ({...signal, independenceGroup: signal.sourceId})), diagnostics};
+  return {quotes, signals: predictions.signals.map(signal => ({...signal, independenceGroup: signal.sourceId})), diagnostics,
+    fixtureDiagnostics: markets.fixtureDiagnostics};
 }
