@@ -67,6 +67,7 @@ test('unknown or invalid observation clocks never become backdated visibility', 
 test('conflicting same-source event revisions are rejected instead of silently counted twice', () => {
   const rows = makeRows(45);
   assert.throws(() => fit([...rows, { ...rows[2], homeGoals: 15 }]), /CONFLICTING_TOTALS_RESULT_ID/);
+  assert.throws(() => fit([...rows, { ...rows[2], fetchedAt: '2026-10-01T00:00:00.000Z' }]), /CONFLICTING_TOTALS_RESULT_ID/);
   const duplicate = fit([...rows, { ...rows[2] }]);
   assert.equal(duplicate.sample.duplicateRecords, 1);
   assert.equal(duplicate.sample.eligibleTrainingMatches, 45);
