@@ -7,6 +7,8 @@
   "scripts": {
     "collect": "node collector/run.mjs",
     "collect:demo": "node collector/run.mjs --demo",
+    "fixtures:public": "node collector/public.mjs",
+    "collect:public": "node collector/public.mjs --collect",
     "sources:status": "node collector/run.mjs --source-status",
     "providers:status": "node collector/run.mjs --provider-status",
     "sources:activate": "node collector/activate.mjs",

@@ -3,6 +3,7 @@ import { acquireLock, readState, atomicJson } from './storage.mjs';
 import { writeReports } from './report.mjs';
 import { publicSourceHealth } from './sources/manager.mjs';
 import { CRAWLER_CODES } from './sources/crawler.mjs';
+import { PUBLIC_FIXTURE_SOURCES } from './sources/public-fixtures.mjs';
 
 // Persist only diagnostic metadata, never headers, response bodies or thrown messages.
 export function safeDiagnostics(rows = []) {
@@ -135,6 +136,7 @@ export async function runCollection({
     const report = { version: 1, task: '维度足球长期公开信息采集', simulated, timezone: 'Asia/Shanghai', startedAt, completedAt,
       poolComplete, status: sourceFailed ? 'failed' : summary.pending || hasSourceIssue || !poolComplete ? 'partial' : 'complete',
       summary, diagnostics, marketDiagnostics, results, limitations: LIMITATIONS, policy,
+      publicFixtureSources: PUBLIC_FIXTURE_SOURCES.filter(source => pool.fixtures.some(fixture => fixture.source === source.id)),
       crawler: evidence.crawler || null,
       providers: evidence.providers ? { ...evidence.providers, observations: evidence.providers.observations.map(row => ({ ...row,
         currentAtPublication: Date.parse(row.validUntil) > Date.parse(completedAt) })) } : null,

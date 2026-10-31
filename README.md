@@ -29,6 +29,8 @@ npm run collect -- --input /path/to/fixtures.json --state .collection-state/stat
 
 `FIXTURES_FILE` 环境变量与 `--input` 对应。默认正式入口缺少 API key、又没有赛程文件时会明确失败，不会用演示数据补齐。真实赛程文件的字段与人工证据导入方式见[迁移与部署说明](docs/CLOUD_TASK_MIGRATION.md)。
 
+没有私有凭据时可显式试接官方公开源：`npm run fixtures:public` 取得有限赛程样本；`npm run collect:public` 将样本送入现有公开证据分析。输出默认在 `reports/public/`，状态独立保存在 `.collection-state/public/`。OpenLigaDB 提供社区德甲赛程，TheSportsDB 使用官方共享免费 Key `123`，其余四个联赛各取最多一场；不是五大联赛完整实时服务。命令默认整轮最多 5 分钟，不改变现有自动调度。详情和实测限制见 [公开信息源试接入](docs/PUBLIC_SOURCES.md)。
+
 环境变量不会从 `.env` 自动加载。本地可将一种凭据保存在 Git 忽略的 `.env.local` 中，再运行 `node --env-file=.env.local collector/run.mjs`。ECS / 轻量服务器可用同一命令，将 `--env-file`、`--state`、`--out` 指向发布目录以外的固定路径，并由系统调度器每小时执行；云效的部署变量不会自动成为后续定时任务的环境变量。
 
 ## 信息源自动更新与故障切换

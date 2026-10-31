@@ -46,7 +46,9 @@ export function renderBrief(report) {
     + `📋 输入池 ${s.total} 场，基础筛选 ${s.basicScreened} 场，深入核验 ${s.processed} 场，复用 ${s.reused} 场，待续查 ${s.pending} 场。  \n`
     + `🎯 生产候选 ${s.candidates} 场${report.simulated ? `；模拟候选 ${s.simulatedCandidates} 场` : ''}；回避 ${s.avoid} 场；来源不足 ${s.sourceInsufficient} 场。\n\n`
     + `🛡️ ${report.poolComplete ? '覆盖统计针对本轮实际取得的输入池。' : '赛程来源不完整，站点或全球赛事总覆盖率未知。'} 报价在报告生成时重新核验，候选不等于可直接执行的推荐。\n\n`
-    + (report.limitations.map(item => `- ${item}`).join('\n')) + '\n';
+    + (report.limitations.map(item => `- ${item}`).join('\n')) + '\n'
+    + (report.publicFixtureSources?.length ? '\n公开赛程归属（社区 / 免费档，覆盖不完整）：\n\n'
+      + report.publicFixtureSources.map(source => `- [${source.name}](${source.url})；[${source.license}](${source.licenseUrl})。`).join('\n') + '\n' : '');
 }
 export function renderMessage(report) {
   const lines = [renderBrief(report), '# 📨逐场消息版', '', '| 比赛 | 开赛时间（北京时间） | 状态 | 原因 | 盘口采集诊断 |', '| --- | --- | --- | --- | --- |'];
