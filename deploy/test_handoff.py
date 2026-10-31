@@ -309,7 +309,7 @@ os.lstat=fake_lstat
         anchors=['/trusted/verifier.mjs','/trusted/bundle.py','/trusted/node']
         def run(bad='',kind=''):
             env=dict(os.environ,TEST_BAD_PATH=bad,TEST_BAD_KIND=kind)
-            return subprocess.run([sys.executable,'-I','-c',shim+'\\n'+guard,*anchors],
+            return subprocess.run([sys.executable,'-I','-c',shim+'\n'+guard,*anchors],
                                   env=env,capture_output=True,text=True)
         valid=run()
         self.assertEqual(valid.returncode,0,valid.stderr)
@@ -336,7 +336,7 @@ os.lstat=fake_lstat
             root=Path(directory)
             marker=root/'preflight-poison-marker'
             (root/'sitecustomize.py').write_text(
-                'from pathlib import Path\\nPath('+repr(str(marker))+').write_text("POISON")\\n')
+                'from pathlib import Path\nPath('+repr(str(marker))+').write_text("POISON")\n')
             env=dict(os.environ,PYTHONPATH=directory)
             result=subprocess.run([sys.executable,'-I','-c','print("SAFE_PREFLIGHT")'],
                                   env=env,capture_output=True,text=True)
