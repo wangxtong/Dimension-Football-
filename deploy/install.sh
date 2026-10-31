@@ -13,7 +13,7 @@ for command_name in systemctl getent useradd install tar flock readlink runuser 
 done
 
 source_dir=$(cd -- "${1:-$(dirname -- "${BASH_SOURCE[0]}")/..}" && pwd -P)
-deployment_files=(bootstrap.sh install.sh release.sh run.sh sync.sh vantis-collector.service vantis-collector.timer vantis-sync.service vantis-sync.timer)
+deployment_files=(bootstrap.sh install.sh release.sh run.sh sync.sh release-gate.mjs private-git-askpass.sh vantis-collector.service vantis-collector.timer vantis-sync.service vantis-sync.timer)
 [[ -d "$source_dir/deploy" && ! -L "$source_dir/deploy" ]] || die 'Deployment source must be a regular directory.'
 for deployment_file in "${deployment_files[@]}"; do
   [[ -f "$source_dir/deploy/$deployment_file" && ! -L "$source_dir/deploy/$deployment_file" ]] \
@@ -31,6 +31,14 @@ case "$node_bin" in
 esac
 node_major=$("$node_bin" -p 'Number(process.versions.node.split(".")[0])')
 [[ "$node_major" =~ ^[0-9]+$ ]] && (( node_major >= 24 )) || die 'Node.js 24 or later is required.'
+# Fail before making any on-host changes if the selected version is not approved.
+[[ "${VANTIS_COMMIT:-}" =~ ^[0-9a-fA-F]{40}$ ]] || die 'VANTIS_COMMIT (exact approved SHA) is mandatory.'
+marker="$source_dir/.vantis-verified-commit"
+[[ -f "$marker" && ! -L "$marker" && $(stat -c '%u:%a' "$marker") == '0:600' ]] || die 'Verified Git source marker required.'
+IFS= read -r verified_commit < "$marker"
+[[ "$verified_commit" == "${VANTIS_COMMIT,,}" ]] || die 'Source and approved commit mismatch.'
+"$node_bin" "$source_dir/deploy/release-gate.mjs" "${VANTIS_COMMIT,,}" || die 'Release gate is not green.'
+
 
 if ! getent passwd vantis >/dev/null; then
   useradd --system --user-group --home-dir /var/lib/vantis --no-create-home --shell /usr/sbin/nologin vantis
@@ -105,6 +113,6 @@ printf '%s\n' \
   'Then verify one run: systemctl start vantis-collector.service' \
   'Logs: journalctl -u vantis-collector.service -n 100 --no-pager' \
   'Schedule: systemctl list-timers vantis-collector.timer vantis-sync.timer' \
-  'Git main is checked every two minutes; tested commits are published automatically.' \
+  'Git main is checked every two minutes; only a root-approved exact SHA may be promoted.' \
   'Sync logs: journalctl -u vantis-sync.service -n 100 --no-pager' \
   "Independent deployment-tool SHA256: $tooling_digest"
