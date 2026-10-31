@@ -25,7 +25,7 @@ test('issue routing, most-specific file ownership, cross-review work', async()=>
   }
   assert.equal(routeAgent(plan,{path:'collector/forecast.mjs'})?.id,'A4');
   assert.equal(routeAgent(plan,{path:'collector/sources/team-names.mjs'})?.id,'A3');
-  assert.equal(routeAgent(plan,{path:'collector/sources/hkjc.mjs'})?.id,'A2');
+  assert.equal(routeAgent(plan,{path:'collector/sources/hkjc.mjs'})?.id,'A5');
   assert.equal(routeAgent(plan,{path:'website/worker.mjs'})?.id,'A8');
   assert.equal(routeAgent(plan,{path:'deploy/release.sh'})?.id,'A7');
   assert.equal(routeAgent(plan,{path:'.github/workflows/test.yml'})?.id,'A1');
