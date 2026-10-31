@@ -48,24 +48,39 @@ export function summarizeEvaluations(rows, { eligible = rows.length, skipped = 0
 }
 
 /** A research-only adapter: outcomes must have been observed strictly before fitting. */
-export function temporalCalibrationExperiment(rows, { fitCutoff, fit, apply, minimumTraining = 100, minimumEvaluation = 30 } = {}) {
+export function temporalCalibrationExperiment(rows, { fitCutoff, fit, apply, cohort, minimumTraining = 100, minimumEvaluation = 30 } = {}) {
   const cutoff = isoMillis(fitCutoff);
-  if (!Number.isFinite(cutoff) || typeof fit !== 'function' || typeof apply !== 'function'
-    || !Number.isInteger(minimumTraining) || minimumTraining < 100 || !Number.isInteger(minimumEvaluation) || minimumEvaluation < 30) throw new Error('INVALID_CALIBRATION_EXPERIMENT');
-  const eligible = rows.filter(row => row.provenance === 'prospective-ledger' && validProbabilities(row.probabilities)
+  if (!Array.isArray(rows) || !Number.isFinite(cutoff) || typeof fit !== 'function' || typeof apply !== 'function'
+    || !Number.isInteger(minimumTraining) || minimumTraining < 100 || !Number.isInteger(minimumEvaluation) || minimumEvaluation < 30
+    || !cohort || !['modelId', 'source', 'league'].every(key => typeof cohort[key] === 'string' && cohort[key])
+    || !Number.isSafeInteger(cohort.modelVersion) || !/^[a-f0-9]{64}$/.test(cohort.modelHash || '')
+    || !Number.isFinite(cohort.horizonHours) || cohort.horizonHours < 0
+    || !Number.isFinite(cohort.toleranceHours) || cohort.toleranceHours < 0 || cohort.toleranceHours > 24) throw new Error('INVALID_CALIBRATION_EXPERIMENT');
+  const eligible = rows.filter(row => row?.provenance === 'prospective-ledger' && validProbabilities(row.probabilities)
+    && typeof row.fixtureId === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(row.fixtureId)
     && OUTCOMES.includes(row.actual) && Number.isFinite(isoMillis(row.generatedAt)) && Number.isFinite(isoMillis(row.resultObservedAt))
-    && isoMillis(row.generatedAt) < isoMillis(row.kickoff) && isoMillis(row.resultObservedAt) > isoMillis(row.kickoff));
-  const training = eligible.filter(row => isoMillis(row.resultObservedAt) < cutoff);
-  const evaluation = eligible.filter(row => isoMillis(row.generatedAt) >= cutoff);
+    && ['predictionId', 'reportId', 'trainingHash', 'modelHash', 'resultVersionId'].every(key => /^[a-f0-9]{64}$/.test(row[key] || ''))
+    && row.model?.id === cohort.modelId && row.model?.version === cohort.modelVersion && row.modelHash === cohort.modelHash
+    && row.source === cohort.source && row.league === cohort.league
+    && isoMillis(row.trainingCutoff) <= isoMillis(row.generatedAt) && isoMillis(row.generatedAt) <= isoMillis(row.recordedAt)
+    && isoMillis(row.recordedAt) < isoMillis(row.kickoff) && isoMillis(row.recordedAt) < isoMillis(row.validUntil)
+    && isoMillis(row.recordedAt) - isoMillis(row.generatedAt) < 3600000
+    && (isoMillis(row.kickoff) - isoMillis(row.recordedAt)) / 3600000 >= cohort.horizonHours
+    && (isoMillis(row.kickoff) - isoMillis(row.recordedAt)) / 3600000 <= cohort.horizonHours + cohort.toleranceHours
+    && isoMillis(row.resultObservedAt) > isoMillis(row.kickoff) && isoMillis(row.resultRecordedAt) >= isoMillis(row.resultObservedAt));
+  if (new Set(eligible.map(row => `${row.source}:${row.fixtureId}`)).size !== eligible.length) throw new Error('DUPLICATE_CALIBRATION_FIXTURE');
+  const training = eligible.filter(row => isoMillis(row.resultRecordedAt) < cutoff);
+  const evaluation = eligible.filter(row => isoMillis(row.recordedAt) >= cutoff);
   if (training.length < minimumTraining || evaluation.length < minimumEvaluation) return {
     status: 'insufficient-prospective-evidence', calibrated: false, training: training.length, evaluation: evaluation.length };
   const fitted = fit(structuredClone(training));
   const adjusted = evaluation.map(row => {
     // Only pre-result inputs are supplied to apply, never the held-out outcome.
-    const probabilities = apply(fitted, structuredClone({ probabilities: row.probabilities, generatedAt: row.generatedAt, horizonHours: row.horizonHours }));
+    const probabilities = apply(fitted, structuredClone({ probabilities: row.probabilities, generatedAt: row.generatedAt,
+      recordedAt: row.recordedAt, horizonHours: (isoMillis(row.kickoff) - isoMillis(row.recordedAt)) / 3600000 }));
     if (!validProbabilities(probabilities)) throw new Error('INVALID_CALIBRATED_PROBABILITIES');
     return { ...row, probabilities, baseline: row.probabilities };
   });
-  return { status: 'research-evaluation-only', calibrated: false, fitCutoff, training: training.length, evaluation: evaluation.length,
+  return { status: 'research-evaluation-only', calibrated: false, fitCutoff, cohort, training: training.length, evaluation: evaluation.length,
     assessment: summarizeEvaluations(adjusted), note: 'No model promotion or production calibration is performed by this experiment.' };
 }

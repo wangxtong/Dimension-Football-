@@ -1,4 +1,7 @@
 import * as REPORT_FEED from './report-feed.mjs';
+import { handleHostedRequest, loadHostedBundle, updateHostedReceipt } from './hosted-publications.mjs';
+import { verifyActionsIdentity } from './github-oidc.mjs';
+import { notifyHostedReport } from './hosted-notifications.mjs';
 const COOKIE = '__Host-dimension_session', SESSION_SECONDS = 43200;
 const encoder = new TextEncoder();
 const encode = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -16,7 +19,7 @@ const baseHeaders = {
   'Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
 };
 const response = (body,status=200,type='text/plain; charset=utf-8',extra={}) => new Response(body,{status,headers:{...baseHeaders,'Content-Type':type,...extra}});
-const loginPage = (message='',status=200,extra={}) => response(LOGIN.replace('<!-- message -->',message?`<p class="error" role="alert">${message}</p>`:''),status,'text/html; charset=utf-8',extra);
+const loginPage = (message='',status=200,extra={},view='') => response(LOGIN.replace('action="/login"',view ? 'action="/login?view='+view+'"' : 'action="/login"').replace('<!-- message -->',message?`<p class="error" role="alert">${message}</p>`:''),status,'text/html; charset=utf-8',extra);
 const redirect = (path,headers={}) => response(null,303,'text/plain; charset=utf-8',{Location:path,...headers});
 const cookieValue = token => `${COOKIE}=${token}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${SESSION_SECONDS}`;
 
@@ -66,7 +69,26 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
   return {async fetch(request,env) {
     const config=configuration(env);if(!config)return response('登录服务尚未配置，请联系管理员。',503);
     const now=Math.floor(clock()/1000),path=new URL(request.url).pathname,method=request.method;
+    const requestedView = new URL(request.url).searchParams.get('view');
+    const view = ['analysis','strict','missing','schedule','status'].includes(requestedView) ? requestedView : '';
+    const landing = view ? '/?view='+view+'#'+view : '/';
+    const loginPath = view ? '/login?view='+view : '/login';
     const sameOrigin=request.headers.get('origin')===config.origin;
+    if(env.HOSTED_PUBLICATION_ENABLED==='true'&&path.startsWith('/internal/')) {
+      if(path==='/internal/notifications') {
+        if(method!=='POST')return response('不支持此请求方式。',405);
+        try { await verifyActionsIdentity(request,env,{fetchImpl,now:clock()}); }
+        catch { return response(JSON.stringify({error:'MACHINE_IDENTITY_REQUIRED'}),401,'application/json; charset=utf-8'); }
+        let body;try {body=JSON.parse(await boundedBody(request,4096));} catch {return response(JSON.stringify({error:'INVALID_NOTIFICATION_REQUEST'}),400,'application/json; charset=utf-8');}
+        if(!body||!/^[a-f0-9]{64}$/.test(body.reportId||''))return response(JSON.stringify({error:'INVALID_NOTIFICATION_REQUEST'}),400,'application/json; charset=utf-8');
+        try {
+          const receipt=await notifyHostedReport(env,{reportId:body.reportId,fetchImpl,now:clock(),loadBundle:loadHostedBundle,updateReceipt:updateHostedReceipt});
+          return response(JSON.stringify({receipt}),200,'application/json; charset=utf-8');
+        } catch (error) { return response(JSON.stringify({error:error.code === 'RELEASE_GATE_BLOCKED' ? 'RELEASE_GATE_BLOCKED' : 'HOSTED_NOTIFICATION_FAILED'}),error.code === 'RELEASE_GATE_BLOCKED' ? 409 : 503,'application/json; charset=utf-8'); }
+      }
+      const hosted=await handleHostedRequest(request,env,{fetchImpl,now:clock()});
+      if(hosted)return hosted;
+    }
     if(path==='/internal/report-status'){
       const token=env.REPORTS_PROBE_TOKEN;
       if(method!=='GET')return response('不支持此请求方式。',405);
@@ -81,18 +103,18 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
       if(!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded'))return response('不支持的表单格式。',415);
       const ip=request.headers.get('cf-connecting-ip')||'unknown';
       for(const [key,value] of attempts)if(value.until<=now)attempts.delete(key);
-      if(!attempts.has(ip)&&attempts.size>=5000)return loginPage('登录请求较多，请稍后再试。',429,{'Retry-After':'600'});
+      if(!attempts.has(ip)&&attempts.size>=5000)return loginPage('登录请求较多，请稍后再试。',429,{'Retry-After':'600'},view);
       const entry=attempts.get(ip)||{count:0,until:now+600};
-      if(entry.count>=10)return loginPage('尝试次数过多，请稍后再试。',429,{'Retry-After':String(Math.max(1,entry.until-now))});
+      if(entry.count>=10)return loginPage('尝试次数过多，请稍后再试。',429,{'Retry-After':String(Math.max(1,entry.until-now))},view);
       entry.count++;attempts.set(ip,entry);
       let form;try{form=new URLSearchParams(await boundedBody(request,2048));}catch{return response('表单内容过长。',413);}
-      if(form.getAll('username').length!==1||form.getAll('password').length!==1)return loginPage('用户名或密码不正确。',401);
+      if(form.getAll('username').length!==1||form.getAll('password').length!==1)return loginPage('用户名或密码不正确。',401,{},view);
       const username=form.get('username'),password=form.get('password');
-      if(username.length>80||password.length>256)return loginPage('用户名或密码不正确。',401);
+      if(username.length>80||password.length>256)return loginPage('用户名或密码不正确。',401,{},view);
       const valid=await passwordMatches(password,config);
-      if(username!==config.username||!valid)return loginPage('用户名或密码不正确。',401);
+      if(username!==config.username||!valid)return loginPage('用户名或密码不正确。',401,{},view);
       attempts.delete(ip);
-      return redirect('/',{'Set-Cookie':cookieValue(await session(config,now))});
+      return redirect(landing,{'Set-Cookie':cookieValue(await session(config,now))});
     }
     if(path==='/logout'&&method==='POST'){
       if(!sameOrigin)return response('请求来源不匹配。',403);
@@ -100,8 +122,8 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     }
     if(!['GET','HEAD'].includes(method))return response('不支持此请求方式。',405,undefined,{Allow:'GET, HEAD'});
     const signedIn=await authenticated(request,config,now);
-    if(path==='/login')return signedIn?redirect('/'):method==='HEAD'?response(null,200,'text/html; charset=utf-8'):loginPage();
-    if(!signedIn)return path==='/'||path==='/index.html'?redirect('/login'):response('请先登录。',401);
+    if(path==='/login')return signedIn?redirect(landing):method==='HEAD'?response(null,200,'text/html; charset=utf-8'):loginPage('',200,{},view);
+    if(!signedIn)return path==='/'||path==='/index.html'?redirect(loginPath):response('请先登录。',401);
     if(['/api/report','/api/predictions.json','/api/publication.json','/api/openligadb-fixtures.json'].includes(path)){
       try{
         const bundle=await REPORT_FEED.readDashboardBundle(env,{fetchImpl,now:clock()});

@@ -15,6 +15,7 @@ class PackageTests(unittest.TestCase):
         shutil.copyfile(Path(__file__).with_name("package.py"), root / "scripts/package.py")
         for name in ("collector/run.mjs", "collector/browser-runtime/package.json", "collector/browser-runtime/package-lock.json",
                      "collector/browser-runtime/index.mjs", "collector/browser-runtime/node_modules/example/index.js",
+                     "website/report-schema.mjs", "website/telegram-presentation.mjs", "website/test/ui.test.mjs",
                      "collector/browser-runtime/.auth/session.json", "collector/browser-runtime/browsers/chrome",
                      "deploy/test/.env.production", "collector/test/private.auth.json", "collector/test/state.providers.json"):
             path = root / name
@@ -31,6 +32,9 @@ class PackageTests(unittest.TestCase):
             self.assertIn("collector/browser-runtime/package-lock.json", names)
             self.assertIn("collector/browser-runtime/index.mjs", names)
             self.assertIn(".env.example", names)
+            self.assertIn("website/report-schema.mjs", names)
+            self.assertIn("website/telegram-presentation.mjs", names)
+            self.assertIn("website/test/ui.test.mjs", names)
             self.assertNotIn("collector/test/state.providers.json", names)
             self.assertFalse(any("node_modules" in name or ".auth" in name or ".env.production" in name or "/browsers/" in name for name in names))
 

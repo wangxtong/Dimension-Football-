@@ -135,6 +135,25 @@ function validEvidence(row, fixture, now, lifetime) {
     && now - observed <= lifetime && observed < isoMillis(fixture.kickoff) && expires > now);
 }
 
+const productionChannels = Object.freeze({ 'titan007-public-market': 'titan007', hkjc: 'hkjc', 'hkjc-first-party': 'hkjc' });
+const titanCompanies = Object.freeze({ 17: 'M88', 24: '12Bet', 31: 'SBOBET' });
+
+// A website label cannot turn a declared shared production channel into another
+// independent source. Commercial reference providers are not formal quote feeds.
+export function quoteSourceGroup(row) {
+  if (!row || !Object.hasOwn(SOURCES, row.sourceId)) return null;
+  if (row.provider !== undefined) {
+    const producer = Object.hasOwn(productionChannels, row.provider) ? productionChannels[row.provider]
+      : Object.hasOwn(SOURCES, row.provider) ? row.provider : null;
+    if (producer !== row.sourceId) return null;
+  }
+  if (Object.hasOwn(productionChannels, row.source) && productionChannels[row.source] !== row.sourceId) return null;
+  if (row.sourceId === 'hkjc' && row.bookmaker !== 'HKJC') return null;
+  if (row.sourceId === 'titan007' && row.companyId !== undefined
+    && (!Number.isSafeInteger(row.companyId) || !Object.hasOwn(titanCompanies, row.companyId) || titanCompanies[row.companyId] !== row.bookmaker)) return null;
+  return SOURCES[row.sourceId].group;
+}
+
 export function validQuote(row, fixture, now, p = DEFAULT_POLICY) {
   const updated = isoMillis(row?.sourceUpdatedAt);
   const asOf = isoMillis(row?.sourceAsOf);
@@ -143,7 +162,7 @@ export function validQuote(row, fixture, now, p = DEFAULT_POLICY) {
     && row.providerPoolUpdatedAt === row.sourceUpdatedAt && Number.isFinite(asOf) && updated <= asOf
     && asOf <= isoMillis(row.observedAt) && now - asOf <= p.maxQuoteAgeMs
     && Number.isInteger(row.cacheMaxAgeSeconds) && row.cacheMaxAgeSeconds >= 0 && row.cacheMaxAgeSeconds <= 60;
-  return validEvidence(row, fixture, now, p.maxQuoteAgeMs) && row.market === 'asian-handicap' && row.period === 'full-time'
+  return validEvidence(row, fixture, now, p.maxQuoteAgeMs) && quoteSourceGroup(row) !== null && row.market === 'asian-handicap' && row.period === 'full-time'
     && typeof row.providerMatchId === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(row.providerMatchId)
     && ['home', 'away'].includes(row.selection) && typeof row.bookmaker === 'string' && row.bookmaker.length > 0 && row.bookmaker.length <= 80 && !/[\u0000-\u001f]/u.test(row.bookmaker)
     && !/crown|皇冠|crow\*/i.test(row.bookmaker) && row.inPlay === false && row.closed === false
@@ -162,7 +181,7 @@ export function hasPair(quote, quotes) {
 }
 
 export function safeQuote(quote) {
-  return Object.fromEntries(['sourceId', 'bookmaker', 'providerMatchId', 'providerPoolId', 'market', 'period', 'selection', 'handicap', 'decimalOdds', 'observedAt', 'sourceUpdatedAt', 'validUntil', 'evidenceUrl', 'verificationMethod',
+  return Object.fromEntries(['sourceId', 'provider', 'bookmaker', 'companyId', 'providerMatchId', 'providerPoolId', 'market', 'period', 'selection', 'handicap', 'decimalOdds', 'observedAt', 'sourceUpdatedAt', 'validUntil', 'evidenceUrl', 'verificationMethod',
     'sourceAsOf', 'providerPoolUpdatedAt', 'freshnessBasis', 'cacheMaxAgeSeconds'].filter(key => Object.hasOwn(quote, key)).map(key => [key, quote[key]]));
 }
 
@@ -212,6 +231,7 @@ export function latestMarketQuotes(fixture, quotes, nowISO) {
   }
   const current = [];
   for (const rows of grouped.values()) {
+    if (rows.some(row => quoteSourceGroup(row) === null)) { blockers.add('SOURCE_CHANNEL_IDENTITY_CONFLICT'); continue; }
     const sourceTime = row => isoMillis(row.sourceId === 'hkjc' ? row.sourceAsOf : row.sourceUpdatedAt);
     if (rows.some(row => !Number.isFinite(sourceTime(row)) || !Number.isFinite(isoMillis(row.observedAt))
       || sourceTime(row) > isoMillis(row.observedAt) || isoMillis(row.observedAt) > now)) {

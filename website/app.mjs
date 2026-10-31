@@ -46,8 +46,8 @@ let report = null, receipt = null, view = 'analysis', failedRefresh = false, fre
 const current = row => row.forecast.status === 'forecast' && Date.parse(row.forecast.freshness?.validUntil) > Date.now() && Date.parse(row.fixture.kickoff) > Date.now();
 const cardCache = new Map(), expanded = new Map();
 function grouped() {
-  if (!report) return { analysis: [], strict: [], missing: [] };
-  return { analysis: report.fixtures.filter(current), missing: report.fixtures.filter(r => !current(r)),
+  if (!report) return { schedule: [], analysis: [], strict: [], missing: [] };
+  return { schedule: report.fixtures, analysis: report.fixtures.filter(current), missing: report.fixtures.filter(r => !current(r)),
     strict: report.fixtures.filter(r => !report.simulated && r.marketCandidate.status === 'candidate' && Date.parse(r.fixture.kickoff) > Date.now()
       && r.marketCandidate.candidate?.quotes?.length && r.marketCandidate.candidate.quotes.every(q => Date.parse(q.validUntil) > Date.now())) };
 }
@@ -56,6 +56,11 @@ function card(row) {
   root.dataset.fixtureId = f.id;
   const meta = el('div', null, 'meta'); meta.append(el('span', leagueName(f.league), 'league-tag'), el('span', `${time(f.kickoff)} 北京时间`));
   const teams = el('div', null, 'teams'); teams.append(el('div', teamName(f.home, { source: f.source, teamId: f.homeTeamId })), el('span', '对阵'), el('div', teamName(f.away, { source: f.source, teamId: f.awayTeamId }))); root.append(meta, teams);
+  if (view === 'schedule') {
+    const labels = { SCHEDULED:'未开赛', TIMED:'已定开球时间', FINISHED:'已完场', IN_PLAY:'比赛进行中', POSTPONED:'已延期', CANCELLED:'已取消' };
+    root.append(el('div', labels[f.status] || '赛程状态待核验', 'pill'), el('p', `赛程来源：${sourceName(f.source)}`, 'facts'), el('p', '正式预测暂未发布；请在数据缺失与发布状态中查看当前阻断。', 'note'));
+    return root;
+  }
   if (view === 'strict') {
     const c = m.candidate; root.append(el('div', '严格候选 · 待人工复核', 'pill'), el('p', `${choices[c.selection]} ${c.handicap} @ ${c.decimalOdds}`),
       el('p', `独立来源：${c.quoteGroups.map(value => sourceName(value)).join(' / ')}`, 'facts'), el('p', `初盘 ${c.opening.handicap} @ ${c.opening.decimalOdds} · ${time(c.opening.observedAt)}`, 'facts'));
@@ -122,6 +127,20 @@ function renderCoverage() {
 }
 function render() {
   if (!report) return;
+  $('count-fixtures').textContent = report.fixtures.length;
+  $('feed-mode').textContent = freshness?.mode === 'hosted' ? '持久实时采集报告' : freshness?.mode === 'ecs' ? '服务器报告' : freshness?.mode === 'bootstrap' ? '启动快照 · 未实时连接' : '数据来源待核验';
+  $('collected-at').textContent = time(report.generatedAt);
+  const age = Math.max(0, Math.floor((Date.now() - Date.parse(report.generatedAt)) / 60000));
+  $('data-age').textContent = age < 60 ? `${age} 分钟` : `${Math.floor(age / 60)} 小时 ${age % 60} 分钟`;
+  const leagueOverview = $('league-overview'); leagueOverview.replaceChildren();
+  for (const code of ['PL','PD','SA','BL1','FL1']) {
+    const count = report.fixtures.filter(row => row.fixture.league === code).length;
+    const history = (report.coverage || []).filter(row => row?.league === code && Number.isSafeInteger(row.historyCount)).reduce((n,row) => n + row.historyCount, 0);
+    const button = el('button',null,'league-card'); button.type='button';
+    button.append(el('strong',leagueName(code)),el('span',`${count} 场赛程`),el('small',history ? `取得 ${history} 条来源历史` : '历史覆盖不足或未记录'));
+    button.addEventListener('click',()=>{ $('league').value=code; location.hash='schedule'; render(); $('cards').scrollIntoView({block:'start'}); });
+    leagueOverview.append(button);
+  }
   const groups = grouped(); $('count-analysis').textContent = groups.analysis.length; $('count-strict').textContent = groups.strict.length; $('count-missing').textContent = groups.missing.length;
   const expired = report.fixtures.filter(r => r.forecast.status === 'forecast' && !current(r)).length;
   const message = [failedRefresh ? '本次刷新失败，当前显示上次成功读取的报告。' : '',
@@ -156,7 +175,7 @@ function render() {
     ? artifactUrl : WORKFLOW_URL;
   $('attribution').replaceChildren();
   for (const a of report.attribution) { const n = el('a', `${sourceName(safeLabel(a.id, null) || a.name)} · ${licenseName(a.license)}`); if (/^https:\/\//.test(a.url)) { n.href = a.url; n.target = '_blank'; n.rel = 'noreferrer'; $('attribution').append(n); } }
-  const data = el('a', '开放联赛原始数据与许可 ↗'); data.href = BASE+'openligadb-fixtures.json'; data.target = '_blank'; data.rel = 'noreferrer'; $('attribution').append(data);
+  const data = el('a', report.publicationKind === 'observations' ? '赛程观察数据与许可 ↗' : '开放联赛原始数据与许可 ↗'); data.href = BASE+'openligadb-fixtures.json'; data.target = '_blank'; data.rel = 'noreferrer'; $('attribution').append(data);
 }
 const loader = createSnapshotLoader();
 let refreshing = null;
@@ -167,6 +186,7 @@ function load() {
     try {
       const next = await loader.load();
       report = next.report; receipt = next.receipt; freshness = next.freshness || null; health = next.health || null; failedRefresh = false;
+      if (!location.hash && !new URLSearchParams(location.search).has('view') && report.publicationKind === 'observations') document.querySelector('[data-view="schedule"]').click();
       render(); $('sync-status').textContent = `已检查 · ${time(new Date().toISOString())} 北京时间`;
     } catch (error) {
       if (error.message === 'AUTH_REQUIRED') { location.assign('/login'); return; }
@@ -185,12 +205,19 @@ if (typeof document !== 'undefined') {
     $('cards').setAttribute('aria-labelledby', button.id); render();
   }
   tabs.forEach((button, index) => {
-    button.addEventListener('click', () => selectTab(button));
+    button.addEventListener('click', () => {selectTab(button); history.replaceState(null,'','#'+button.dataset.view);});
     button.addEventListener('keydown', event => {
       const target = { ArrowRight: (index + 1) % tabs.length, ArrowLeft: (index + tabs.length - 1) % tabs.length, Home: 0, End: tabs.length - 1 }[event.key];
       if (target === undefined) return;
       event.preventDefault(); selectTab(tabs[target]); tabs[target].focus();
     });
   });
+  function followSection() {
+    const target = location.hash.slice(1) || new URLSearchParams(location.search).get('view');
+    const tab = tabs.find(button => button.dataset.view === target);
+    if (tab) selectTab(tab);
+    if (target === 'status') $('status').focus({preventScroll:true});
+  }
+  addEventListener('hashchange',followSection); followSection();
   setInterval(load, 60000); setInterval(render, 30000); load();
 }

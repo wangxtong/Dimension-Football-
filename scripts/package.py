@@ -6,7 +6,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 root = Path(__file__).resolve().parents[1]
 files = [root / name for name in ("package.json", "README.md", ".gitignore", ".gitattributes", ".env.example")]
 excluded_dirs = {"node_modules", "__pycache__", ".auth", ".browser-state", "storage", "browsers", ".cache"}
-for name in (".github", "collector", "config", "deploy", "docs", "examples", "scripts"):
+for name in (".github", "collector", "config", "deploy", "docs", "examples", "scripts", "website"):
     for directory, dirs, names in os.walk(root / name, followlinks=False):
         dirs[:] = [item for item in dirs if item not in excluded_dirs]
         if any((Path(directory) / item).is_symlink() for item in dirs):

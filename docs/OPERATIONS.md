@@ -54,7 +54,7 @@ python3 deploy/bundle.py build /path/to/checkout FULL_40_CHARACTER_SHA /path/to/
 python3 deploy/bundle.py verify /path/to/release.tar --sha256 EXPECTED_64_CHARACTER_SHA256
 ```
 
-CI 至少执行 `npm test`、`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest deploy/test_bundle.py deploy/test_handoff.py`、`bash -n deploy/*.sh`，并运行总控提供的网站及数据契约检查。`bundle.py` 包含逐文件 SHA-256 清单、源 SHA、状态兼容版本与部署工具摘要。它拒绝路径穿越、链接、重复条目、超大归档、缺失或变化文件。SHA-256 本身不是签名；预期摘要必须来自已认证、已批准的 CI/传输结果，不能信任与未知包同时收到的任意文本。
+CI 至少执行 `npm test`、`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest deploy/test_bundle.py deploy/test_handoff.py`、`bash -n deploy/*.sh`，并运行总控提供的网站及数据契约检查。`bundle.py` 包含逐文件 SHA-256 清单、源 SHA、状态兼容版本与部署工具摘要。它拒绝路径穿越、链接、重复条目、超大归档、缺失或变化文件。运行制品排除所有 test/tests/__tests__/__mocks__/helpers 目录、`.test.` 文件及 `test_` 脚本，包括 collector/test、collector/sources/test、collector/browser-runtime/test、website/test 和门禁 mock；开发源码 ZIP 继续保留完整测试。验证归档、验证解包目录和安装复制均执行同一白名单，不能把文件加入清单并填入正确哈希来绕过排除。SHA-256 本身不是签名；预期摘要必须来自已认证、已批准的 CI/传输结果，不能信任与未知包同时收到的任意文本。
 
 通过既有 Workbench/云效上传批准制品和部署 helper。服务器执行：
 
@@ -62,7 +62,7 @@ CI 至少执行 `npm test`、`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest depl
 sudo bash /absolute/approved/deploy/bootstrap.sh /absolute/release.tar EXPECTED_64_CHARACTER_SHA256 --install-node
 ```
 
-helper 自身必须通过同一受信任交付过程获得。也可先用 `bundle.py extract ... --sha256 ...` 解包，再执行 `sudo bash SOURCE/deploy/install.sh SOURCE`。安装器验证清单，并使用独立的 `vantis-check` 账号运行测试；该账号不能读取 `root:vantis` 的生产秘密。测试输出不写生产日志，失败时保留现有代码版本。安装通过受限文件锁和原子替换补齐 `report.env` 的 `REPORTS_READ_TOKEN` 与 `collector.env` 的 `REPORTS_PROBE_TOKEN`，两者独立随机生成；合法旧值及其它配置保留，空值补齐，重复或非法旧值明确拒绝。两个文件为 root:vantis、0640；日志只显示键名和创建/保留状态，不显示值。
+helper 自身必须通过同一受信任交付过程获得。也可先用 `bundle.py extract ... --sha256 ...` 解包，再执行 `sudo bash SOURCE/deploy/install.sh SOURCE`。安装器验证清单，并使用独立的 `vantis-check` 账号检查运行模块语法和无副作用 `--help` 入口；该账号不能读取 `root:vantis` 的生产秘密。完整测试必须先在相同 SHA 的 CI 源码上完成，运行包不再携带测试代码。校验输出不写生产日志，失败时保留现有代码版本。安装通过受限文件锁和原子替换补齐 `report.env` 的 `REPORTS_READ_TOKEN` 与 `collector.env` 的 `REPORTS_PROBE_TOKEN`，两者独立随机生成；合法旧值及其它配置保留，空值补齐，重复或非法旧值明确拒绝。两个文件为 root:vantis、0640；日志只显示键名和创建/保留状态，不显示值。
 
 已有安装的制品更新使用已安装、root 所有的 `release.sh`；代码同步不会替换部署工具。部署工具及单元升级需显式执行安装器，记录独立摘要。
 
@@ -71,10 +71,12 @@ helper 自身必须通过同一受信任交付过程获得。也可先用 `bundl
 - GitHub key 仅授权 `wangxtong/Dimension-Football-` 读取；无需写权限。
 - `/etc/vantis/github_deploy_key` 为 root 所有，权限 0600 或 0400。
 - `/etc/vantis/github_known_hosts` 必须由已核验的 GitHub 官方 SSH 主机公钥建立。禁止自动接受首次连接、禁止关闭主机校验。
-- 将非秘密文件 `source-mode` 改为 `deploy-key`，再启用 `vantis-sync.timer`。同步固定仓库 main 到本地 bare 库，构建并校验不可变包，测试成功后切换；不走匿名 codeload。
+- 将非秘密文件 `source-mode` 改为 `deploy-key`，再启用 `vantis-sync.timer`。同步固定仓库 main 到本地 bare 库，构建并校验不可变包；另建相同提交的临时 detached worktree，在无生产环境变量的受限账号下运行完整源码测试，成功后切换，退出时移除测试 worktree。测试源码不进入运行包或 `/opt/vantis/releases`；不走匿名 codeload。
 - ECS 不使用 GitHub Actions OIDC。Actions 的 CI 身份与 ECS 机器身份分开；deploy key 不会自动授予任何阿里云权限。
 
-普通代码发布保留报告、状态和秘密。运行制品同时复制 `collector/`、`config/` 和 `website/`，保留报告存储所需的 `website/report-schema.mjs` 等共享契约。`operations/release.json` 记录源 SHA、制品摘要、源工具摘要、实际安装工具摘要和状态兼容版本；不把源内的新工具版本误称为服务器已升级工具。
+普通代码发布保留报告、状态和秘密。`release.sh` 通过 `bundle.py copy-runtime` 仅复制清单中允许的 `collector/`、`config/`、`website/` 和 package.json 文件，保留报告存储所需的 `website/report-schema.mjs` 等共享契约；不再递归复制整个源码目录。`operations/release.json` 记录源 SHA、制品摘要、源工具摘要、实际安装工具摘要和状态兼容版本；不把源内的新工具版本误称为服务器已升级工具。
+
+打包分离不改变 manifest version 1、state schema 1 或支持的持久状态路径。`toolingDigest` 仍按实际纳入的 deploy 文件名及字节排序计算，因此排除部署测试或修改工具会产生新摘要；archive 摘要也必须重新获取。新校验器拒绝含测试/辅助代码的旧包，需要从批准 SHA 重新构建。应用代码更新不自动更新已安装工具，必须先显式升级 bundle.py/release.sh/install.sh/sync.sh；否则不能声称服务器已执行新白名单。既有服务器权限、可写源码、旧 release 和 Node preload 权限仍需实际核验；本地打包测试不代表这些权限已加固，预测发布继续保持 BLOCKED。
 
 ## Sites 数据服务与发布验收
 

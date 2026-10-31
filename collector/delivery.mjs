@@ -5,6 +5,7 @@ import { readJson } from './storage.mjs';
 import { updatePublicationChannel, verifyPublication } from './publication.mjs';
 import { persistReport, persistReportReceipt } from './report-store.mjs';
 import { claimNotification, recordNotificationOutcome, readNotificationOutcome } from './outbox.mjs';
+import { requireGreenForecastDelivery } from './publication-release-gate.mjs';
 
 export function deliveryConfig(value) {
   const w = value?.website, t = value?.telegram;
@@ -74,6 +75,7 @@ export async function publishGitHubArchive(directory, { config, env = {}, fetchI
   }, { expectedReportId });
 }
 export async function publishWebsite(directory, { config, env = {}, fetchImpl = fetch, clock = stamp, expectedReportId }) {
+  await requireGreenForecastDelivery(directory);
   deliveryConfig(config);
   return updatePublicationChannel(directory, 'externalWebsite', async receipt => {
     const checkedAt = clock(), base = { checkedAt, servedVerified:false };
@@ -97,6 +99,7 @@ export async function publishWebsite(directory, { config, env = {}, fetchImpl = 
 }
 
 export async function publishWebsiteReceipt(directory, { config, clock = stamp, persistReceipt = persistReportReceipt, expectedReportId }) {
+  await requireGreenForecastDelivery(directory);
   deliveryConfig(config);
   return updatePublicationChannel(directory, 'receiptSync', async receipt => {
     if (receipt.simulated) return { status:'skipped', checkedAt:clock(), code:'SIMULATION_NOT_PUBLISHED' };
@@ -136,6 +139,7 @@ async function telegramRejection(response, { token, fingerprint, fetchImpl }) {
   return result;
 }
 export async function publishTelegram(directory, { config, env = {}, fetchImpl = fetch, clock = stamp, expectedReportId }) {
+  await requireGreenForecastDelivery(directory);
   deliveryConfig(config);
   return updatePublicationChannel(directory, 'notifications', async receipt => {
     if (receipt.simulated) return { status:'skipped', checkedAt:stamp(), code:'SIMULATION_NOT_SENT' };
@@ -189,6 +193,7 @@ export async function publishTelegram(directory, { config, env = {}, fetchImpl =
 // Each stage records its own outcome. A site failure does not hide the notification
 // result, and the final receipt is attempted even when an earlier stage throws.
 export async function publishAll(directory, options) {
+  await requireGreenForecastDelivery(directory);
   deliveryConfig(options.config);
   const initial = await readJson(resolve(directory, 'publication.json'));
   const expectedReportId = options.expectedReportId || initial.reportId;

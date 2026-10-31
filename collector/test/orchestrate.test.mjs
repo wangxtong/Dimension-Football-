@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runOrchestration } from '../orchestrate.mjs';
+import { withMockReleaseGate } from './helpers/delivery-mock.mjs';
+const { runOrchestration } = await withMockReleaseGate(new URL('../orchestrate.mjs', import.meta.url));
 import { atomicJson, readJson } from '../storage.mjs';
 import { createAcquisitionSnapshot, verifyAcquisitionSnapshot } from '../data/acquisition-snapshot.mjs';
 import { verifyReplayBundle } from '../data/run-manifest.mjs';
@@ -126,7 +127,8 @@ test('results lane stores actual final scores and produces prospective horizon e
   const cwd = await workspace(t), directory = join(cwd, 'reports/forecast-ledger'), f = fixture(), predictionAt = NOW;
   await appendReportPredictions({ directory, nowISO: predictionAt, report: { simulated: false, publication: { reportId: 'a'.repeat(64) },
     forecasts: { model: FORECAST_MODEL, generatedAt: predictionAt }, results: [{ fixture: f, forecast: { fixtureId: f.id, status: 'forecast',
-      generatedAt: predictionAt, trainingCutoff: predictionAt, trainingHash: 'b'.repeat(64), probabilities: { home: .5, draw: .3, away: .2 } } }] } });
+      generatedAt: predictionAt, trainingCutoff: predictionAt, trainingHash: 'b'.repeat(64), probabilities: { home: .5, draw: .3, away: .2 },
+      freshness: { validUntil: new Date(Date.parse(predictionAt) + 3600000).toISOString() } } }] } });
   const now = at(2), result = { ...f, status: 'FINISHED', period: 'full-time', homeGoals: 2, awayGoals: 0, resultObservedAt: now, observedAt: now, fetchedAt: now };
   for (const key of ['revisionId', 'recordHash', 'identityRevision', 'canonicalMatchId']) delete result[key];
   const outcome = await runOrchestration(args(cwd, 'results'), { ...common(cwd), clock: () => now, dependencies: {

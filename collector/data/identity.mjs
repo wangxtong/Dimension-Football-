@@ -62,16 +62,34 @@ export function logicalMatchKey(row) {
 // merge across names, providers, reschedules, reversed venues, or second legs.
 export function partitionLogicalMatches(rows) {
   if (!Array.isArray(rows) || rows.length > 10000) throw new Error('INVALID_DATA_ROWS');
-  const groups = new Map(), conflicts = [], records = []; let duplicates = 0;
+  const groups = new Map(), events = new Map(), conflicts = [], records = []; let duplicates = 0;
   for (const row of rows) {
     const key = logicalMatchKey(row);
     let verified = false;
     try { eventIdentity(row); verified = true; } catch { /* Quarantine unknown identity rather than guessing it. */ }
     if (!key || !verified) { conflicts.push({ code: 'identity_unverified', ids: [validDataToken(row?.id) ? row.id : null] }); continue; }
+    const identity = eventIdentity(row), event = events.get(identity.canonicalMatchId) || [];
+    event.push({ row, identity }); events.set(identity.canonicalMatchId, event);
     const group = groups.get(key) || []; group.push(row); groups.set(key, group);
+  }
+  const conflictingEvents = new Set();
+  for (const [canonicalMatchId, event] of events) {
+    // A reschedule or venue correction can move one provider event into a
+    // different logical group. One snapshot must not count both revisions.
+    if (new Set(event.map(({ identity }) => identity.identityRevision)).size > 1) {
+      conflictingEvents.add(canonicalMatchId);
+      conflicts.push({ code: 'event_revision_conflict', canonicalMatchId, ids: event.map(({ row }) => row.id) });
+    }
   }
   for (const [key, group] of groups) {
     const identities = group.map(eventIdentity);
+    if (identities.some(row => conflictingEvents.has(row.canonicalMatchId))) {
+      // Keep all logical aliases quarantined too; do not let a third ID become
+      // an implicit preferred match for a conflicted revision.
+      const aliases = group.filter((row, index) => !conflictingEvents.has(identities[index].canonicalMatchId));
+      if (aliases.length) conflicts.push({ code: 'logical_fixture_conflict', key, ids: aliases.map(row => row.id) });
+      continue;
+    }
     if (new Set(identities.map(row => row.canonicalMatchId)).size !== 1
       || new Set(identities.map(row => row.recordHash)).size !== 1) {
       conflicts.push({ code: 'logical_fixture_conflict', key, ids: group.map(row => row.id) }); continue;

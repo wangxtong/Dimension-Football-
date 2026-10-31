@@ -32,3 +32,19 @@ test('logical aliases are quarantined without combining unrelated venues, legs o
   assert.equal(partitionLogicalMatches([{ ...row, homeTeamId: undefined }]).records.length, 0);
   assert.throws(() => withEventIdentity({ ...row, kickoff: '2026-02-30T18:00:00Z' }), /INVALID_EVENT_IDENTITY/);
 });
+
+test('different revisions of one provider event cannot become two fixtures through local aliases', () => {
+  const row = fixture(), moved = { ...row, id: 'local-alias', kickoff: '2026-11-02T18:00:00Z' };
+  for (const revision of [moved, { ...row, id: 'local-alias', homeTeamId: row.awayTeamId, awayTeamId: row.homeTeamId },
+    { ...row, id: 'local-alias', season: '2027' }]) {
+    const checked = partitionLogicalMatches([row, revision]);
+    assert.equal(checked.records.length, 0);
+    assert.deepEqual(checked.conflicts.map(conflict => conflict.code), ['event_revision_conflict']);
+    assert.deepEqual(checked.conflicts[0].ids, [row.id, revision.id]);
+  }
+  assert.equal(partitionLogicalMatches([moved]).records.length, 1, 'a new snapshot may contain the single corrected revision');
+  const anotherAlias = { ...row, id: 'another-event-id', sourceFixtureId: 'another-event-id' };
+  const checked = partitionLogicalMatches([row, moved, anotherAlias]);
+  assert.equal(checked.records.length, 0, 'a logical alias is not promoted over a known conflicting revision');
+  assert.equal(checked.conflicts.flatMap(conflict => conflict.ids).length, 3);
+});

@@ -10,11 +10,12 @@ import { prepareForecastHistory, BACKTEST_HORIZONS, FORECAST_MODEL } from './for
 import { appendResultAndScore, evaluatePredictionLedger } from './prediction-ledger.mjs';
 import { isoMillis } from './policy.mjs';
 import { configureEnvironmentProxy } from './network.mjs';
+import { requireGreenForecastDelivery } from './publication-release-gate.mjs';
 
 const LANES = new Set(['fixtures', 'markets', 'delivery', 'results']);
 const HELP = '用法：node collector/orchestrate.mjs --lane fixtures|markets|delivery|results [--state FILE] [--out DIR] [--budget-minutes N]\n默认报告目录 /var/lib/vantis/reports；--help 不访问网络、不写文件。\n';
 const BLOCKERS = new Set(['FIXTURE_CACHE_EXPIRED', 'FIXTURE_CACHE_MISSING', 'ACQUISITION_SNAPSHOT_CHANGED', 'INVALID_ACQUISITION_SNAPSHOT',
-  'NO_GENERATED_REPORT', 'COLLECTION_ALREADY_LOCKED', 'INPUT_ARCHIVE_INCOMPLETE', 'CANCELLED', 'BUDGET_EXHAUSTED']);
+  'NO_GENERATED_REPORT', 'COLLECTION_ALREADY_LOCKED', 'INPUT_ARCHIVE_INCOMPLETE', 'CANCELLED', 'BUDGET_EXHAUSTED', 'RELEASE_GATE_BLOCKED']);
 const MANAGED_KEYS = ['FOOTBALL_DATA_API_KEY', 'FOOTBALL_DATA_API_TOKEN', 'API_FOOTBALL_KEY', 'SPORTMONKS_API_TOKEN'];
 const dynamicPublisher = async (directory, options) => (await import('./delivery.mjs')).publishAll(directory,
   { ...options, config: await readJson(resolve(import.meta.dirname, '../config/delivery.json')) });
@@ -61,7 +62,8 @@ async function laneReceipt(statePath, lane, outcome, checkedAt) {
     || Object.keys(previous.lanes).some(key => !LANES.has(key))) throw new Error('ORCHESTRATION_STATE_INVALID');
   previous.lanes[lane] = { checkedAt, status: outcome.status, code: outcome.code || null,
     reportId: /^[a-f0-9]{64}$/.test(outcome.reportId || '') ? outcome.reportId : null,
-    exitCode: outcome.exitCode, ...(outcome.summary ? { summary: outcome.summary } : {}) };
+    exitCode: outcome.exitCode, ...(outcome.summary ? { summary: outcome.summary } : {}),
+    ...(outcome.releaseGate ? { releaseGate:outcome.releaseGate } : {}) };
   await atomicJson(path, previous);
 }
 
@@ -91,6 +93,7 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
     const publish = async reportId => {
       if (signal?.aborted) throw new Error('CANCELLED');
       if (remaining() < 1) throw new Error('BUDGET_EXHAUSTED');
+      await requireGreenForecastDelivery(out);
       const boundedFetch = (url, init = {}) => fetchImpl(url, { ...init,
         signal: AbortSignal.any([init.signal, signal, AbortSignal.timeout(Math.max(1, Math.ceil(remaining())))].filter(Boolean)) });
       return dep.publishAll(out, { env, fetchImpl: boundedFetch, clock, ...(reportId ? { expectedReportId: reportId } : {}) });
@@ -166,6 +169,8 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
   } catch (error) {
     const code = BLOCKERS.has(error.message) || SAFE_ERRORS.has(error.message) || ORCHESTRATION_ERRORS.has(error.message) ? error.message : 'LANE_FAILED';
     outcome = { lane: options.lane, status: BLOCKERS.has(code) ? 'blocked' : 'failed', code, exitCode: 1 };
+    if (code === 'RELEASE_GATE_BLOCKED' && error.releaseGate)
+      outcome.releaseGate = error.releaseGate;
     if (release) await laneReceipt(statePath, options.lane, outcome, clock());
   } finally { if (release) await release(); }
   stdout(`${options.lane}: ${outcome.status}${outcome.code ? ` (${outcome.code})` : ''}\n`);

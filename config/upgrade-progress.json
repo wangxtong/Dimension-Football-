@@ -6,68 +6,77 @@
     {
       "id": "sources",
       "owner": "A2",
-      "status": "review",
+      "status": "active",
       "priority": "P1",
-      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
     },
     {
       "id": "data",
       "owner": "A3",
-      "status": "review",
+      "status": "active",
       "priority": "P1",
-      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
     },
     {
       "id": "models",
       "owner": "A4",
-      "status": "review",
+      "status": "active",
       "priority": "P1",
-      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
     },
     {
       "id": "markets",
       "owner": "A5",
-      "status": "review",
+      "status": "active",
       "priority": "P1",
-      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
     },
     {
       "id": "delivery",
       "owner": "A6",
-      "status": "review",
+      "status": "active",
       "priority": "P0",
-      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
     },
     {
       "id": "operations",
       "owner": "A7",
-      "status": "review",
+      "status": "active",
       "priority": "P1",
-      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
     },
     {
       "id": "website",
       "owner": "A8",
-      "status": "review",
+      "status": "active",
       "priority": "P0",
-      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
     },
     {
       "id": "ecs-access",
       "owner": "A1",
       "status": "blocked",
+      "priority": "P1",
+      "blocker": "No connected ECS command identity. Existing Sites + Actions is being activated autonomously; ECS deployment remains unverified."
+    },
+    {
+      "id": "hosted-live",
+      "owner": "A1/A6/A8",
+      "status": "active",
       "priority": "P0",
-      "blocker": "No connected ECS command identity; verified artifact installation through existing Workbench remains required."
+      "note": "Observation-only ingestion is being integrated; probability and candidate publication remains blocked."
     }
   ],
-  "updatedAt": "2026-10-31T07:55:46.975493Z",
-  "phase": "integration_verified_production_handoff_pending",
+  "updatedAt": "2026-10-31T08:45:52.700213+00:00",
+  "phase": "r1_preproduction_repairs",
   "acceptance": "docs/upgrade-acceptance.json",
   "productionWebsite": {
-    "version": 6,
+    "version": 7,
     "mode": "bootstrap",
     "reportId": "d9d61ff8969b662a1a82b9ead07dcfa83e200104d2eb4484c8bff84866dc804c",
     "httpStatus": 200,
     "pageErrors": 0
-  }
+  },
+  "releaseGate": "BLOCKED",
+  "publicationScope": "Collection observations only; no forecast promotion or automatic forecast notification."
 }
