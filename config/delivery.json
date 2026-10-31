@@ -9,6 +9,7 @@
   "telegram": {
     "enabled": true,
     "tokenVariable": "TELEGRAM_BOT_TOKEN",
-    "chatIdVariable": "TELEGRAM_CHAT_ID"
+    "chatIdVariable": "TELEGRAM_CHAT_ID",
+    "destinationFingerprint": "c061d82bf8f5ff23"
   }
 }
