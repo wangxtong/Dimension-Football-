@@ -58,6 +58,10 @@ if [[ ! -e /etc/vantis/collector.env ]]; then
 FOOTBALL_DATA_API_KEY=
 FOOTBALL_DATA_API_TOKEN=
 API_FOOTBALL_KEY=
+# Optional commercial feeds. Sportmonks can also supply fixture fallback.
+SPORTMONKS_API_TOKEN=
+THE_ODDS_API_KEY=
+ISPORTS_API_KEY=
 ENV
   )
 fi

@@ -1,6 +1,13 @@
 name: 维度足球长期采集
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'collector/**'
+      - 'config/**'
+      - 'package.json'
+      - '.github/workflows/collection.yml'
   workflow_dispatch:
     inputs:
       demo:
@@ -22,8 +29,8 @@ concurrency:
 
 jobs:
   collect:
-    # 默认只开放手动执行；显式开启仓库变量后才运行定时采集。
-    if: github.event_name == 'workflow_dispatch' || vars.VANTIS_COLLECTION_ENABLED == 'true'
+    # 主分支更新执行一次应用验收；定时采集仍需要显式开启仓库变量。
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || vars.VANTIS_COLLECTION_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -45,18 +52,39 @@ jobs:
         id: restore-state
         uses: actions/cache/restore@v6
         with:
-          path: ${{ env.STATE_DIR }}/state.json
+          path: |
+            ${{ env.STATE_DIR }}/state.json
+            ${{ env.STATE_DIR }}/state.json.sources.json
+            ${{ env.STATE_DIR }}/state.json.crawl.json
+            ${{ env.STATE_DIR }}/state.json.providers.json
           # cache 不可覆盖；每次执行及重新执行均创建独立条目。
-          key: collection-v1-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: collection-v4-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            collection-v1-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-
+            collection-v4-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-
+            collection-v3-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-
 
-      - name: 执行一轮正式采集（最多 20 分钟）
-        if: env.COLLECTION_MODE == 'production'
+      - name: 主分支应用验收（有赛程配置才采集，最多 5 分钟）
+        if: github.event_name == 'push'
         env:
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
           FOOTBALL_DATA_API_TOKEN: ${{ secrets.FOOTBALL_DATA_API_TOKEN }}
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+          ISPORTS_API_KEY: ${{ secrets.ISPORTS_API_KEY }}
+          FIXTURES_FILE: ${{ vars.FIXTURES_FILE }}
+        shell: bash
+        run: npm run sources:activate -- --state "$STATE_DIR/state.json" --out reports --budget-minutes 5
+
+      - name: 执行一轮正式采集（最多 20 分钟）
+        if: env.COLLECTION_MODE == 'production' && github.event_name != 'push'
+        env:
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+          FOOTBALL_DATA_API_TOKEN: ${{ secrets.FOOTBALL_DATA_API_TOKEN }}
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+          ISPORTS_API_KEY: ${{ secrets.ISPORTS_API_KEY }}
           FIXTURES_FILE: ${{ vars.FIXTURES_FILE }}
         shell: bash
         run: npm run collect -- --state "$STATE_DIR/state.json" --out reports --budget-minutes 20
@@ -67,11 +95,15 @@ jobs:
         run: npm run collect -- --demo --state "$STATE_DIR/state.json" --out reports --budget-minutes 20
 
       - name: 保存最新检查点（采集失败时也尝试保存）
-        if: always() && hashFiles(format('{0}/state.json', env.STATE_DIR)) != ''
+        if: always() && hashFiles(format('{0}/state.json', env.STATE_DIR), format('{0}/state.json.sources.json', env.STATE_DIR), format('{0}/state.json.crawl.json', env.STATE_DIR), format('{0}/state.json.providers.json', env.STATE_DIR)) != ''
         uses: actions/cache/save@v6
         with:
-          path: ${{ env.STATE_DIR }}/state.json
-          key: collection-v1-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.STATE_DIR }}/state.json
+            ${{ env.STATE_DIR }}/state.json.sources.json
+            ${{ env.STATE_DIR }}/state.json.crawl.json
+            ${{ env.STATE_DIR }}/state.json.providers.json
+          key: collection-v4-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: 保留本轮报告
         if: always()

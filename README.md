@@ -1,6 +1,6 @@
 # 维度足球 · 长期采集任务
 
-把原来的云端定时采集整理为可审阅、可部署的 Node.js 24 项目。入口为 `npm run collect`，GitHub Actions 支持手动运行与每小时运行。项目没有 npm 第三方依赖。
+把原来的云端定时采集整理为可审阅、可部署的 Node.js 24 项目。入口为 `npm run collect`，GitHub Actions 支持手动运行与每小时运行。核心 HTTP 采集无 npm 第三方依赖；可选浏览器运行时采用锁定版本的 Crawlee + Playwright。
 
 本版负责取得赛程和已实现的数据源证据、按规则逐场筛选、保存进度并输出报告。它不调用 OpenAI API，不发送 Telegram 消息，也不下注。`candidate` 表示证据门槛通过后仍需人工复核的候选，不代表已经发布的推荐。
 
@@ -15,7 +15,7 @@ npm run collect -- --demo
 
 `--demo` 完全离线，使用虚构比赛；报告醒目标记“模拟”，正式候选与模拟结果分开，默认检查点存入 `.collection-state-demo/state.json`。不要把模拟报告作为实际比赛建议。
 
-正式采集需要配置一家赛程服务：football-data.org 的 `FOOTBALL_DATA_API_KEY`（也接受 `FOOTBALL_DATA_API_TOKEN`），或 API-Football / API-Sports 直连服务的 `API_FOOTBALL_KEY`。两家均配置时优先使用 football-data.org；同一家 `KEY` 优先于 `TOKEN`，失败不会自动换服务。随后执行：
+正式采集至少配置一家赛程服务：football-data.org 的 `FOOTBALL_DATA_API_KEY`（也接受 `FOOTBALL_DATA_API_TOKEN`）、API-Football / API-Sports 直连服务的 `API_FOOTBALL_KEY`，或 Sportmonks 的 `SPORTMONKS_API_TOKEN`。默认按该顺序选择已配置且可用的源；同一家 `KEY` 优先于 `TOKEN`。只配置一家时没有备用服务。随后执行：
 
 ```sh
 npm run collect -- --state .collection-state/state.json --out reports --budget-minutes 20
@@ -31,10 +31,49 @@ npm run collect -- --input /path/to/fixtures.json --state .collection-state/stat
 
 环境变量不会从 `.env` 自动加载。本地可将一种凭据保存在 Git 忽略的 `.env.local` 中，再运行 `node --env-file=.env.local collector/run.mjs`。ECS / 轻量服务器可用同一命令，将 `--env-file`、`--state`、`--out` 指向发布目录以外的固定路径，并由系统调度器每小时执行；云效的部署变量不会自动成为后续定时任务的环境变量。
 
+## 信息源自动更新与故障切换
+
+每轮采集检查官方赛程响应的结构、身份、时间戳与五大联赛覆盖。主源完整时不消耗备用配额；主源不可用或不完整时按配置尝试其他已接入服务，保留覆盖更完整的一整份赛程，不拼接不同服务的赛事 ID。有效的空赛程表示该窗口没有比赛，属于成功。Sportmonks 使用有界分页，未读完不能视作完整覆盖。
+
+`config/sources.json` 设置来源顺序、连续失败阈值和冷却时间。普通故障连续两轮后指数退避；401/402/403、限流及配额耗尽采用单独冷却，并读取有界的 `Retry-After`。冷却期间跳过请求，到期后的下一轮自动探测恢复。深度分析固定使用 API-Football 身份；商业分析材料与公开证据并行采集，未核实独立性的盘口不会替换正式证据。详情见 [信息源维护说明](docs/SOURCE_MANAGEMENT.md)。
+
+健康状态保存在检查点旁的 `state.json.sources.json`；报告增加本轮尝试、失败原因、切换记录和公开来源状态。可离线查看，不需要凭据：
+
+```sh
+npm run sources:status -- --state .collection-state/state.json
+```
+
+这是随现有采集轮次执行的自动维护机制；默认调度仍为每小时，冷却时间不是新的独立定时器。
+
+## 商业预测与盘口接口
+
+配置 `SPORTMONKS_API_TOKEN`、`THE_ODDS_API_KEY`、`ISPORTS_API_KEY` 后，正式采集自动取得 Sportmonks 赛前胜平负模型、The Odds API 多公司市场参考及 iSports 当日亚洲盘，并写入同一轮 JSON / 消息版报告。无密钥不请求，401/402/403 与限流持久冷却；现有公开爬虫独立工作。
+
+```sh
+npm run providers:status
+node --env-file=.env.local collector/run.mjs --provider-status
+```
+
+纳米、Opta、Sportradar、LSports、TXODDS 目前只登记商务接入要求，未接通数据。商业盘口暂不增加正式独立来源票，iSports 初盘字段没有时间时不构造初盘轨迹。配置、实际覆盖、费用边界与验证范围见 [商业信息源说明](docs/COMMERCIAL_SOURCES.md)。
+
+## 开源爬虫与浏览器采集
+
+网页采集已加入 robots 规则、域名串行限速、GET 有限重试、429 冷却、条件缓存复验、访问挑战识别和格式诊断。球探 XML/JS 快照与天天盈球列表采用 HTTP；安装浏览器运行时后，Statarea 页面通过 **Crawlee 3.18.2 + Playwright 1.64.1** 执行 JavaScript 再送入同一身份核验与解析流程。
+
+```sh
+npm run crawler:install
+npm run crawler:doctor
+npm run crawl:check -- --source all
+```
+
+`auto` 模式会探测依赖、Chromium 和 JavaScript 执行能力；浏览器运行环境不可用时使用 HTTP 并记录原因。`VANTIS_CRAWLER_ENGINE=crawlee` 强制要求浏览器。服务器可将依赖装入发布目录之外的固定位置，保留系统代理与 TLS 验证；已有授权登录状态可由站点专用文件载入。登录过期或验证页面会记录阻断原因，不能把该页面当成预测数据。
+
+工具选择、自动环境检查、持久安装、会话配置、缓存时效和验证边界见 [开源爬虫接入说明](docs/CRAWLER_INTEGRATION.md)。`crawl:check` 只检查公开抓取链路，返回内容不等于已取得有效比赛预测。
+
 ## 部署到 GitHub Actions
 
 1. 将项目文件上传到仓库默认分支，确认 **Actions** 中出现“维度足球长期采集”。
-2. 在 **Settings → Secrets and variables → Actions → Secrets** 添加一种服务对应的密钥：`FOOTBALL_DATA_API_KEY` / `FOOTBALL_DATA_API_TOKEN`，或 `API_FOOTBALL_KEY`。如果使用仓库中的真实赛程文件，可在 **Variables** 添加 `FIXTURES_FILE`，值为该文件的仓库内路径。
+2. 在 **Settings → Secrets and variables → Actions → Secrets** 添加所用赛程服务的密钥：`FOOTBALL_DATA_API_KEY` / `FOOTBALL_DATA_API_TOKEN`、`API_FOOTBALL_KEY` 或 `SPORTMONKS_API_TOKEN`。商业市场参考可另加 `THE_ODDS_API_KEY`、`ISPORTS_API_KEY`。如果使用仓库中的真实赛程文件，可在 **Variables** 添加 `FIXTURES_FILE`，值为该文件的仓库内路径。
 3. 先用 **Run workflow**，勾选 `demo` 做一次离线验证，再取消 `demo` 验证真实数据源。
 4. 原云端长期采集计划目前仍启用；确认新任务可用后，先停用旧采集计划，再把仓库变量 `VANTIS_COLLECTION_ENABLED` 设为字符串 `true`，开启新计划。这个项目不会修改原计划或自动发布任务。
 
@@ -63,14 +102,15 @@ tar --exclude='.env' --exclude='.env.*' --exclude='node_modules' --exclude='*.lo
 
 | 数据 | 已实现的能力 | 限制 |
 | --- | --- | --- |
-| 赛程 | football-data.org 或 API-Football 官方 API，英超、西甲、意甲、德甲、法甲，默认未来 7 天 | 需要所选服务的 API key；账号权限与上游可用性影响覆盖 |
+| 赛程 | football-data.org、API-Football 或 Sportmonks 官方 API，英超、西甲、意甲、德甲、法甲，默认未来 7 天 | 需要所选服务的 API key；账号权限与上游可用性影响覆盖 |
 | 亚洲盘 | 球探公开快照中的 M88、12Bet、SBOBET | 三家公司共享一个网站采集渠道，统一只算 **一个独立来源组**；排除皇冠；不具备第二个自动亚洲盘来源与完整初盘轨迹 |
 | 辅助预测 | Statarea 已发布页面的 1X2 概率 | 仅覆盖已发布的当日至未来 3 天页面；不是亚洲盘赢盘概率 |
+| 商业分析材料 | Sportmonks 1X2 模型、The Odds API 市场参考、iSports 当日亚洲盘 | 分别需要对应凭据与权益；市场价格不是模型胜率，未通过独立性核验不增加正式票 |
 | 其他来源 | 记录来源能力及具体缺失原因 | 天天盈球只监测免费赛前列表，不生成预测票；未实现或需要授权的来源不生成证据 |
 
 因此，只有内置自动来源时通常会得到 `source_insufficient`，而不会强行拼凑成符合双来源要求的候选。站点能访问、博彩公司的数量、相同内容的多个页面都不会自动变成独立预测共识。已确认的原任务规则见 [config/cloud-task.md](config/cloud-task.md)。
 
-API-Football 每轮向五个联赛各请求一次 `next=99`，再按精确未来时间窗口过滤；只保留 `NS`，不采用时间未定的 `TBD`。达到 99 场上限且不能证明窗口已覆盖时标记数据不完整。每小时运行约需 120 次 API 请求/天，运行前请核对套餐额度和赛季权限。其 [Free 套餐](https://www.api-football.com/pricing) 目前只有 100 次/天且有赛季限制。这里仅接入赛程，不把该服务的其他功能当成已实现能力。
+API-Football 每轮向五个联赛各请求一次 `next=99`，再按精确未来时间窗口过滤；只保留 `NS`，不采用时间未定的 `TBD`。达到 99 场上限且不能证明窗口已覆盖时标记数据不完整。每小时运行约需 120 次赛程 API 请求/天，运行前请核对套餐额度和赛季权限。其 [Free 套餐](https://www.api-football.com/pricing) 目前只有 100 次/天且有赛季限制。备用请求、Sportmonks 分页、商业分析材料与深度分析请求另计；基础模式切换到 API-Football 不会额外自动开启深度分析。
 
 跨服务的球队名称须命中现有精确别名；尚未识别的名称可能导致盘口或辅助信号无法匹配，此时保留来源不足，不使用模糊匹配补齐。
 
@@ -98,6 +138,8 @@ API-Football 单服务的 ECS 在同步该版本运行源码后，每轮自动�
 .github/workflows/collection.yml  手动及每小时调度
 collector/                        数据源、筛选、进度、报告与测试
 config/collection.json            运行预算、时效与筛选阈值
+config/sources.json               官方赛程源优先级与失败冷却
+config/crawler.json               网页爬虫限速、重试、缓存与请求预算
 config/cloud-task.md              从可读取记录整理的原任务规则
 docs/CLOUD_TASK_MIGRATION.md       输入契约、迁移步骤和已知限制
 ```

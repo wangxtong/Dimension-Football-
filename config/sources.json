@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "fixturePriority": ["football-data.org", "api-football", "sportmonks"],
+  "failureThreshold": 2,
+  "cooldownMs": 300000,
+  "maxCooldownMs": 3600000,
+  "authCooldownMs": 21600000,
+  "quotaCooldownMs": 86400000
+}

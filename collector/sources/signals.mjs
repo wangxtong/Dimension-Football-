@@ -1,4 +1,5 @@
 import { teamName } from './team-names.mjs';
+import { CRAWLER_CODES } from './crawler.mjs';
 
 // Only public, pre-match 1X2 signals are read here. A source being reachable is
 // never treated as a prediction, and a 1X2 signal is never an Asian-cover vote.
@@ -90,6 +91,7 @@ export function parseStatareaSignals(html) {
 
 async function signalReadPublic(url,fetchImpl,now,request={}) {
   const controller=new AbortController();let timer;
+  const deadlineMs=Math.min(120000,Math.max(8000,Number(fetchImpl.timeoutMs)||8000));
   let httpStatus=null;
   try {
     return await Promise.race([(async()=>{
@@ -109,8 +111,8 @@ async function signalReadPublic(url,fetchImpl,now,request={}) {
       } else text=await response.text();
       if(!text||text.length>1500000)return {httpStatus,error:'invalid_response'};
       return {html:text,httpStatus,responseAt:new Date(date).toISOString()};
-    })(),new Promise(resolve=>{timer=setTimeout(()=>{controller.abort();resolve({httpStatus,error:'timeout'});},8000);})]);
-  } catch { return {httpStatus,error:'network_unavailable'}; }
+    })(),new Promise(resolve=>{timer=setTimeout(()=>{controller.abort();resolve({httpStatus,error:'timeout'});},deadlineMs);})]);
+  } catch (error) { return {httpStatus: Number.isInteger(error?.status) ? error.status : httpStatus,error:CRAWLER_CODES.has(error?.code)?error.code:'network_unavailable'}; }
   finally {clearTimeout(timer);controller.abort();}
 }
 

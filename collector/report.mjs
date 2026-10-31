@@ -19,6 +19,12 @@ const marketReasons = {
   invalid_snapshot: '盘口快照格式无法核验', access_denied: '源返回403', authorization_required: '源要求授权',
   rate_limited: '源限流', http_unavailable: '源HTTP请求失败', empty_snapshot: '源快照为空', snapshot_too_large: '源快照超限',
   timeout: '请求超时', network_unavailable: '网络未接通', maintenance: '源维护中',
+  robots_denied: '站点 robots 规则不允许采集', robots_unavailable: '站点 robots 规则暂无法确认',
+  access_challenge: '站点返回访问验证页面', crawler_cooldown: '来源正在冷却', redirect_blocked: '来源发生重定向，待复核',
+  crawler_budget_exhausted: '爬虫请求或时间预算已用完', crawler_cancelled: '爬虫已取消',
+  crawler_timeout: '爬虫请求超时', crawler_network_unavailable: '爬虫网络请求失败',
+  crawler_response_too_large: '爬虫响应大小超限', cache_validation_failed: '缓存复验未通过',
+  crawl_delay_exceeds_budget: '站点要求的访问间隔超过本次等待预算',
 };
 function marketDetail(rows = []) {
   const groups = new Map();
@@ -47,6 +53,41 @@ export function renderMessage(report) {
   for (const row of report.results) lines.push(`| ${cell(row.fixture.home)} vs ${cell(row.fixture.away)} | ${beijingTime(row.fixture.kickoff)} | ${statuses[row.result.status] || '未知'} | ${row.result.reasons.map(code => reasons[code] || cell(code)).join('；')} | ${marketDetail(row.marketDiagnostics)} |`);
   lines.push('', '## 🔗来源诊断', '', '| 来源 | 状态 | 诊断码 | 解析盘口数 / 匹配数 | 赛程快照覆盖（北京时间） |', '| --- | --- | --- | --- | --- |');
   for (const source of report.diagnostics) lines.push(`| ${cell(source.id)}${source.league ? ` / ${cell(source.league)}` : ''} | ${cell(source.status)} | ${cell(source.code)}${source.httpStatus ? ` (HTTP ${source.httpStatus})` : ''} | ${source.parsedCount ?? '未知'} / ${source.matchedCount ?? 0} | ${source.scheduleCoverageFrom && source.scheduleCoverageTo ? `${beijingTime(source.scheduleCoverageFrom)} → ${beijingTime(source.scheduleCoverageTo)}` : '未提供'} |`);
+  if (report.sourceManagement) {
+    const m = report.sourceManagement;
+    lines.push('', '## 信息源自动维护', '',
+      `本轮赛程源：${cell(m.selectedSource || '不可用')}；模式：${cell(m.mode)}；备用切换：${m.fallbackUsed ? '是' : '否'}。`, '',
+      '| 本轮尝试 | 状态 | 原因 | 完整联赛数 | 下次允许探测（北京时间） |', '| --- | --- | --- | --- | --- |');
+    for (const attempt of m.attempts) lines.push(`| ${cell(attempt.id)} | ${cell(attempt.status)} | ${cell(attempt.code)} | ${attempt.healthyLeagues ?? '未请求'} | ${attempt.nextProbeAt ? beijingTime(attempt.nextProbeAt) : '下轮可查'} |`);
+    lines.push('', '冷却到期后由下一轮采集复查；健康历史不是当前数据可用证明。', '',
+      '| 公开证据源 | 本轮状态 | 能力 | 自动备用 |', '| --- | --- | --- | --- |');
+    for (const source of m.publicSources || []) lines.push(`| ${cell(source.id)} | ${cell(source.status)} | ${cell(source.capability)} | 尚无已验证的同类备用源 |`);
+  }
+  if (report.crawler) {
+    lines.push('', '## 网页爬虫采集', '',
+      `本轮网络请求 ${report.crawler.networkRequests}/${report.crawler.maxRequests} 次（含 robots 与重试）；缓存命中与 HTTP 成功不等于有效预测。`, '',
+      `HTML 页面引擎：${cell(report.crawler.runtime?.engine || 'http')}；浏览器子请求：${report.crawler.runtime?.browserRequests || 0}；环境说明：${cell(report.crawler.runtime?.reason || '已探测')}。`, '',
+      '| 来源 | 请求结果 | 缓存 | HTTP |', '| --- | --- | --- | --- |');
+    for (const event of report.crawler.events) lines.push(`| ${cell(event.sourceId)} | ${cell(marketReasons[event.code] || event.code)} | ${cell(event.cache || '未使用')} | ${event.httpStatus ?? '未取得'} |`);
+    for (const issue of report.crawler.parserIssues || []) lines.push(`- ${cell(issue.sourceId)}：${cell(issue.code)}，当前格式或页面日期未通过核验。`);
+  }
+  if (report.providers) {
+    lines.push('', '## 商业数据来源', '',
+      '模型概率与市场隐含概率分别展示。报价参考尚未通过上游独立性和初盘时间核验，不增加正式候选票。', '',
+      '| 来源 | 本轮状态 | 请求数 | 下次探测 |', '| --- | --- | --- | --- |');
+    for (const row of report.providers.attempts) lines.push(`| ${cell(row.id)} | ${cell(row.status)} | ${row.requests} | ${row.nextProbeAt ? beijingTime(row.nextProbeAt) : '—'} |`);
+    lines.push('', '| 比赛 | 来源 / 公司 | 市场 | 概率或报价 | 时效 |', '| --- | --- | --- | --- | --- |');
+    const fixtures = new Map(report.results.map(row => [row.fixture.id, row.fixture]));
+    for (const row of report.providers.observations) {
+      const fixture = fixtures.get(row.fixtureId);
+      const values = row.kind === 'model-probability'
+        ? Object.entries(row.probabilities).map(([key, value]) => `${key} ${(value * 100).toFixed(2)}%`).join(' / ')
+        : row.outcomes.map(value => `${value.selection}${value.line !== undefined ? ` ${value.line}` : ''} @ ${value.decimalOdds}`).join(' / ');
+      lines.push(`| ${cell(fixture ? `${fixture.home} vs ${fixture.away}` : row.fixtureId)} | ${cell(row.provider)}${row.bookmaker ? ` / ${cell(row.bookmaker)}` : ''} | ${cell(row.market)} | ${cell(values)} | ${row.currentAtPublication ? '发布时有效' : '已过期'}；${row.sourceUpdatedAt ? beijingTime(row.sourceUpdatedAt) : '模型生成时间未提供；每日赛前模型'} |`);
+    }
+    if (!report.providers.observations.length) lines.push('| — | — | — | 本轮没有取得可匹配的新数据；查看配置及来源诊断 | — |');
+    lines.push('', 'iSports 当前仅匹配 UTC 当日未开赛比赛；每轮报告保留采集快照，不能据此宣称拥有完整逐笔赔率历史。');
+  }
   lines.push('', '## 🎯候选证据', '');
   const candidates = report.results.filter(row => ['candidate', 'simulated_candidate'].includes(row.result.status));
   if (!candidates.length) lines.push('本轮没有通过完整证据门槛的候选。');

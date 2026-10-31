@@ -1,6 +1,8 @@
 import { digest, fixtureKey, preparePool, basicScreen, evaluateFixture, retainedEvidence, isoMillis, DEFAULT_POLICY } from './policy.mjs';
 import { acquireLock, readState, atomicJson } from './storage.mjs';
 import { writeReports } from './report.mjs';
+import { publicSourceHealth } from './sources/manager.mjs';
+import { CRAWLER_CODES } from './sources/crawler.mjs';
 
 // Persist only diagnostic metadata, never headers, response bodies or thrown messages.
 export function safeDiagnostics(rows = []) {
@@ -23,7 +25,7 @@ export function safeDiagnostics(rows = []) {
 const marketDiagnosticCodes = new Set(['fixture_ineligible', 'fixture_identity_unmatched', 'fixture_identity_ambiguous',
   'not_prematch', 'market_not_published', 'market_ambiguous', 'invalid_market_fields', 'incomplete_market',
   'quote_expired', 'quote_validation_failed', 'matched', 'access_denied', 'authorization_required', 'rate_limited', 'http_unavailable',
-  'stale_snapshot', 'empty_snapshot', 'snapshot_too_large', 'timeout', 'network_unavailable', 'invalid_schedule',
+  ...CRAWLER_CODES, 'stale_snapshot', 'empty_snapshot', 'snapshot_too_large', 'timeout', 'network_unavailable', 'invalid_schedule',
   'invalid_snapshot', 'maintenance']);
 const marketCompanies = { m88: ['M88', 17], '12bet': ['12Bet', 24], sbobet: ['SBOBET', 31] };
 
@@ -44,15 +46,16 @@ export function safeMarketDiagnostics(rows = [], fixtures = []) {
 }
 
 const LIMITATIONS = [
-  '内置自动解析：football-data.org 或 API-Football 五大联赛赛程、Titan007 的 M88/12bet/SBOBET 亚洲盘、Statarea 胜平负辅助；其他站点尚未自动解析。',
+  '赛程支持 football-data.org、API-Football、Sportmonks；公开证据沿用 Titan007 / Statarea。配置凭据后增加 Sportmonks 模型、The Odds API 市场参考及 iSports 当日亚洲盘。',
   'M88、12bet、SBOBET 在 Titan007 的展示合计只算一个独立网站来源。无第二报价源或初盘轨迹时保持来源不足。',
   '未把胜平负概率改写成亚洲盘赢盘率；不自动生成大小球或比分，也不承诺命中率。',
   '本项目不向旧站点写回、不冻结预测、不调用 Telegram、投注或结算接口。',
+  '商业赔率参考不自动增加独立报价票；初盘时间和上游独立性未核实前，不进入正式亚洲盘候选。',
 ];
 
 export async function runCollection({
   fixtures, statePath, outDir, collectEvidence, policy = DEFAULT_POLICY, simulated = false,
-  fixtureDiagnostics = [], poolComplete = true, importedEvidence = { quotes: [], signals: [] },
+  fixtureDiagnostics = [], poolComplete = true, sourceManagement = null, importedEvidence = { quotes: [], signals: [] },
   clock = () => new Date().toISOString(), monotonic = () => performance.now(), startedTick = monotonic(),
   checkpoint = atomicJson, signal,
 }) {
@@ -132,6 +135,10 @@ export async function runCollection({
     const report = { version: 1, task: '维度足球长期公开信息采集', simulated, timezone: 'Asia/Shanghai', startedAt, completedAt,
       poolComplete, status: sourceFailed ? 'failed' : summary.pending || hasSourceIssue || !poolComplete ? 'partial' : 'complete',
       summary, diagnostics, marketDiagnostics, results, limitations: LIMITATIONS, policy,
+      crawler: evidence.crawler || null,
+      providers: evidence.providers ? { ...evidence.providers, observations: evidence.providers.observations.map(row => ({ ...row,
+        currentAtPublication: Date.parse(row.validUntil) > Date.parse(completedAt) })) } : null,
+      sourceManagement: sourceManagement ? { ...sourceManagement, publicSources: publicSourceHealth(evidence.diagnostics) } : null,
       candidates: simulated ? [] : results.filter(row => row.result.status === 'candidate') };
     state.runs = [...state.runs.slice(-49), { startedAt, completedAt, status: report.status, summary }];
     await checkpoint(statePath, state);
