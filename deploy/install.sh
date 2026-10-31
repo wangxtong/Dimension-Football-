@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 027
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 die(){ printf 'INSTALL_FAILED: %s\n' "$1" >&2; exit 1; }
 [[ $EUID -eq 0 && $# -eq 1 && -d /run/systemd/system ]] || die 'ROOT_SYSTEMD_AND_VERIFIED_SOURCE_REQUIRED'
 source_dir=$(cd -- "$1" && pwd -P)
@@ -76,7 +77,7 @@ for module in "${modules[@]}"; do
   timeout 10s runuser -u vantis-check -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent TMPDIR=/tmp "$node_bin" --check "$module" >/dev/null 2>&1 || die 'RUNTIME_SYNTAX_FAILED'
 done
 timeout 30s runuser -u vantis-check -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent TMPDIR=/tmp "$node_bin" "$source_dir/collector/orchestrate.mjs" --help >/dev/null 2>&1 || die 'ENTRYPOINT_HELP_FAILED'
-python3 "$trusted_bundle" verify-directory "$source_dir" >/dev/null
+python3 -I "$trusted_bundle" verify-directory "$source_dir" >/dev/null
 runuser -u vantis -- "$node_bin" --env-file=/etc/vantis/collector.env "$source_dir/collector/operations.mjs" self-check \
   --root /var/lib/vantis --release "$source_dir" --config /etc/vantis/operations.json || die 'CAPABILITY_OR_ENTRYPOINT_CHECK_FAILED'
 for src in "$source_dir"/deploy/*; do
