@@ -79,6 +79,12 @@ openssl pkeyutl -verify -rawin -pubin -inkey /secure/release-authorization.pub.p
 
 此 PR 只是候选实现；不得自动合并或自动生产部署。
 
+### 可信预检运行环境与三项锚点（A7 2026-10-31 Draft）
+
+仅检查根验证器路径的所有权不足以认证安装引导：`install.sh` 必须**逐一**核验 root 预置的 `release-authorization.mjs`、`bundle.py` 及 Node 二进制的真实文件、全部父目录、无符号链接、root 所有权和不可组/其他写入；缺失、所有者错误或任一路径可写一律在签名检查前拒绝。需要在 ECS Workbench 由管理员回读三者的实际 SHA256/权限，不能把 PR 中的脚本视为线上已安装。
+
+签名预检中不信任调用者传入的 `PYTHONPATH`、`NODE_OPTIONS` 或 `PATH`：使用固定系统 PATH、Python `-I` 隔离模式和 Node `env -i` 清空继承环境；包括 bootstrap、直接 install、release 和只读 Git 同步的签名入口。管理员应在**非生产隔离环境**注入假 `PYTHONPATH/sitecustomize`、`NODE_OPTIONS=--require ...`，确认原运行环境不得污染验签器（只输出非秘密通过/拒绝结果）。代码测试只能证明这些路径在模拟环境中拒绝，不能代替真实 ECS 的 root 权限、供应链及部署日志审计。
+
 ### 首次安装的可信引导边界（2026-10-31 A7 修复，Draft）
 
 **不能从待安装归档里执行用于认证该归档的校验器。** 新版 bootstrap 在运行来源包中的任何 Python/Node/shell 代码、Node 下载或服务安装前，先使用 Python 标准库只读验证完整 tar SHA-256、单一 manifest，再由 ECS 管理员独立预置且 root 独占的 `/opt/vantis/deployment/release-authorization.mjs` 校验独立签署批准。归档实际解包使用同样独立预置的 root 可信 `/opt/vantis/deployment/bundle.py`；直接调用 install.sh 也必须调用这些可信工具，不再回退到候选包里的同名脚本。预先存在的 Node（可解析到 root 拥有、无组/其他写权限的真实文件和父目录）必须足以运行 Ed25519 签名验证；之后才可以受控使用已批准包中的 `install-node.sh` 补齐 24.14+。无 Node、无独立安装的可信校验器或可信 bundle 解析器时，一律 BLOCKED，**不允许为了方便使用未验签来源脚本自举安装**。
