@@ -40,7 +40,7 @@
 
 sourceCommit、archiveSha256、toolingDigest 必须与已验证解包的 vantis-manifest.json 完全相同；filesDigest 必须由**同一已验证解包目录**的 `manifest.files` 算出。签名验证器对全部条目的排序、SHA 与字节长度计算固定摘要；本身不读取未校验文件内容，部署调用方必须先完成 `bundle.py verify-directory`。审批人和复核人必须不同。批准期最长 7 天；不能为未知 CI、未知回归或未授权的部署将字段设为 true。
 
-在独立签署环境、确认离线归档 SHA 和解包目录校验均通过后，按以下定义计算 `filesDigest`（规范 UTF-8 JSON：按文件路径排序的 `[path, sha256, size]` 数组，无多余空白）。只输出公开摘要，不处理密钥：
+在独立签署环境、确认离线归档 SHA 和解包目录校验均通过后，按以下定义计算 `filesDigest`（规范 UTF-8 JSON：按路径 UTF-8 字节序排序的 `[path, sha256, size]` 数组，无多余空白）。只输出公开摘要，不处理密钥：
 
 ```bash
 python3 - /secure/verified-source/vantis-manifest.json <<'PY'
@@ -48,7 +48,8 @@ import hashlib, json, sys
 with open(sys.argv[1], encoding='utf-8') as stream:
     manifest = json.load(stream)
 entries = [[name, item['sha256'], item['size']]
-           for name, item in sorted(manifest['files'].items())]
+           for name, item in sorted(manifest['files'].items(),
+                                    key=lambda pair: pair[0].encode('utf-8'))]
 canonical = json.dumps(entries, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
 print(hashlib.sha256(canonical).hexdigest())
 PY
