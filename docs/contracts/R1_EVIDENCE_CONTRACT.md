@@ -83,3 +83,16 @@
 | A10 独立验收 | 用冻结的阈值和准确SHA重新计算，并验证失败例及告警/回滚 | 不根据结果调整门槛，不保证70%胜率，不混模型cohort凑样本 |
 
 A2/A4先提出可测的SLO、窗口、样本量/检验方法和基准非劣/改进规则，A1/A10在评估前冻结。未确定或未达到的项不得填GREEN；不可绕过既有最低样本和发布限制。现有prediction ledger的评分对象是home/draw/away，不能以它已通过测试宣称O/U已完成独立商业验证。
+
+
+## 8. 后续 main 兼容复核（2026-10-31）
+
+复核源码：`17931a231f6f11ccbf191fff855eae7930ad3466`；本节为基线后续补充，不改变前文R1快照或宣称本Draft已合并。main商业合同见[COMMERCIAL-ACCEPTANCE](../COMMERCIAL-ACCEPTANCE.md)。来源采集与模型质量仍优先，商业验收和正式发布仍BLOCKED。
+
+- 私有研究：hosted CLI显式`--mode research`映射`privateResearch:true`，向orchestrate传`--mode private-research`；研究使用独立scheduler文件，可冻结/恢复账本和结算，禁止delivery lane及publisher调用。结果优先调度，避免采集失败饿死结算。默认observations不变；存在研究入口不证明持续研究采样已开启。A7实现/A1集成/A9接口复核/A10独立验收分工不变。
+- 初盘迁移：market-evidence新增version 3的captureProof/captureProofHash，绑定fixtureKey、原初盘摘要、来源与报价时间链，使用policy.digest。旧版无证明档案不得追认为已验证初盘；损坏证明和冲突保持拒绝。captureProof仅为内部一致性证据，不是供应商签名、商业授权或第二独立来源。
+- 评估隔离：evaluation-quality面向1X2的snapshot回顾组，固定分箱及按UTC周配对bootstrap；重复提前量不合并凑样本，calibrated=false，releaseGate=BLOCKED。描述性ECE和区间不能替代独立校准/真实前瞻检验，不能推导O/U已验收。PR #33的独立O/U、#36的赛果时间拒绝与#37的来源恢复改动在本次检查仍为提案，不能写成main实现。
+- 回执作用域沿用第5节：原报告与观测投影由originReportId关联；当前main新增的现场观测证据不是本轮A9现场复测，也不证明ECS或正式预测已交付。PR #34的回执加固仍需A1集成和A10复核。
+- README仍写bootstrap不在线安装Node，与可选--install-node路径不一致，继续交A1/A7；本地历史reportId摘要校验边界仍按第6节交A6/A10。角色PR #26仍未合并，GitHub PR #31当前没有正式review submission；先前工作单记录的独立源码审查不等于平台审批或商业批准。
+
+本轮实际适配验证：Node 24.22.1，对上述完整SHA的10个既有测试文件执行node --test，111通过/0失败/0跳过：prediction-ledger、market-evidence、publication、report-store、outbox、hosted-release、hosted-publications、private-research、market-causality、evaluation-quality。首次提取源码未包含运行配置导致private-research失败；补齐同SHA配置后全套重跑通过，未改测试或业务实现。测试使用离线fixture和协议替身，不是供应商实时采集、正式前瞻样本或生产验证。本节变更仍需独立A10复核。
