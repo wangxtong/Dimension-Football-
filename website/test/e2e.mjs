@@ -32,6 +32,7 @@ before(async () => {
   assert.ok(source.startsWith(prefix), 'Build must embed the actual website assets');
   assets = JSON.parse(source.slice(prefix.length, source.indexOf(';\n')));
   assert.ok(assets['/report-schema.mjs'], 'The shared schema must be present in the deployable build');
+  assert.ok(assets['/locale-zh.mjs'], 'The Chinese presentation module must be present in the deployable build');
   ({ createDashboard } = await import(pathToFileURL(join(output, 'server/index.js'))));
   await promisify(execFile)('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
     '-subj', '/CN=localhost', '-keyout', join(output, 'test-key.pem'), '-out', join(output, 'test-cert.pem')]);
@@ -194,16 +195,46 @@ test('built website: reference horizons, actual effective samples and safely fil
   await login();
   const validation = await page.locator('#validation').textContent();
   for (const hours of [1, 24, 72, 168]) assert.ok(validation.includes(`提前 ${hours} 小时`));
-  assert.ok(!validation.includes('13.5')); assert.match(validation, /openligadb/); assert.match(validation, /按已观察历史回放/);
+  assert.ok(!validation.includes('13.5')); assert.doesNotMatch(validation, /openligadb|Brier|Log loss/); assert.match(validation, /布里尔评分/); assert.match(validation, /对数损失/); assert.match(validation, /按已观察历史回放/);
   assert.match(await page.locator('[data-fixture-id="analysis"] details').textContent(), /实际预测提前 13.5 小时.*有效加权样本（主 \/ 客）7.3 \/ 8.8/s);
   assert.match(await page.locator('#coverage').textContent(), /赛程 3 场 · 样本覆盖；历史 144 场 · 可用/);
   assert.equal(await page.locator('#coverage img').count(), 0); assert.equal(await page.locator('#coverage .detail-row').count(), 2);
+  assert.doesNotMatch(await page.locator('#coverage').textContent(), /openligadb|<img|onerror/);
   state.report = sampleReport('b', 1000); state.receipt = sampleReceipt(state.report);
   state.report.fixtures[0].forecast.sampleQuality = { weighted: { home: { effectiveMatches: 'invalid' }, away: { effectiveMatches: -1 } } };
   state.report.coverage = [null, { fixtureCount: 'invalid' }]; await refresh();
   assert.match(await page.locator('#validation').textContent(), /40 场回测/);
   assert.match(await page.locator('[data-fixture-id="analysis"] details').textContent(), /实际预测提前量未记录.*有效加权样本（主 \/ 客）未知 \/ 未知/s);
   assert.match(await page.locator('#coverage').textContent(), /未记录可核验/);
+});
+
+test('built website: all views localize names and machine labels without changing source JSON', { timeout: 60000 }, async t => {
+  const { page, state, login } = await dashboard(t, 'bundle');
+  const fixture = state.report.fixtures[0].fixture;
+  Object.assign(fixture, { home: 'Bayern Munich', away: 'Borussia Dortmund', source: 'openligadb', homeTeamId: '40', awayTeamId: '7' });
+  state.report.fixtures[0].marketCandidate.readiness.blockers = ['UNKNOWN_MACHINE_REASON'];
+  state.report.fixtures[1].fixture.league = 'UNKNOWN_LEAGUE';
+  state.report.fixtures[1].marketCandidate.candidate.quoteGroups = ['hkjc', 'unknown-provider-group'];
+  state.report.fixtures[2].forecast.reasons = ['HOME_HISTORY_INSUFFICIENT', 'UNKNOWN_MACHINE_REASON'];
+  state.report.backtests[0].source = 'unknown-provider';
+  state.report.attribution = [{ name: 'OpenLigaDB', license: 'ODbL', url: 'https://example.test/data' },
+    { name: 'Unknown Provider', license: 'Unknown License', url: 'https://example.test/license' }];
+  state.report.coverage = [{ source: 'unknown-provider', league: 'UNKNOWN_LEAGUE', fixtureCount: 0, historyCount: 0,
+    fixtureStatus: 'UNKNOWN_STATUS', historyStatus: 'UNKNOWN_STATUS' }];
+  await login();
+  assert.match(await page.locator('[data-fixture-id="analysis"] .teams').textContent(), /拜仁慕尼黑.*对阵.*多特蒙德/);
+  assert.match(await page.locator('#validation').textContent(), /布里尔评分.*对数损失/s);
+  assert.match(await page.locator('#delivery').textContent(), /机器人通知/);
+  assert.match(await page.locator('#attribution').textContent(), /开放联赛原始数据与许可/);
+  for (const label of ['普通预测', '严格候选', '暂不可评估']) {
+    await page.getByRole('tab', { name: label, exact: true }).click();
+    const text = (await page.locator('body').textContent()).replace(/报告编号 [a-f0-9]{12}/g, '报告编号');
+    assert.doesNotMatch(text, /[A-Za-z]/, `${label} must use Chinese labels, including unknown metadata`);
+  }
+  const original = await page.evaluate(async () => (await (await fetch('/api/report')).json()).report);
+  assert.equal(original.fixtures[0].fixture.home, 'Bayern Munich');
+  assert.equal(original.backtests[0].source, 'unknown-provider');
+  assert.equal(original.attribution[0].license, 'ODbL');
 });
 
 
