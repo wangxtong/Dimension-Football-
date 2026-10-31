@@ -58,6 +58,7 @@ cleanup() { [[ ! -d "$work_dir" ]] || rm -rf -- "$work_dir"; }
 trap cleanup EXIT
 chmod 0755 "$work_dir"
 git init -q "$work_dir/repository"
+chmod 0700 "$work_dir/repository"
 auth_git -C "$work_dir/repository" fetch -q --no-tags --depth=1 "$origin" refs/heads/main \
   || die 'Private source fetch failed; old release retained.'
 fetched=$(git -C "$work_dir/repository" rev-parse FETCH_HEAD)
@@ -75,11 +76,11 @@ find "$source_dir" -type d -exec chmod 0755 {} +
 find "$source_dir" -type f -exec chmod 0644 {} +
 mapfile -d '' -t test_files < <(find "$source_dir/collector/test" "$source_dir/collector/sources/test" \
   -type f -name '*.test.mjs' -print0)
-(( "${#test_files[@]\}" > 0 )) || die 'No tests found.'
+(( "${#test_files[@]}" > 0 )) || die 'No tests found.'
 printf 'Testing approved exact Git commit: %s\n' "$remote_commit"
 if ! (cd -- "$source_dir" && runuser -u vantis -- env -i PATH="$safe_path" \
   HOME=/var/lib/vantis USER=vantis LOGNAME=vantis LANG=C.UTF-8 TMPDIR=/tmp \
-  "$node_bin" --test --test-reporter=spec "${test_files[@]\}") > "$work_dir/tests.log" 2>&1; then
+  "$node_bin" --test --test-reporter=spec "${test_files[@]}") > "$work_dir/tests.log" 2>&1; then
   tail -n 120 "$work_dir/tests.log" >&2
   die 'Approved source failed local tests; existing version retained.'
 fi
