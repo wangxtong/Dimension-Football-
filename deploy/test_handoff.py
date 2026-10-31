@@ -17,6 +17,7 @@ def module(name,file):
 nginx=module('nginx_namespace','nginx-namespace.py')
 secrets=module('report_secrets','ensure-report-secrets.py')
 persistent=module('persistent_config','persistent-config.py')
+restore=module('restore_verify','restore-verify.py')
 ORIGINAL='''# Existing production app and bridge. Braces in comments: { }
 server {
     listen 80;
@@ -177,5 +178,76 @@ class PersistentPathTests(unittest.TestCase):
         self.assertEqual(persistent.check_contract({'stateRelativePath':'state/state.json'},new,{'version':1})['status'],'state_compatible')
         with self.assertRaisesRegex(ValueError,'STATE_SCHEMA_INCOMPATIBLE'):persistent.check_contract({'stateRelativePath':'state/state.json'},new,{'version':2})
         self.assertEqual(persistent.check_contract({},old,{'version':1})['stateRelativePath'],'state.json')
+
+
+class RestoreEvidenceTests(unittest.TestCase):
+    def fixture(self, root):
+        folder = root/'reports'
+        folder.mkdir()
+        report_id = 'a'*64
+        report = {'publication': {'reportId': report_id}, 'simulated': False}
+        data = json.dumps(report).encode()
+        (folder/'predictions.json').write_bytes(data)
+        receipt = {'version': 1, 'reportId': report_id,
+                   'channels': {'files': {'status': 'published'}},
+                   'files': [{'name': 'predictions.json', 'sha256': hashlib.sha256(data).hexdigest()}]}
+        (folder/'publication.json').write_text(json.dumps(receipt))
+        return folder, receipt
+
+    def test_restore_verifies_report_receipt_and_file_digest(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);self.fixture(root)
+            result=restore.verify_restore(root)
+            self.assertEqual(result['status'],'restore_drill_passed')
+            self.assertTrue(result['publicationEvidenceVerified'])
+            self.assertFalse(result['productionModified'])
+            self.assertEqual(result['verifiedFiles'],1)
+
+    def test_missing_publication_evidence_cannot_claim_restored(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            with self.assertRaisesRegex(ValueError,'RESTORED_PUBLICATION_EVIDENCE_MISSING'):
+                restore.verify_restore(root)
+            folder,_=self.fixture(root)
+            (folder/'publication.json').unlink()
+            with self.assertRaisesRegex(ValueError,'RESTORED_REPORT_RECEIPT_INCOMPLETE'):
+                restore.verify_restore(root)
+
+    def test_failed_receipt_and_empty_or_missing_index_are_blocked(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);folder,receipt=self.fixture(root)
+            for broken in [
+                {**receipt, 'channels': {'files': {'status': 'failed'}}},
+                {**receipt, 'files': []},
+                {k:v for k,v in receipt.items() if k != 'files'}
+            ]:
+                (folder/'publication.json').write_text(json.dumps(broken))
+                with self.assertRaisesRegex(ValueError,'RESTORED_PUBLICATION_NOT_COMPLETE|RESTORED_FILE_INDEX_INVALID'):
+                    restore.verify_restore(root)
+
+    def test_wrong_report_id_duplicate_paths_unlisted_predictions_and_corruption_block(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);folder,receipt=self.fixture(root)
+            bad_cases=[
+                ({**receipt,'reportId':'b'*64},'RESTORED_REPORT_RECEIPT_MISMATCH'),
+                ({**receipt,'files':[receipt['files'][0]]*2},'RESTORED_RECEIPT_PATH_INVALID'),
+                ({**receipt,'files':[{'name':'other.json','sha256':'0'*64}]},'RESTORED_RECEIPT_FILE_MISSING'),
+                ({**receipt,'files':[{'name':'../outside','sha256':'0'*64}]},'RESTORED_RECEIPT_PATH_INVALID'),
+                ({**receipt,'files':[{'name':'predictions.json','sha256':'0'*64}]},'RESTORED_RECEIPT_DIGEST_MISMATCH')
+            ]
+            for broken,code in bad_cases:
+                (folder/'publication.json').write_text(json.dumps(broken))
+                with self.subTest(code=code),self.assertRaisesRegex(ValueError,code):
+                    restore.verify_restore(root)
+
+    def test_cli_returns_nonzero_json_blocked_without_leaking_report(self):
+        with tempfile.TemporaryDirectory() as d:
+            script=Path(__file__).with_name('restore-verify.py')
+            result=subprocess.run([sys.executable,str(script),d],capture_output=True,text=True)
+            self.assertEqual(result.returncode,2)
+            value=json.loads(result.stdout)
+            self.assertEqual(value['status'],'blocked')
+            self.assertFalse(value['publicationEvidenceVerified'])
+            self.assertNotIn(str(d),result.stdout)
 
 if __name__=='__main__':unittest.main()
