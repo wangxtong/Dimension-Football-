@@ -1,116 +1,116 @@
 {
   "version": 1,
-  "reportId": "fd120e306c7c6fded35f95de8a1dca5e4fe56b8b7d93d21aee8e7e8b5fc719c1",
-  "generatedAt": "2026-10-31T06:28:26.205Z",
+  "reportId": "ca8badaa77d3530ed5ef9db7e6907800d6f5b17a81444c5f8a6126313e0b6e7c",
+  "generatedAt": "2026-10-31T06:39:43.624Z",
   "simulated": false,
   "channels": {
     "files": {
       "status": "published",
-      "checkedAt": "2026-10-31T06:28:26.250Z"
+      "checkedAt": "2026-10-31T06:39:43.664Z"
     },
     "githubSummary": {
       "status": "published",
-      "checkedAt": "2026-10-31T06:28:32.567Z"
+      "checkedAt": "2026-10-31T06:39:48.971Z"
     },
     "githubArtifact": {
       "status": "published",
-      "checkedAt": "2026-10-31T06:28:27.939Z",
-      "id": "13032961830",
-      "url": "https://github.com/wangxtong/Dimension-Football-/actions/runs/41176732805/artifacts/13032961830",
-      "sha256": "1d085f4e76071a87b1dd47a2d5c9bacd559fb6a8541f047face439556815ba90"
+      "checkedAt": "2026-10-31T06:39:45.250Z",
+      "id": "13033373961",
+      "url": "https://github.com/wangxtong/Dimension-Football-/actions/runs/41177508692/artifacts/13033373961",
+      "sha256": "ef6c24182000211a9d556b802e76d22f371c8c4a80643aa22bfaabeaaef3142a"
     },
     "externalWebsite": {
       "status": "published",
-      "checkedAt": "2026-10-31T06:28:30.932Z",
+      "checkedAt": "2026-10-31T06:39:48.077Z",
       "url": "https://dimension-football-live-wangxtong.secretmelon37.chatgpt.site",
-      "commitSha": "21b620a373189988d1c5c4063e047b5f03805f16",
-      "dataUrl": "https://raw.githubusercontent.com/wangxtong/Dimension-Football-/21b620a373189988d1c5c4063e047b5f03805f16/predictions.json",
+      "commitSha": "90d9198b26ddea787db4893b3691aa795aa9cb89",
+      "dataUrl": "https://raw.githubusercontent.com/wangxtong/Dimension-Football-/90d9198b26ddea787db4893b3691aa795aa9cb89/predictions.json",
       "meaning": "data-committed-and-read-back; browser-refreshes-within-five-minutes"
     },
     "notifications": {
-      "status": "failed",
-      "checkedAt": "2026-10-31T06:28:32.021Z",
+      "status": "accepted",
+      "checkedAt": "2026-10-31T06:39:48.852Z",
       "channel": "telegram",
-      "code": "TELEGRAM_CHAT_NOT_FOUND",
-      "httpStatus": 400,
-      "destinationFingerprint": "de8dc85242ad81ef",
-      "botUsername": "LYZKYPbot"
+      "messageId": 57,
+      "destinationFingerprint": "c061d82bf8f5ff23",
+      "configurationAdjusted": "restored-verified-group-minus-sign",
+      "meaning": "telegram-api-accepted-not-a-user-read-receipt"
     }
   },
   "files": [
     {
-      "name": "collection-20261031T062826Z.json",
-      "sha256": "4d6d890b1b5deec4fef02bb54b0306bfbf93dc22618d28951f1b1861212d8658"
+      "name": "collection-20261031T063943Z.json",
+      "sha256": "6243d4a1d8c94ba1a39d2b6282675d714a872280b9e536074354e296a9c2f49d"
     },
     {
-      "name": "collection-20261031T062826Z-brief.md",
-      "sha256": "b28c605fe4a92a080aa061794d49e52c99d04921450b7f3db0a1f3d5cb18b6cc"
+      "name": "collection-20261031T063943Z-brief.md",
+      "sha256": "b261ee0a5611d4957710f312c42124f14dfb3c256318b8b83e5acdecc916c9a6"
     },
     {
-      "name": "collection-20261031T062826Z-message.md",
-      "sha256": "68a34af853ffcd1e7dbaf7dcd4d8debcf1857b24e5673a7906e02b9fe703caa5"
+      "name": "collection-20261031T063943Z-message.md",
+      "sha256": "797a782286e553dbf18f5b4d9c732e086f63451caea6a4544e5d3a511eb6e4c9"
     },
     {
       "name": "latest.json",
-      "sha256": "4d6d890b1b5deec4fef02bb54b0306bfbf93dc22618d28951f1b1861212d8658"
+      "sha256": "6243d4a1d8c94ba1a39d2b6282675d714a872280b9e536074354e296a9c2f49d"
     },
     {
       "name": "latest-brief.md",
-      "sha256": "b28c605fe4a92a080aa061794d49e52c99d04921450b7f3db0a1f3d5cb18b6cc"
+      "sha256": "b261ee0a5611d4957710f312c42124f14dfb3c256318b8b83e5acdecc916c9a6"
     },
     {
       "name": "latest-message.md",
-      "sha256": "68a34af853ffcd1e7dbaf7dcd4d8debcf1857b24e5673a7906e02b9fe703caa5"
+      "sha256": "797a782286e553dbf18f5b4d9c732e086f63451caea6a4544e5d3a511eb6e4c9"
     },
     {
       "name": "predictions.json",
-      "sha256": "0f8b4fbf1cd67f772a7826c28b3a74279f5fdd309f2cec1c305b029f0fe92dc4"
+      "sha256": "c38d85571cfe97d4abb10692072d5febc89756a4614d26e951c7c143b8e40cf0"
     },
     {
       "name": "predictions.md",
-      "sha256": "11c4aad9e64eb9b0e9b298947bf0d4f27b83cdc80d7f357892db69fe15da37d5"
+      "sha256": "7be53f29b1f0201db0b28b242f03cfefa2f88ffc1b573c89a6f63881a702e4c6"
     },
     {
       "name": "predictions.html",
-      "sha256": "e9fbd3257b01b771fc0656498825c677216926cc4e1d68e0041e68ba30b4f014"
+      "sha256": "7fea33da42c81d3a5986454f7bf7c3f77a2500e85acf3e1f1d302bc716430e18"
     }
   ],
   "events": [
     {
       "channel": "files",
       "status": "published",
-      "checkedAt": "2026-10-31T06:28:26.250Z"
+      "checkedAt": "2026-10-31T06:39:43.664Z"
     },
     {
       "channel": "githubArtifact",
       "status": "published",
-      "checkedAt": "2026-10-31T06:28:27.939Z",
-      "id": "13032961830",
-      "url": "https://github.com/wangxtong/Dimension-Football-/actions/runs/41176732805/artifacts/13032961830",
-      "sha256": "1d085f4e76071a87b1dd47a2d5c9bacd559fb6a8541f047face439556815ba90"
+      "checkedAt": "2026-10-31T06:39:45.250Z",
+      "id": "13033373961",
+      "url": "https://github.com/wangxtong/Dimension-Football-/actions/runs/41177508692/artifacts/13033373961",
+      "sha256": "ef6c24182000211a9d556b802e76d22f371c8c4a80643aa22bfaabeaaef3142a"
     },
     {
       "channel": "externalWebsite",
       "status": "published",
-      "checkedAt": "2026-10-31T06:28:30.932Z",
+      "checkedAt": "2026-10-31T06:39:48.077Z",
       "url": "https://dimension-football-live-wangxtong.secretmelon37.chatgpt.site",
-      "commitSha": "21b620a373189988d1c5c4063e047b5f03805f16",
-      "dataUrl": "https://raw.githubusercontent.com/wangxtong/Dimension-Football-/21b620a373189988d1c5c4063e047b5f03805f16/predictions.json",
+      "commitSha": "90d9198b26ddea787db4893b3691aa795aa9cb89",
+      "dataUrl": "https://raw.githubusercontent.com/wangxtong/Dimension-Football-/90d9198b26ddea787db4893b3691aa795aa9cb89/predictions.json",
       "meaning": "data-committed-and-read-back; browser-refreshes-within-five-minutes"
     },
     {
       "channel": "telegram",
-      "status": "failed",
-      "checkedAt": "2026-10-31T06:28:32.021Z",
-      "code": "TELEGRAM_CHAT_NOT_FOUND",
-      "httpStatus": 400,
-      "destinationFingerprint": "de8dc85242ad81ef",
-      "botUsername": "LYZKYPbot"
+      "status": "accepted",
+      "checkedAt": "2026-10-31T06:39:48.852Z",
+      "messageId": 57,
+      "destinationFingerprint": "c061d82bf8f5ff23",
+      "configurationAdjusted": "restored-verified-group-minus-sign",
+      "meaning": "telegram-api-accepted-not-a-user-read-receipt"
     },
     {
       "channel": "githubSummary",
       "status": "published",
-      "checkedAt": "2026-10-31T06:28:32.567Z"
+      "checkedAt": "2026-10-31T06:39:48.971Z"
     }
   ]
 }
