@@ -184,4 +184,28 @@ class SignedReleaseAuthorizationTests(unittest.TestCase):
                               capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+'\n'+result.stderr)
 
+class ReportServiceRestartSafetyTests(unittest.TestCase):
+    def test_failed_report_restart_blocks_install_success(self):
+        source = Path(__file__).with_name('install.sh').read_text()
+        restart = [line for line in source.splitlines()
+                   if line.startswith('systemctl restart vantis-report.service')]
+        self.assertEqual(restart, ["systemctl restart vantis-report.service || die 'REPORT_SERVICE_RESTART_FAILED'"])
+        with tempfile.TemporaryDirectory() as directory:
+            fake = Path(directory) / 'systemctl'
+            fake.write_text('#!/bin/sh\nexit 3\n')
+            fake.chmod(0o755)
+            script = ("die(){ printf 'INSTALL_FAILED:%s\\n' \\"$1\\" >&2; exit 1; }\n"
+                      + restart[0] + "\nprintf 'INSTALL_COMPLETED\\n'\n")
+            environment = dict(os.environ, PATH=directory + os.pathsep + os.environ.get('PATH', ''))
+            failed = subprocess.run(['bash', '-c', script], capture_output=True,
+                                    text=True, env=environment)
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertIn('REPORT_SERVICE_RESTART_FAILED', failed.stderr)
+            self.assertNotIn('INSTALL_COMPLETED', failed.stdout)
+            fake.write_text('#!/bin/sh\nexit 0\n')
+            ok = subprocess.run(['bash', '-c', script], capture_output=True,
+                                text=True, env=environment)
+            self.assertEqual(ok.returncode, 0, ok.stderr)
+            self.assertIn('INSTALL_COMPLETED', ok.stdout)
+
 if __name__=='__main__':unittest.main()
