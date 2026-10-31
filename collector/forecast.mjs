@@ -15,10 +15,20 @@ const token = value => typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.t
 const team = value => typeof value === 'string' && value.trim().length > 0 && value.length <= 200 && !/[\x00-\x1f\x7f]/u.test(value);
 const round = value => Math.round(value * 1e8) / 1e8;
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+// The latest record version cannot be projected into a historical cutoff from
+// an older result timestamp alone. Supplier updates and fetches are evidence of
+// when the *version* became available, not proof of original result publication.
 const knownAt = row => {
-  const times = [row.resultObservedAt, row.observedAt].map(isoMillis).filter(Number.isFinite);
-  return times.length ? Math.max(...times) : isoMillis(row.fetchedAt);
+  const times = ['resultObservedAt', 'observedAt', 'fetchedAt', 'sourceUpdatedAt']
+    .map(key => isoMillis(row?.[key])).filter(Number.isFinite);
+  return times.length ? Math.max(...times) : NaN;
 };
+// Strict historical replay additionally requires positive result visibility
+// evidence. A fetch-only final score is not an as-observed training result.
+const resultVisibleAt = row => Number.isFinite(isoMillis(row?.observedAt))
+  && Number.isFinite(isoMillis(row?.resultObservedAt))
+  && isoMillis(row.resultObservedAt) > isoMillis(row.kickoff)
+  ? knownAt(row) : NaN;
 
 export function prepareForecastHistory(input = []) {
   if (!Array.isArray(input) || input.length > 10000) throw new Error('INVALID_HISTORY_FILE');
@@ -70,7 +80,9 @@ function trainingPool(fixture, matches, cutoff, visibility = 'current') {
   return matches.filter(row => row.source === fixture.source && row.league === fixture.league && row.id !== fixture.id
     && !(row.homeTeamId === fixture.homeTeamId && row.awayTeamId === fixture.awayTeamId && Date.parse(row.kickoff) === Date.parse(fixture.kickoff))
     && Date.parse(row.kickoff) + FORECAST_MODEL.resultLagHours * 3600000 <= cutoff
-    && (visibility === 'snapshot' || (Number.isFinite(knownAt(row)) ? knownAt(row) <= cutoff : visibility !== 'as-observed'))
+    && (visibility === 'snapshot' || (visibility === 'as-observed'
+      ? Number.isFinite(resultVisibleAt(row)) && resultVisibleAt(row) <= cutoff
+      : !Number.isFinite(knownAt(row)) || knownAt(row) <= cutoff))
     && cutoff - Date.parse(row.kickoff) <= FORECAST_MODEL.lookbackDays * DAY);
 }
 
@@ -127,7 +139,9 @@ export function walkForwardBacktest(matches, { source, league, nowISO, horizonHo
   const now = isoMillis(nowISO);
   if (!Number.isFinite(now) || !Number.isFinite(horizonHours) || horizonHours < 0 || horizonHours > 336
     || !['snapshot', 'as-observed'].includes(visibility)) throw new Error('INVALID_BACKTEST_OPTIONS');
-  const available = matches.filter(row => !Number.isFinite(knownAt(row)) || knownAt(row) <= now)
+  const available = matches.filter(row => visibility === 'as-observed'
+    ? Number.isFinite(resultVisibleAt(row)) && resultVisibleAt(row) <= now
+    : !Number.isFinite(knownAt(row)) || knownAt(row) <= now)
     .toSorted((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff) || a.id.localeCompare(b.id));
   const candidates = available.filter(row => row.source === source && row.league === league
     && Date.parse(row.kickoff) + FORECAST_MODEL.resultLagHours * 3600000 <= now)
