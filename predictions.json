@@ -1,7 +1,7 @@
 {
   "version": 1,
   "kind": "prematch-forecast-report",
-  "generatedAt": "2026-10-31T06:28:26.205Z",
+  "generatedAt": "2026-10-31T06:39:43.624Z",
   "simulated": false,
   "model": {
     "id": "venue-poisson-v1",
@@ -142,7 +142,7 @@
     }
   ],
   "publication": {
-    "reportId": "fd120e306c7c6fded35f95de8a1dca5e4fe56b8b7d93d21aee8e7e8b5fc719c1",
+    "reportId": "ca8badaa77d3530ed5ef9db7e6907800d6f5b17a81444c5f8a6126313e0b6e7c",
     "receipt": "publication.json",
     "target": "repository-report-files",
     "externalDelivery": "see-receipt",
@@ -179,15 +179,15 @@
         "kickoff": "2026-10-31T12:30:00.000Z",
         "source": "thesportsdb-free",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "133610",
         "awayTeamId": "133612",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "tsdb-2494084",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "unavailable",
         "reasons": [
           "HISTORY_UNAVAILABLE",
@@ -230,10 +230,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -244,7 +244,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -262,15 +262,15 @@
               "selection": "home",
               "handicap": -0.75,
               "decimalOdds": 2.09,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -278,15 +278,15 @@
               "selection": "away",
               "handicap": 0.75,
               "decimalOdds": 1.73,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -301,15 +301,15 @@
         "kickoff": "2026-10-31T13:00:00.000Z",
         "source": "thesportsdb-free",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "133732",
         "awayTeamId": "133729",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "tsdb-2506272",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "unavailable",
         "reasons": [
           "HISTORY_UNAVAILABLE",
@@ -352,10 +352,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -366,7 +366,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -384,15 +384,15 @@
               "selection": "home",
               "handicap": 1.25,
               "decimalOdds": 1.79,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -400,15 +400,15 @@
               "selection": "away",
               "handicap": -1.25,
               "decimalOdds": 2.02,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -423,15 +423,15 @@
         "kickoff": "2026-10-31T14:00:00.000Z",
         "source": "thesportsdb-free",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "134781",
         "awayTeamId": "134270",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "tsdb-2482234",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "unavailable",
         "reasons": [
           "HISTORY_UNAVAILABLE",
@@ -474,10 +474,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -488,7 +488,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -506,15 +506,15 @@
               "selection": "home",
               "handicap": -0.75,
               "decimalOdds": 1.81,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -522,15 +522,15 @@
               "selection": "away",
               "handicap": 0.75,
               "decimalOdds": 1.99,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -545,42 +545,42 @@
         "kickoff": "2026-10-31T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "6",
         "awayTeamId": "16",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "oldb-83220",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.5655653016198382,
-          "draw": 0.20121914301882218,
-          "away": 0.23321555536133964
+          "home": 0.5655642502111193,
+          "draw": 0.20121941324486634,
+          "away": 0.23321633654401427
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 2.228375342532916,
-          "away": 1.3859294611374897
+          "home": 2.2283716313925246,
+          "away": 1.3859308794473266
         },
         "topScores": [
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09268622356234994
+            "probability": 0.09268622220794798
           },
           {
             "home": 1,
             "away": 1,
-            "probability": 0.08318726364742197
+            "probability": 0.08318740097227655
           },
           {
             "home": 3,
             "away": 1,
-            "probability": 0.06884656505961134
+            "probability": 0.06884644939637836
           }
         ],
         "sample": {
@@ -592,14 +592,14 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9377457520200512,
-          "leagueAwayGoals": 1.4208517420749887,
-          "homeAttack": 1.1348493033682676,
-          "homeDefenceConceding": 0.7996085982911382,
-          "awayAttack": 1.219873809609169,
-          "awayDefenceConceding": 1.0133357283944164
+          "leagueHomeGoals": 1.9377457520200534,
+          "leagueAwayGoals": 1.420851742074991,
+          "homeAttack": 1.1348475921104306,
+          "homeDefenceConceding": 0.799611141288008,
+          "awayAttack": 1.2198711784248677,
+          "awayDefenceConceding": 1.0133355688085182
         },
-        "trainingCutoff": "2026-10-31T06:28:24.005Z",
+        "trainingCutoff": "2026-10-31T06:39:41.087Z",
         "newestTrainingKickoff": "2026-10-30T19:30:00.000Z",
         "trainingHash": "ccb404a1cfdb7723c726f790a6aa015603cbfd756dd37c2159686cfb36e17a16",
         "confidence": "uncalibrated-baseline",
@@ -641,10 +641,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -655,7 +655,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -673,15 +673,15 @@
               "selection": "home",
               "handicap": -0.75,
               "decimalOdds": 1.82,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -689,15 +689,15 @@
               "selection": "away",
               "handicap": 0.75,
               "decimalOdds": 1.98,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -712,42 +712,42 @@
         "kickoff": "2026-10-31T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "95",
         "awayTeamId": "112",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "oldb-83222",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.49088621240009445,
-          "draw": 0.23382147693528266,
-          "away": 0.2752923106646229
+          "home": 0.49088625333093117,
+          "draw": 0.23382130160257214,
+          "away": 0.27529244506649664
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.7622903772425598,
-          "away": 1.2653678858506487
+          "home": 1.762292472041493,
+          "away": 1.2653698966588092
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.10799384431064958
+            "probability": 0.10799370091438426
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09515825631504446
+            "probability": 0.09515824307465993
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.08534580774353245
+            "probability": 0.08534555879631724
           }
         ],
         "sample": {
@@ -759,14 +759,14 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9377457520200512,
-          "leagueAwayGoals": 1.4208517420749887,
-          "homeAttack": 0.9278562052960506,
-          "homeDefenceConceding": 1.0103592354767033,
-          "awayAttack": 0.8814389312994847,
-          "awayDefenceConceding": 0.9801668263563281
+          "leagueHomeGoals": 1.9377457520200534,
+          "leagueAwayGoals": 1.420851742074991,
+          "homeAttack": 0.9278570692731787,
+          "homeDefenceConceding": 1.010359111416933,
+          "awayAttack": 0.881440440232602,
+          "awayDefenceConceding": 0.9801670787741985
         },
-        "trainingCutoff": "2026-10-31T06:28:24.005Z",
+        "trainingCutoff": "2026-10-31T06:39:41.087Z",
         "newestTrainingKickoff": "2026-10-30T19:30:00.000Z",
         "trainingHash": "ccb404a1cfdb7723c726f790a6aa015603cbfd756dd37c2159686cfb36e17a16",
         "confidence": "uncalibrated-baseline",
@@ -808,10 +808,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -822,7 +822,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -840,15 +840,15 @@
               "selection": "home",
               "handicap": 0.25,
               "decimalOdds": 1.9,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -856,15 +856,15 @@
               "selection": "away",
               "handicap": -0.25,
               "decimalOdds": 1.9,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -879,42 +879,42 @@
         "kickoff": "2026-10-31T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "87",
         "awayTeamId": "31",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "oldb-83224",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.45941105101494717,
-          "draw": 0.23035875943383138,
-          "away": 0.3102301895512214
+          "home": 0.45941112891341745,
+          "draw": 0.23035856153608317,
+          "away": 0.31023030955049946
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.7782323513378235,
-          "away": 1.4271876976668976
+          "home": 1.7782348803354013,
+          "away": 1.427190082905006
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.10289004592330434
+            "probability": 0.10288985858589832
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09148120414572705
+            "probability": 0.09148116768511062
           },
           {
             "home": 1,
             "away": 2,
-            "probability": 0.07342170387706104
+            "probability": 0.07342169290264629
           }
         ],
         "sample": {
@@ -926,14 +926,14 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9377457520200512,
-          "leagueAwayGoals": 1.4208517420749887,
-          "homeAttack": 0.9510625544816715,
-          "homeDefenceConceding": 1.172589164534638,
-          "awayAttack": 0.8566165338964251,
-          "awayDefenceConceding": 0.9649007206497264
+          "leagueHomeGoals": 1.9377457520200534,
+          "leagueAwayGoals": 1.420851742074991,
+          "homeAttack": 0.9510631755599298,
+          "homeDefenceConceding": 1.1725869741592174,
+          "awayAttack": 0.8566195656971239,
+          "awayDefenceConceding": 0.9649014628135375
         },
-        "trainingCutoff": "2026-10-31T06:28:24.005Z",
+        "trainingCutoff": "2026-10-31T06:39:41.087Z",
         "newestTrainingKickoff": "2026-10-30T19:30:00.000Z",
         "trainingHash": "ccb404a1cfdb7723c726f790a6aa015603cbfd756dd37c2159686cfb36e17a16",
         "confidence": "uncalibrated-baseline",
@@ -975,10 +975,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -989,7 +989,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -1007,15 +1007,15 @@
               "selection": "home",
               "handicap": -0.25,
               "decimalOdds": 1.82,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -1023,15 +1023,15 @@
               "selection": "away",
               "handicap": 0.25,
               "decimalOdds": 1.98,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -1046,42 +1046,42 @@
         "kickoff": "2026-10-31T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "134",
         "awayTeamId": "175",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "oldb-83225",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.3891608375354817,
-          "draw": 0.2189133751824672,
-          "away": 0.3919257872820511
+          "home": 0.38916219500895627,
+          "draw": 0.21891349101417476,
+          "away": 0.3919243139768689
         },
         "selection": "away",
         "expectedGoals": {
-          "home": 1.8029957816997855,
-          "away": 1.809834842937363
+          "home": 1.8029975939847638,
+          "away": 1.8098296503807976
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.08802403067756466
+            "probability": 0.08802416415215476
           },
           {
             "home": 1,
             "away": 2,
-            "probability": 0.07965447886802192
+            "probability": 0.07965437111627809
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.0793534779999308
+            "probability": 0.07935367808942746
           }
         ],
         "sample": {
@@ -1093,14 +1093,14 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9377457520200512,
-          "leagueAwayGoals": 1.4208517420749887,
-          "homeAttack": 0.8871426989455625,
-          "homeDefenceConceding": 1.1564056204196997,
-          "awayAttack": 1.1014885502757923,
-          "awayDefenceConceding": 1.04882838996161
+          "leagueHomeGoals": 1.9377457520200534,
+          "leagueAwayGoals": 1.420851742074991,
+          "homeAttack": 0.8871441156705518,
+          "homeDefenceConceding": 1.1564036570221259,
+          "awayAttack": 1.101487260174397,
+          "awayDefenceConceding": 1.0488277692652472
         },
-        "trainingCutoff": "2026-10-31T06:28:24.005Z",
+        "trainingCutoff": "2026-10-31T06:39:41.087Z",
         "newestTrainingKickoff": "2026-10-30T19:30:00.000Z",
         "trainingHash": "ccb404a1cfdb7723c726f790a6aa015603cbfd756dd37c2159686cfb36e17a16",
         "confidence": "uncalibrated-baseline",
@@ -1142,10 +1142,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -1156,7 +1156,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -1174,15 +1174,15 @@
               "selection": "home",
               "handicap": 0.25,
               "decimalOdds": 1.78,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -1190,15 +1190,15 @@
               "selection": "away",
               "handicap": -0.25,
               "decimalOdds": 2.03,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -1213,42 +1213,42 @@
         "kickoff": "2026-10-31T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "9",
         "awayTeamId": "1635",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "oldb-83226",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.48180242324027756,
-          "draw": 0.2582971562819304,
-          "away": 0.25990042047779205
+          "home": 0.48180376001311026,
+          "draw": 0.2582958987369714,
+          "away": 0.2599003412499183
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.5090921856059791,
-          "away": 1.0353957067473714
+          "home": 1.5091039800182973,
+          "away": 1.035402873652736
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.12267754579144362
+            "probability": 0.12267702761429596
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.11848373041532807
+            "probability": 0.11848240982904654
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09256586285159361
+            "probability": 0.0925661953147743
           }
         ],
         "sample": {
@@ -1260,14 +1260,14 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9377457520200512,
-          "leagueAwayGoals": 1.4208517420749887,
-          "homeAttack": 0.6967758755999657,
-          "homeDefenceConceding": 0.774305786585058,
-          "awayAttack": 0.9411201908357466,
-          "awayDefenceConceding": 1.1177015958823568
+          "leagueHomeGoals": 1.9377457520200534,
+          "leagueAwayGoals": 1.420851742074991,
+          "homeAttack": 0.6967822514010503,
+          "homeDefenceConceding": 0.7743105321883755,
+          "awayAttack": 0.9411209371872304,
+          "awayDefenceConceding": 1.1177001039148708
         },
-        "trainingCutoff": "2026-10-31T06:28:24.005Z",
+        "trainingCutoff": "2026-10-31T06:39:41.087Z",
         "newestTrainingKickoff": "2026-10-30T19:30:00.000Z",
         "trainingHash": "ccb404a1cfdb7723c726f790a6aa015603cbfd756dd37c2159686cfb36e17a16",
         "confidence": "uncalibrated-baseline",
@@ -1309,10 +1309,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -1323,7 +1323,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -1341,15 +1341,15 @@
               "selection": "home",
               "handicap": 0.75,
               "decimalOdds": 1.85,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -1357,15 +1357,15 @@
               "selection": "away",
               "handicap": -0.75,
               "decimalOdds": 1.95,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -1380,42 +1380,42 @@
         "kickoff": "2026-10-31T17:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "40",
         "awayTeamId": "7",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "oldb-83219",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.6187317502582906,
-          "draw": 0.18737274720653083,
-          "away": 0.19389550253517854
+          "home": 0.6187314115485596,
+          "draw": 0.18737277977808164,
+          "away": 0.19389580867335887
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 2.399341567478165,
-          "away": 1.2933535355517807
+          "home": 2.3993417972220175,
+          "away": 1.29335531147525
         },
         "topScores": [
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09271591921720568
+            "probability": 0.09271587832511176
           },
           {
             "home": 1,
             "away": 1,
-            "probability": 0.0772844687675336
+            "probability": 0.07728442728123118
           },
           {
             "home": 3,
             "away": 1,
-            "probability": 0.07415238631492974
+            "probability": 0.07415236071053051
           }
         ],
         "sample": {
@@ -1427,14 +1427,14 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9377457520200512,
-          "leagueAwayGoals": 1.4208517420749887,
-          "homeAttack": 1.7986970513299576,
-          "homeDefenceConceding": 0.8594299226836887,
-          "awayAttack": 1.059151340301654,
-          "awayDefenceConceding": 0.6883942939475995
+          "leagueHomeGoals": 1.9377457520200534,
+          "leagueAwayGoals": 1.420851742074991,
+          "homeAttack": 1.798686882413735,
+          "homeDefenceConceding": 0.8594317124052565,
+          "awayAttack": 1.0591505890082444,
+          "awayDefenceConceding": 0.6883982517161281
         },
-        "trainingCutoff": "2026-10-31T06:28:24.005Z",
+        "trainingCutoff": "2026-10-31T06:39:41.087Z",
         "newestTrainingKickoff": "2026-10-30T19:30:00.000Z",
         "trainingHash": "ccb404a1cfdb7723c726f790a6aa015603cbfd756dd37c2159686cfb36e17a16",
         "confidence": "uncalibrated-baseline",
@@ -1476,10 +1476,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -1490,7 +1490,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -1508,15 +1508,15 @@
               "selection": "home",
               "handicap": -1.75,
               "decimalOdds": 1.97,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -1524,15 +1524,15 @@
               "selection": "away",
               "handicap": 1.75,
               "decimalOdds": 1.83,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -1547,15 +1547,15 @@
         "kickoff": "2026-10-31T19:45:00.000Z",
         "source": "thesportsdb-free",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "134789",
         "awayTeamId": "133848",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "tsdb-2489540",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "unavailable",
         "reasons": [
           "HISTORY_UNAVAILABLE",
@@ -1598,10 +1598,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -1612,7 +1612,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -1630,15 +1630,15 @@
               "selection": "home",
               "handicap": -0.25,
               "decimalOdds": 2.03,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -1646,15 +1646,15 @@
               "selection": "away",
               "handicap": 0.25,
               "decimalOdds": 1.78,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -1669,42 +1669,42 @@
         "kickoff": "2026-11-01T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "80",
         "awayTeamId": "65",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "oldb-83223",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.49875564114105064,
-          "draw": 0.2376367450464829,
-          "away": 0.2636076138124665
+          "home": 0.4987555935144667,
+          "draw": 0.237636500490449,
+          "away": 0.2636079059950844
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.7223207689694082,
-          "away": 1.1888239589931158
+          "home": 1.722323488487021,
+          "away": 1.1888269943088838
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.11141341758775375
+            "probability": 0.11141323680350707
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09594482152662491
+            "probability": 0.09594481733752343
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.09371733867318444
+            "probability": 0.09371694732443081
           }
         ],
         "sample": {
@@ -1716,14 +1716,14 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9377457520200512,
-          "leagueAwayGoals": 1.4208517420749887,
-          "homeAttack": 0.840965172779766,
-          "homeDefenceConceding": 1.0214224372969214,
-          "awayAttack": 0.819149916511732,
-          "awayDefenceConceding": 1.0569129874784309
+          "leagueHomeGoals": 1.9377457520200534,
+          "leagueAwayGoals": 1.420851742074991,
+          "homeAttack": 0.840967075827702,
+          "homeDefenceConceding": 1.0214221809510255,
+          "awayAttack": 0.8191522135547237,
+          "awayDefenceConceding": 1.0569122646057802
         },
-        "trainingCutoff": "2026-10-31T06:28:24.005Z",
+        "trainingCutoff": "2026-10-31T06:39:41.087Z",
         "newestTrainingKickoff": "2026-10-30T19:30:00.000Z",
         "trainingHash": "ccb404a1cfdb7723c726f790a6aa015603cbfd756dd37c2159686cfb36e17a16",
         "confidence": "uncalibrated-baseline",
@@ -1765,10 +1765,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -1779,7 +1779,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -1797,15 +1797,15 @@
               "selection": "home",
               "handicap": 0,
               "decimalOdds": 1.92,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -1813,15 +1813,15 @@
               "selection": "away",
               "handicap": 0,
               "decimalOdds": 1.84,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -1836,42 +1836,42 @@
         "kickoff": "2026-11-01T16:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "91",
         "awayTeamId": "100",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "oldb-83221",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.5011547523141596,
-          "draw": 0.2322353380828745,
-          "away": 0.2666099096029659
+          "home": 0.501154698123209,
+          "draw": 0.23223516280636175,
+          "away": 0.2666101390704293
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.786095347909035,
-          "away": 1.2443029051688568
+          "home": 1.7860974392386124,
+          "away": 1.2443053047300063
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.10733602678152168
+            "probability": 0.10733587741705525
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09585618904875771
+            "probability": 0.09585616789651598
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.08626197554923795
+            "probability": 0.08626168916023817
           }
         ],
         "sample": {
@@ -1883,14 +1883,14 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9377457520200512,
-          "leagueAwayGoals": 1.4208517420749887,
-          "homeAttack": 0.8823143103880545,
-          "homeDefenceConceding": 1.1147665589077846,
-          "awayAttack": 0.7855854277104223,
-          "awayDefenceConceding": 1.0446829882162574
+          "leagueHomeGoals": 1.9377457520200534,
+          "leagueAwayGoals": 1.420851742074991,
+          "homeAttack": 0.8823157889704715,
+          "homeDefenceConceding": 1.1147651170008135,
+          "awayAttack": 0.7855879587906212,
+          "awayDefenceConceding": 1.04468246075105
         },
-        "trainingCutoff": "2026-10-31T06:28:24.005Z",
+        "trainingCutoff": "2026-10-31T06:39:41.087Z",
         "newestTrainingKickoff": "2026-10-30T19:30:00.000Z",
         "trainingHash": "ccb404a1cfdb7723c726f790a6aa015603cbfd756dd37c2159686cfb36e17a16",
         "confidence": "uncalibrated-baseline",
@@ -1932,10 +1932,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -1946,7 +1946,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [
             "hkjc-first-party"
           ],
@@ -1964,15 +1964,15 @@
               "selection": "home",
               "handicap": -1,
               "decimalOdds": 1.82,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             },
             {
               "sourceId": "hkjc",
@@ -1980,15 +1980,15 @@
               "selection": "away",
               "handicap": 1,
               "decimalOdds": 1.95,
-              "observedAt": "2026-10-31T06:28:25.292Z",
+              "observedAt": "2026-10-31T06:39:42.313Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-10-31T06:33:25.000Z",
+              "validUntil": "2026-10-31T06:44:42.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-10-31T06:28:25.000Z",
+              "sourceAsOf": "2026-10-31T06:39:42.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 29
+              "cacheMaxAgeSeconds": 30
             }
           ]
         }
@@ -2003,42 +2003,42 @@
         "kickoff": "2026-11-06T19:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-10-31T06:28:22.246Z",
+        "updatedAt": "2026-10-31T06:39:38.649Z",
         "homeTeamId": "100",
         "awayTeamId": "87",
-        "fetchedAt": "2026-10-31T06:28:22.246Z",
+        "fetchedAt": "2026-10-31T06:39:38.649Z",
         "sourceUpdatedAt": null
       },
       "forecast": {
         "fixtureId": "oldb-83234",
-        "generatedAt": "2026-10-31T06:28:24.005Z",
+        "generatedAt": "2026-10-31T06:39:41.087Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.49023867450328784,
-          "draw": 0.2365300751603979,
-          "away": 0.2732312503363143
+          "home": 0.49023890988533403,
+          "draw": 0.23652980927895925,
+          "away": 0.27323128083570675
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.730495750948008,
-          "away": 1.2349058066762362
+          "home": 1.7304989151905918,
+          "away": 1.2349080852124334
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.11014044755452371
+            "probability": 0.11014025269918638
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09529878825030758
+            "probability": 0.09529879390737986
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.08918935108983579
+            "probability": 0.08918902873669311
           }
         ],
         "sample": {
@@ -2050,14 +2050,14 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9377457520200512,
-          "leagueAwayGoals": 1.4208517420749887,
-          "homeAttack": 0.8174985989973294,
-          "homeDefenceConceding": 1.0412851070535212,
-          "awayAttack": 0.8346711675007739,
-          "awayDefenceConceding": 1.0924126654746318
+          "leagueHomeGoals": 1.9377457520200534,
+          "leagueAwayGoals": 1.420851742074991,
+          "homeAttack": 0.817500913571602,
+          "homeDefenceConceding": 1.0412845834550926,
+          "awayAttack": 0.8346731272662453,
+          "awayDefenceConceding": 1.092411570038655
         },
-        "trainingCutoff": "2026-10-31T06:28:24.005Z",
+        "trainingCutoff": "2026-10-31T06:39:41.087Z",
         "newestTrainingKickoff": "2026-10-30T19:30:00.000Z",
         "trainingHash": "ccb404a1cfdb7723c726f790a6aa015603cbfd756dd37c2159686cfb36e17a16",
         "confidence": "uncalibrated-baseline",
@@ -2099,10 +2099,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-10-31T06:28:24.005Z",
-          "fixtureFetchedAt": "2026-10-31T06:28:22.246Z",
+          "generatedAt": "2026-10-31T06:39:41.087Z",
+          "fixtureFetchedAt": "2026-10-31T06:39:38.649Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-10-31T07:28:24.005Z",
+          "validUntil": "2026-10-31T07:39:41.087Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -2113,7 +2113,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-10-31T06:28:26.205Z",
+          "checkedAt": "2026-10-31T06:39:43.624Z",
           "quoteGroups": [],
           "requiredQuoteGroups": 2,
           "pairedQuoteCount": 0,
