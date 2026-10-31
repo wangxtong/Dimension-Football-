@@ -2,11 +2,13 @@
 
 适用于使用 systemd 的 Linux 主机。`bootstrap.sh` 从官方安装系统级 Node.js 24，并获取指定的完整 Git 提交；已有 Node.js 24+ 时可以复用。`install.sh` 要求预先安装 Node.js、Bash、Git 和 curl。脚本不创建云资源，不接收密钥参数。首次安装和后续发布需要 root 权限；采集和下载源码的测试进程使用独立的 `vantis` 账号。
 
-首次在源码目录执行：
+首次安装改为通过经过审查的私有仓库引导工具进行，仅当已备齐 root-only Git 读取凭据、同 SHA 的真实审核证据并通过 staging 验收时才运行：
 
 ```sh
-sudo bash deploy/install.sh "$PWD"
+sudo bash /absolute/uploaded/deploy/bootstrap.sh FULL_40_CHARACTER_COMMIT_SHA --deployment-dir /absolute/uploaded/deploy
 ```
+
+直接从普通源码目录运行 `install.sh`，如果缺少 root-only `.vantis-verified-commit` 标记及审批，将被拒绝（预期行为）。
 
 如 Node.js 不在默认 PATH，明确指定其系统级绝对路径：
 
