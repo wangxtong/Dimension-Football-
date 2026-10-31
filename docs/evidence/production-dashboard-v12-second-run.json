@@ -1,0 +1,134 @@
+{
+  "siteVersion": 12,
+  "status": 200,
+  "reportId": "8ca5e8a6c599a2c8046417e7d342b251c6a40a65cde426dcacba73767e7e44a8",
+  "generatedAt": "2026-10-31T09:35:53.860Z",
+  "mode": "hosted",
+  "kind": "observations",
+  "summary": {
+    "fixtures": 13,
+    "forecasts": 0,
+    "unavailable": 13,
+    "strictCandidates": 0
+  },
+  "receipt": {
+    "status": "published",
+    "reportId": "8ca5e8a6c599a2c8046417e7d342b251c6a40a65cde426dcacba73767e7e44a8",
+    "reportHash": "cf7775e9e2f76eed49ca1559f0dae853c8c6cdc0164e575ef7da5372227e5a0b",
+    "checkedAt": "2026-10-31T09:35:58.531Z",
+    "servedVerified": true,
+    "mode": "hosted",
+    "publicationKind": "observations",
+    "forecastPublished": false,
+    "meaning": "machine-readback-not-user-read"
+  },
+  "history": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "anonymousStatus": 401,
+    "sha256": "6216912148bd1af0178157c3aedc662fb3bb9cdd11ee1b2e228310c5a3190f7e",
+    "matchesBuild": true,
+    "groups": 25,
+    "sample": {
+      "source": "openligadb",
+      "league": "BL1",
+      "horizonHours": 24,
+      "purpose": "reference-horizon",
+      "visibility": "snapshot",
+      "status": "evaluated-small-sample",
+      "evaluated": 63,
+      "skipped": 17,
+      "interrupted": false,
+      "coverage": {
+        "eligible": 80,
+        "evaluated": 63,
+        "skipped": 17,
+        "pending": 0,
+        "rate": 0.7875
+      },
+      "metrics": {
+        "accuracy": 0.5714285714285714,
+        "brier": 0.5488873121948155,
+        "logLoss": 0.9312652442923788
+      },
+      "baseline": {
+        "accuracy": 0.5396825396825397,
+        "brier": 0.6134098972602061,
+        "logLoss": 1.0204142332032164
+      },
+      "deltaVsBaseline": {
+        "accuracy": 0.031746031746031744,
+        "brier": -0.06452258506539066,
+        "logLoss": -0.08914898891083767
+      },
+      "uncertainty": {
+        "method": "normal-approximation-mean-95pct",
+        "status": "approximate-small-sample",
+        "brier": {
+          "estimate": 0.5488873121948155,
+          "lower": 0.4727127900689788,
+          "upper": 0.6250618343206521
+        },
+        "logLoss": {
+          "estimate": 0.9312652442923788,
+          "lower": 0.8235581206666839,
+          "upper": 1.0389723679180738
+        },
+        "pairedBrierDifference": {
+          "estimate": -0.0645225850653908,
+          "lower": -0.11795425574072672,
+          "upper": -0.01109091439005487
+        }
+      },
+      "reasons": [
+        "RETROSPECTIVE_SNAPSHOT",
+        "UNCALIBRATED",
+        "SMALL_SAMPLE"
+      ],
+      "evaluationSetHash": "5181ce6293b33f71e8232adeba37d4630d0049b3af278deb87a101b74d600969",
+      "detailsHash": "ccacb0e34ac3524b86a76341d80109a25119518de0fc419abdf46da21c059cb4"
+    }
+  },
+  "initialLoginDestination": "/?view=backtest#backtest",
+  "mobileNoOverflow": true,
+  "links": [
+    {
+      "view": "picks",
+      "hash": "#picks",
+      "selectedTab": "analysis"
+    },
+    {
+      "view": "backtest",
+      "hash": "#backtest",
+      "selectedTab": "analysis"
+    },
+    {
+      "view": "schedule",
+      "hash": "#schedule",
+      "selectedTab": "schedule"
+    },
+    {
+      "view": "analysis",
+      "hash": "#analysis",
+      "selectedTab": "analysis"
+    },
+    {
+      "view": "strict",
+      "hash": "#strict",
+      "selectedTab": "strict"
+    },
+    {
+      "view": "missing",
+      "hash": "#missing",
+      "selectedTab": "missing"
+    },
+    {
+      "view": "status",
+      "hash": "#status",
+      "selectedTab": "analysis"
+    }
+  ],
+  "warning": "",
+  "pageErrors": [],
+  "checkedAt": "2026-10-31T09:37:02.868Z"
+}
