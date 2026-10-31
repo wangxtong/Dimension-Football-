@@ -6,6 +6,8 @@
 
 ## 先在本机验证
 
+项目智能体协作入口见 [AGENTS.md](AGENTS.md) 与 [角色工作流](docs/AGENT_WORKFLOW.md)。仓库内置 8 个角色技能和审计 A01–A05 的负责人映射，可执行 `npm run agents:route -- --finding A01` 查看应读取的技能；`npm run agents:check` 校验配置。该路由供编码助手使用，不调用模型 API 或启动生产采集。
+
 在仓库根目录使用 Node.js 24：
 
 ```sh

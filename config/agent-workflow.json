@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "audit": {
+    "date": "2026-10-30",
+    "commit": "2fb4007e4c92ca26ac2d538c1714b136a68f9e83",
+    "report": "https://chatgpt.com/space/page_ed7380a0df008191bfcc39c3931b63d0",
+    "backlog": "docs/AGENT_AUDIT_BACKLOG.md"
+  },
+  "coordinator": "orchestrator",
+  "roles": [
+    {
+      "id": "orchestrator",
+      "name": "项目协调智能体",
+      "skill": ".agents/skills/vantis-orchestrator/SKILL.md",
+      "paths": ["AGENTS.md", ".agents/", "config/agent-workflow.json", "docs/AGENT_", "scripts/agent-workflow.mjs"],
+      "hints": ["工作流", "角色", "智能体", "任务拆分", "workflow", "orchestrat"],
+      "reviewers": ["qa"]
+    },
+    {
+      "id": "collector",
+      "name": "数据采集智能体",
+      "skill": ".agents/skills/vantis-collector/SKILL.md",
+      "paths": ["collector/sources/"],
+      "hints": ["数据源", "第二独立", "采集器", "初盘", "接入", "配额", "限流", "429", "api-football", "football-data", "statarea", "titan007"],
+      "reviewers": ["data-quality", "security", "qa"]
+    },
+    {
+      "id": "data-quality",
+      "name": "数据质量智能体",
+      "skill": ".agents/skills/vantis-data-quality/SKILL.md",
+      "paths": ["collector/full-report.mjs", "collector/team-analysis.mjs", "collector/sources/full-analysis.mjs", "collector/sources/team-names.mjs"],
+      "hints": ["时效", "过期", "伤停", "首发", "缺页", "分页", "身份", "改期", "数据质量", "stale", "pagination", "identity"],
+      "reviewers": ["qa"]
+    },
+    {
+      "id": "research",
+      "name": "预测研究智能体",
+      "skill": ".agents/skills/vantis-research/SKILL.md",
+      "paths": ["collector/policy.mjs", "collector/full-market-analysis.mjs", "config/collection.json", "config/cloud-task.md"],
+      "hints": ["概率", "预测", "回测", "命中率", "校准", "赔率", "盘口", "候选门槛", "brier", "calibration", "backtest"],
+      "reviewers": ["data-quality", "qa"]
+    },
+    {
+      "id": "reliability",
+      "name": "运行可靠性智能体",
+      "skill": ".agents/skills/vantis-reliability/SKILL.md",
+      "paths": ["collector/run.mjs", "collector/pipeline.mjs", "collector/storage.mjs", "collector/recover-lock.mjs", "collector/report.mjs", "collector/analyze.mjs"],
+      "hints": ["退出码", "取消", "中断", "并发", "互斥", "锁", "断点", "原子", "续查", "exit code", "abort", "concurrency", "checkpoint"],
+      "reviewers": ["qa", "operations"]
+    },
+    {
+      "id": "security",
+      "name": "安全交付智能体",
+      "skill": ".agents/skills/vantis-security/SKILL.md",
+      "paths": ["scripts/package.py", ".gitignore", ".env.example", "deploy/bootstrap.sh", "deploy/release.sh"],
+      "hints": ["打包", "密钥", "凭据", "泄露", "权限", "供应链", "安全", ".env", "secret", "credential", "packaging"],
+      "reviewers": ["qa"]
+    },
+    {
+      "id": "qa",
+      "name": "测试验收智能体",
+      "skill": ".agents/skills/vantis-qa/SKILL.md",
+      "paths": ["collector/test/", "collector/sources/test/", ".github/workflows/test.yml"],
+      "hints": ["测试", "验收", "复现", "审计", "test", "acceptance", "audit"],
+      "reviewers": []
+    },
+    {
+      "id": "operations",
+      "name": "生产运维智能体",
+      "skill": ".agents/skills/vantis-operations/SKILL.md",
+      "paths": ["deploy/", ".github/workflows/collection.yml", "docs/CLOUD_TASK_MIGRATION.md"],
+      "hints": ["部署", "上线", "生产", "定时", "调度", "监控", "服务器", "ecs", "systemd", "schedule", "deploy"],
+      "reviewers": ["security", "qa"]
+    }
+  ],
+  "findings": {
+    "A01": {"title": "深度失败和取消未影响退出码", "priority": "P1", "owner": "reliability", "reviewers": ["qa", "operations"], "status": "open"},
+    "A02": {"title": "打包遗漏嵌套环境文件", "priority": "P1", "owner": "security", "reviewers": ["qa"], "status": "open"},
+    "A03": {"title": "深度阶段锁提前释放", "priority": "P2", "owner": "reliability", "reviewers": ["qa", "operations"], "status": "open"},
+    "A04": {"title": "旧伤停和首发没有年龄上限", "priority": "P2", "owner": "data-quality", "reviewers": ["qa", "research"], "status": "open"},
+    "A05": {"title": "历史缺页状态在汇总中丢失", "priority": "P2", "owner": "data-quality", "reviewers": ["qa", "collector"], "status": "open"}
+  }
+}

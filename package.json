@@ -9,6 +9,8 @@
     "collect:demo": "node collector/run.mjs --demo",
     "analyze:full": "node collector/analyze.mjs",
     "test": "node --test collector/test/*.test.mjs collector/sources/test/*.test.mjs",
-    "check": "node --check collector/run.mjs"
+    "check": "node --check collector/run.mjs",
+    "agents:check": "node scripts/agent-workflow.mjs check",
+    "agents:route": "node scripts/agent-workflow.mjs route"
   }
 }

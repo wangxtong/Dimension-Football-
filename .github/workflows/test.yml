@@ -16,5 +16,6 @@ jobs:
         with:
           node-version: "24"
           package-manager-cache: false
+      - run: npm run agents:check
       - run: npm test
       - run: npm run collect:demo
