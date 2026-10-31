@@ -25,7 +25,8 @@ const cookieValue = token => `${COOKIE}=${token}; Path=/; Secure; HttpOnly; Same
 
 function configuration(env) {
   let auth;try{auth=JSON.parse(env.DASHBOARD_AUTH);}catch{return null;}
-  if(typeof auth.username!=='string'||!auth.username||auth.username.length>80||auth.iterations!==100000
+  if(!auth || typeof auth !== 'object' || Array.isArray(auth)
+    || typeof auth.username!=='string'||!auth.username||auth.username.length>80||auth.iterations!==100000
     ||!/^([a-f0-9]{32})$/.test(auth.salt)||!/^([a-f0-9]{64})$/.test(auth.hash)||!/^([a-f0-9]{64})$/.test(env.DASHBOARD_SESSION_SECRET||''))return null;
   let origin;try{origin=new URL(env.DASHBOARD_ORIGIN).origin;}catch{return null;}
   return {...auth,origin,sessionSecret:env.DASHBOARD_SESSION_SECRET};
