@@ -23,7 +23,9 @@ async function fetchKeys(fetchImpl, now) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     try {
-      const response = await fetchImpl(JWKS_URL, { headers: { accept: 'application/json' }, redirect: 'error', signal: controller.signal });
+      // Workers reject redirect:'error' before network dispatch. Manual plus the
+      // non-2xx rejection below preserves the fixed-origin, no-redirect boundary.
+      const response = await fetchImpl(JWKS_URL, { headers: { accept: 'application/json' }, redirect: 'manual', signal: controller.signal });
       if (!response.ok || Number(response.headers.get('content-length') || 0) > 65536 || !response.body) throw Error();
       const reader = response.body.getReader(), chunks = [];
       let size = 0;

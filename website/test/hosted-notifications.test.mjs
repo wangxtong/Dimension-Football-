@@ -52,7 +52,7 @@ test('production notifier pins the existing destination and first send records A
   assert.equal(channel(receipt).meaning, 'telegram-api-accepted-not-user-read');
   assert.equal(state.sends.length, 1);
   const sent = state.sends[0]; assert.equal(sent.url, `https://api.telegram.org/bot${TOKEN}/sendMessage`);
-  assert.equal(sent.init.redirect, 'error');
+  assert.equal(sent.init.redirect, 'manual');
   const body = JSON.parse(sent.init.body); assert.equal(body.chat_id, CHAT); assert.ok(body.text.length <= 3500);
   assert.ok(body.text.includes('未校准')); assert.ok(body.text.includes(VERIFIED_DASHBOARD_ORIGIN)); assert.equal(body.parse_mode, 'HTML');
   assert.equal(body.reply_markup.inline_keyboard.flat().length,5);assert.ok(body.text.includes('暂不放行'));
@@ -91,6 +91,21 @@ test('timeouts, 5xx and unverifiable API responses remain unknown with no automa
     assert.equal(channel(await notify(env, { ...args, now: NOW + 3600000 })).status, 'unknown');
     assert.equal(calls, 1); assert.ok(!JSON.stringify(state.bundle.receipt).includes(TOKEN));
   }
+});
+
+test('Workers-compatible Telegram fetch never follows redirects and leaves the outcome unknown without retry', async () => {
+  const { env, options, notify } = setup();
+  let calls = 0;
+  const args = { ...options, fetchImpl: async (url, init) => {
+    if (init.redirect === 'error') throw new TypeError('Invalid redirect value');
+    assert.equal(init.redirect, 'manual'); assert.equal(new URL(url).origin, 'https://api.telegram.org');
+    calls++;
+    return new Response(JSON.stringify({ ok: true, result: { message_id: 42, chat: { id: Number(CHAT) } } }),
+      { status: 302, headers: { location: 'https://untrusted.example/send' } });
+  } };
+  assert.equal(channel(await notify(env, args)).status, 'unknown');
+  assert.equal(channel(await notify(env, { ...args, now: NOW + 3600000 })).status, 'unknown');
+  assert.equal(calls, 1);
 });
 
 test('mismatched destinations, report expiry and expired forecasts never consume a send claim', async () => {
