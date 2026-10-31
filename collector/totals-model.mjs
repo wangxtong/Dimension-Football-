@@ -55,7 +55,8 @@ export function fitTotalsBaseline(history, { source, league, cutoffISO, minimumT
       tally(reasons, 'INVALID_FULL_TIME_RESULT'); continue;
     }
     const fingerprint = digest([row.id, row.kickoff, row.homeTeamId, row.awayTeamId,
-      row.homeGoals, row.awayGoals, row.status, row.period]);
+      row.homeGoals, row.awayGoals, row.status, row.period,
+      row.observedAt, row.resultObservedAt, row.fetchedAt, row.sourceUpdatedAt]);
     if (seen.has(row.id)) {
       if (seen.get(row.id) !== fingerprint) throw new Error('CONFLICTING_TOTALS_RESULT_ID');
       duplicateRecords++; continue;
