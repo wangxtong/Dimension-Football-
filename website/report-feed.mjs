@@ -66,8 +66,13 @@ export async function readDashboardBundle(env, { fetchImpl = fetch, now = Date.n
     bundle = await bootstrapFeed(value);
   }
   if (!bundle) throw new Error(failure || 'REPORT_NOT_CONFIGURED');
+  const reportHash = await dashboardReportHash(bundle.report);
+  // The source cannot self-assert a different digest (or matching but false
+  // per-channel evidence) and have the dashboard silently relabel it as verified.
+  if (bundle.reportHash !== undefined && bundle.reportHash !== reportHash) throw new Error('REPORT_HASH_MISMATCH');
+  validateBundle({ ...bundle, reportHash });
   const generated = Date.parse(bundle.report.generatedAt);
-  return { ...bundle, reportHash: await dashboardReportHash(bundle.report), freshness: {
+  return { ...bundle, reportHash, freshness: {
     mode, generatedAt: bundle.report.generatedAt, checkedAt: new Date(now).toISOString(),
     ageSeconds: Math.max(0, Math.floor((now - generated) / 1000)), stale: now - generated > 3_600_000,
   }, health: { status: failure ? 'upstream_unavailable' : mode === 'bootstrap' ? 'bootstrap' : 'available', ...(failure ? { code: failure } : {}) } };
