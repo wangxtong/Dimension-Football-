@@ -117,7 +117,7 @@ printf 'Using Node.js %s\n' "$("$node_bin" --version)"
 # Gate verification occurs before downloading or installing any source.
 "$node_bin" "$deployment_dir/release-gate.mjs" "$commit" || die 'Release approval missing/invalid.'
 askpass="$deployment_dir/private-git-askpass.sh"
-[[ -f "$askpass" && ! -L "$askpass" ]] || die 'Private Git helper is missing.'
+[[ -f "$askpass" && ! -L "$askpass" && -x "$askpass" ]] || die 'Private Git helper must be executable.'
 [[ -f /etc/vantis/github-read-token && ! -L /etc/vantis/github-read-token ]] || die 'Private Git token is missing.'
 [[ $(stat -c '%u:%a' /etc/vantis/github-read-token) == '0:600' ]] || die 'Private Git token must be root-owned 0600.'
 
@@ -156,7 +156,9 @@ if [[ -n "$deployment_dir" ]]; then
     target_file="$source_dir/deploy/$deployment_file"
     [[ ! -L "$target_file" && ( ! -e "$target_file" || -f "$target_file" ) ]] \
       || die "Invalid pinned deployment target: $deployment_file"
-    install -m 0644 -- "$deployment_dir/$deployment_file" "$target_file"
+    tool_mode=0644
+    [[ "$deployment_file" != *.sh ]] || tool_mode=0755
+    install -m "$tool_mode" -- "$deployment_dir/$deployment_file" "$target_file"
   done
   printf '%s\n' 'Using a local deployment-tool bundle; the collector source commit is unchanged.'
 fi
