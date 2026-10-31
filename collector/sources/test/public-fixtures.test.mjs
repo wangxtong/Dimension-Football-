@@ -122,6 +122,8 @@ test('redirects, stale responses, oversized bodies, HTML and secret-bearing exce
   const cases = [
     [() => json({}, 302, { location: 'https://private.invalid/' }), 'redirect_blocked'],
     [() => json({}, 401), 'authorization_required'],
+    [() => json({}, 402), 'authorization_required'],
+    [() => json({}, 403), 'authorization_required'],
     [() => json({}, 200, { date: 'Thu, 01 Jan 1970 00:00:00 GMT' }), 'stale_response'],
     [() => json({}, 200, { 'content-length': '2000001' }), 'response_too_large'],
     [() => new Response('<html>login</html>', { headers: { date: new Date(NOW).toUTCString() } }), 'invalid_json'],
