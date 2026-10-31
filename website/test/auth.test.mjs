@@ -66,3 +66,16 @@ test('missing runtime secrets and unavailable upstream cannot expose protected c
   const good=cookie(await app.fetch(post(),env));const r=await app.fetch(request('/api/predictions.json',{headers:{Cookie:good}}),env);
   assert.equal(r.status,502);assert.ok(!(await r.text()).includes('upstream-login'));
 });
+
+test('malformed or non-object dashboard auth bindings return controlled 503 instead of crashing the worker',async()=>{
+  const app=createDashboard(assets);
+  for(const auth of ['null','[]','true','0','"unexpected"','{}','{"username":0}','{']) {
+    const bad={...env,DASHBOARD_AUTH:auth};
+    const page=await app.fetch(request('/login'),bad);
+    assert.equal(page.status,503,auth);
+    assert.equal(page.headers.get('set-cookie'),null,auth);
+    assert.match(await page.text(),/登录服务尚未配置/,auth);
+    const api=await app.fetch(request('/api/report'),bad);
+    assert.equal(api.status,503,auth);
+  }
+});
