@@ -82,6 +82,18 @@ export function verifyReplayBundle(bundle, { reportId, codeVersion } = {}) {
   return structuredClone({ manifest, inputs });
 }
 
+// A verifiable checksum binds a replay snapshot, but cannot prove that data
+// acquired or revised after its cutoff was available at that cutoff. Preserve
+// archives for inspection, while refusing to execute such a replay as-of time.
+function requirePointInTimeInputs(inputs, cutoff) {
+  const boundary = Date.parse(cutoff);
+  const later = (row, fields) => fields.some(field => row[field] && Date.parse(row[field]) > boundary);
+  if (inputs.fixtures.some(row => later(row, ['updatedAt', 'fetchedAt', 'observedAt', 'sourceUpdatedAt']))
+    || inputs.history.some(row => later(row, ['observedAt', 'resultObservedAt', 'fetchedAt', 'sourceUpdatedAt']))) {
+    throw new Error('REPLAY_INPUT_AFTER_CUTOFF');
+  }
+}
+
 // No CLI or fetch path is invoked. The caller supplies the version-matched pure
 // model function; a missing code binding must be explicitly acknowledged.
 export function replayForecasts(bundle, { buildForecasts, codeVersion, allowUnknownCodeVersion = false } = {}) {
@@ -89,6 +101,7 @@ export function replayForecasts(bundle, { buildForecasts, codeVersion, allowUnkn
   if (typeof buildForecasts !== 'function') throw new Error('REPLAY_MODEL_REQUIRED');
   if (manifest.codeVersion && !codeVersion) throw new Error('REPLAY_CODE_VERSION_REQUIRED');
   if (!manifest.codeVersion && !allowUnknownCodeVersion) throw new Error('REPLAY_CODE_VERSION_REQUIRED');
+  requirePointInTimeInputs(inputs, manifest.cutoff);
   return buildForecasts({ fixtures: inputs.fixtures, history: inputs.history, policy: inputs.policy,
     nowISO: manifest.cutoff, simulated: manifest.simulated, remaining: () => Infinity });
 }
