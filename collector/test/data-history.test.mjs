@@ -20,6 +20,22 @@ test('history normalization keeps unknown observation time unknown and rejects f
   assert.throws(() => normalizeHistoryRecord({ ...row(), observedAt: LATER, fetchedAt: NOW }), /INVALID_HISTORY_PROVENANCE/);
 });
 
+test('finished results reject pre-kickoff and equal-kickoff acquisition evidence without altering the cache', async t => {
+  const futureKickoff = '2026-11-01T14:30:00.000Z', afterKickoff = '2026-11-01T16:30:00.000Z';
+  for (const field of ['fetchedAt', 'observedAt', 'resultObservedAt']) {
+    const input = { ...row(), kickoff: futureKickoff, fetchedAt: afterKickoff, [field]: NOW };
+    assert.throws(() => normalizeHistoryRecord(input), /INVALID_HISTORY_PROVENANCE/, field);
+  }
+  assert.throws(() => normalizeHistoryRecord({ ...row(), kickoff: NOW, fetchedAt: NOW }), /INVALID_HISTORY_PROVENANCE/);
+  const statePath = join(await workspace(t), 'history.json');
+  const before = await withHistoryCache({ statePath }, cache => cache.put(identity, [row()], { fetchedAt: NOW, receivedCount: 1 }));
+  await assert.rejects(withHistoryCache({ statePath }, cache => cache.put(identity,
+    [{ ...row(), kickoff: futureKickoff }], { fetchedAt: NOW, receivedCount: 1 })), /INVALID_HISTORY_PROVENANCE/);
+  const retained = await withHistoryCache({ statePath }, cache => cache.get(identity, { nowISO: LATER, maxAgeMs: 86400000 }));
+  assert.equal(retained.snapshotHash, before.snapshotHash);
+  assert.deepEqual(retained.records, before.records);
+});
+
 test('history cache survives restart without renewing first observation and makes corrections new versions', async t => {
   const statePath = join(await workspace(t), 'history.json');
   const first = await withHistoryCache({ statePath }, cache => cache.put(identity, [row()], { fetchedAt: NOW, receivedCount: 1 }));
