@@ -208,4 +208,43 @@ class ReportServiceRestartSafetyTests(unittest.TestCase):
             self.assertEqual(ok.returncode, 0, ok.stderr)
             self.assertIn('INSTALL_COMPLETED', ok.stdout)
 
+class BootstrapTrustBoundaryTests(unittest.TestCase):
+    def test_authorization_precedes_any_runtime_download_or_install(self):
+        bootstrap = Path(__file__).with_name('bootstrap.sh').read_text()
+        auth = bootstrap.index('"$preflight_node" "$verifier" "$work/source/vantis-manifest.json"')
+        self.assertLess(auth, bootstrap.index('bash "$work/source/deploy/install-node.sh"'))
+        self.assertLess(auth, bootstrap.index('bash "$work/source/deploy/install.sh"'))
+        self.assertIn('verifier=/opt/vantis/deployment/release-authorization.mjs', bootstrap)
+        self.assertIn('RELEASE_AUTH_PREFLIGHT_NODE_REQUIRED', bootstrap)
+        self.assertIn('RELEASE_AUTH_TRUSTED_RUNTIME_REQUIRED', bootstrap)
+        self.assertIn('SIGNED_RELEASE_APPROVAL_REQUIRED_BEFORE_RUNTIME_INSTALL', bootstrap)
+        self.assertIn("stat.S_ISLNK(mode.st_mode)", bootstrap)
+        self.assertIn("mode.st_mode & 0o022", bootstrap)
+
+    def test_direct_install_cannot_authenticate_with_candidate_script(self):
+        install_script = Path(__file__).with_name('install.sh').read_text()
+        self.assertIn('release_verifier=/opt/vantis/deployment/release-authorization.mjs', install_script)
+        self.assertNotIn('release_verifier="$source_dir/deploy/release-authorization.mjs"', install_script)
+        self.assertIn('ROOT_TRUSTED_VERIFIER_REQUIRED', install_script)
+        self.assertIn('stat.S_ISLNK(info.st_mode)', install_script)
+        self.assertLess(install_script.index("'ROOT_TRUSTED_VERIFIER_REQUIRED'"),
+                        install_script.index('useradd --system'))
+
+    def test_trusted_path_validator_rejects_missing_symlink_and_writable(self):
+        script = Path(__file__).with_name('install.sh').read_text()
+        guard = script.split("<<'PYTRUST'", 1)[1].split('\nPYTRUST', 1)[0]
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            existing = root / 'signed-verifier.mjs'
+            existing.write_text('not a verifier')
+            existing.chmod(0o666)
+            linked = root / 'link'
+            linked.symlink_to(existing)
+            for candidate in [root / 'missing', existing, linked]:
+                with self.subTest(candidate=candidate):
+                    process = subprocess.run(['python3', '-c', guard, str(candidate)],
+                                             capture_output=True, text=True)
+                    self.assertNotEqual(process.returncode, 0, 'unsafe verifier path accepted')
+
+
 if __name__=='__main__':unittest.main()
