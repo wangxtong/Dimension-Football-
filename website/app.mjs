@@ -1,4 +1,4 @@
-const REPO = 'wangxtong/Dimension-Football-', BASE = `https://raw.githubusercontent.com/${REPO}/published-reports/`;
+const REPO = 'wangxtong/Dimension-Football-', BASE = '/api/';
 const leagues = { PL: '英超', PD: '西甲', SA: '意甲', BL1: '德甲', FL1: '法甲' }, choices = { home: '主胜', draw: '平局', away: '客胜' };
 const reasons = { HISTORY_UNAVAILABLE: '缺同源联赛历史', HOME_HISTORY_INSUFFICIENT: '主队历史不足', AWAY_HISTORY_INSUFFICIENT: '客队历史不足',
   LEAGUE_HISTORY_INSUFFICIENT: '联赛样本不足', VENUE_HISTORY_INSUFFICIENT: '主客场样本不足', TEAM_ID_REQUIRED: '球队身份待核对',
@@ -75,6 +75,7 @@ async function load() {
   $('refresh').disabled = true; $('sync-status').textContent = '正在检查最新报告…';
   try {
     const response = await fetch(BASE+`predictions.json?round=${Math.floor(Date.now()/60000)}`, { signal: AbortSignal.timeout(12000), cache: 'no-store' });
+    if (response.status === 401) { location.assign('/login'); return; }
     if (!response.ok) throw Error('feed');
     const data = await response.json();
     if (data.kind !== 'prematch-forecast-report' || data.simulated || !Array.isArray(data.fixtures) || data.fixtures.length > 3000 || !/^[a-f0-9]{64}$/.test(data.publication?.reportId)) throw Error('schema');

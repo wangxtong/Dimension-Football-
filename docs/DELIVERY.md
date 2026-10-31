@@ -1,6 +1,6 @@
 # 网站、实时盘口与 Telegram 交付
 
-网站地址：https://dimension-football-live-wangxtong.secretmelon37.chatgpt.site 。Sites 保持创建时的所有者私有权限。前端源码位于 `website/`，部署副本使用 Sites；修改这些文件后需重新部署网站。报告刷新不需要重新部署前端。
+网站地址：https://dimension-football-live-wangxtong.secretmelon37.chatgpt.site 。看板使用独立的用户名/密码登录，不要求访客拥有 ChatGPT 账号。源码位于 `website/`，服务端由 Sites Worker 承载；修改源码后需重新构建并部署。报告刷新不需要重新部署网站。
 
 ## 自动更新与回执
 
@@ -32,3 +32,15 @@
 独立来源组为 `hkjc-first-party`，区别于球探的 `titan007`。价格来自博彩公司自身，不把同一网站的多家公司重复计票。供应商 `updateAt` 原样保留为 `sourceUpdatedAt` 和 `providerPoolUpdatedAt`，不将它解释为真实开盘时间或最后一次变价时间。仅该固定自动来源可采用第一方当前开放盘口快照：检查服务器 Date、Age 与 Cache-Control（上限 60 秒），记录 `sourceAsOf`，报价最多有效 5 分钟且不跨开赛。其它来源与手工导入仍适用原更新时间门槛。
 
 2026-10-31 05:38 UTC 本地实采：官方响应 159 场，匹配输入 13 场中的 12 场、共 24 条双边报价；9 场普通预测、4 场历史不足、0 场严格盘口候选。球探本轮被 robots 规则阻止，因此这些比赛只有一个当前有效独立来源组。HKJC 没有提供可验证的真实初盘，本次没有制造初盘。接入第二个适配器不等于每场已满足双源条件。
+
+## 网站密码登录
+
+`website/worker.mjs` 在服务端验证共享访问账号。Sites 入口允许访客到达应用登录页，但报告、脚本、样式和 `/api/` 报告代理都需通过应用会话验证。发布时先在原所有者权限下部署并验证受保护 Worker，再切换平台访问策略。不能把旧静态版本直接开放。
+
+Sites 运行时 Secrets 使用 `DASHBOARD_AUTH`（含 username、100000 次 PBKDF2-SHA256 的 salt/hash 与 iterations）、`DASHBOARD_SESSION_SECRET`（随机 32 字节十六进制值）和 `DASHBOARD_ORIGIN`（站点来源）。密码原文不进入源码或浏览器。账号和密码由所有者指定，不在文档中公布。更换密码哈希或会话签名密钥会使旧会话失效，修改运行时配置后需重新部署。
+
+会话有效期 12 小时，Cookie 使用 `__Host-`、Secure、HttpOnly 和 SameSite=Lax。登录、退出只接受同源 POST；页面和接口禁止缓存。退出会清除当前浏览器 Cookie。失败尝试按运行实例及请求 IP 限制为 10 次/10 分钟；这是有界内存保护，并非跨实例持久限流。看板没有账户注册、个人权限或支付功能。
+
+报告代理只访问固定 GitHub 数据分支的三个允许文件，不转发客户端 Cookie 或 Authorization。本层保护网站访问；原本公开的 GitHub 数据分支可见性没有改变。
+
+构建：`node website/build.mjs /tmp/dimension-site-build`。构建目录包含 `.openai/hosting.json` 与 `server/index.js`；发布归档将构建目录放在 `dist/` 下，并在归档根目录保留同一份 `.openai/hosting.json`，入口为 `dist/server/index.js`。Worker 内嵌明确列出的静态资源，产物不包含运行时 Secrets。`npm test` 覆盖认证、签名伪造、过期、密码轮换、来源校验、限流和未授权接口访问。
