@@ -81,19 +81,24 @@ export function validateReport(data) {
   return data;
 }
 const channelStatuses = ['generating', 'pending', 'published', 'accepted', 'failed', 'not_configured', 'not_attempted', 'skipped', 'unknown'];
-export function validateReceipt(value, report) {
+export function validateReceipt(value, report, expectedReportHash) {
   if (!object(value) || value.version !== 1 || value.simulated !== false || value.reportId !== report.publication.reportId
     || !validDate(value.generatedAt) || Date.parse(value.generatedAt) !== Date.parse(report.generatedAt)
     || !object(value.channels) || Object.keys(value.channels).length > 20
     || !['files', 'githubArtifact', 'externalWebsite', 'notifications'].every(key => object(value.channels[key]))
     || !Object.values(value.channels).every(c => object(c) && channelStatuses.includes(c.status)
-      && optional(c, 'checkedAt', validDate) && optional(c, 'url', https))) throw Error('RECEIPT_SCHEMA_INVALID');
+      && optional(c, 'checkedAt', validDate) && optional(c, 'url', https)
+      // Channel receipts are evidence about this report, never a different report.
+      && optional(c, 'reportId', channelId => channelId === value.reportId)
+      && optional(c, 'reportHash', channelHash => id(channelHash)
+        && (typeof expectedReportHash !== 'string' || channelHash === expectedReportHash)))) throw Error('RECEIPT_SCHEMA_INVALID');
   return value;
 }
 export function validateBundle(value) {
   if (!object(value) || value.version !== 1 || !id(value.reportId) || value.reportId !== value.report?.publication?.reportId
-    || !Object.hasOwn(value, 'receipt') || !optional(value, 'freshness', object) || !optional(value, 'health', object)) throw Error('SNAPSHOT_SCHEMA_INVALID');
+    || !Object.hasOwn(value, 'receipt') || !optional(value, 'reportHash', id)
+    || !optional(value, 'freshness', object) || !optional(value, 'health', object)) throw Error('SNAPSHOT_SCHEMA_INVALID');
   const report = validateReport(value.report);
-  if (value.receipt !== null) validateReceipt(value.receipt, report);
+  if (value.receipt !== null) validateReceipt(value.receipt, report, value.reportHash);
   return value;
 }
