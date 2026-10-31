@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 027
+# Never inherit caller-controlled command search paths during root bootstrap.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Offline application bundle; optional official Node runtime download is explicit.
 [[ $EUID -eq 0 && $# -ge 2 && $# -le 3 && "$2" =~ ^[a-f0-9]{64}$ ]] || { printf 'Usage: bootstrap.sh /absolute/release.tar EXPECTED_SHA256 [--install-node]\n' >&2; exit 1; }
 install_node=false
@@ -17,7 +19,7 @@ trusted_bundle=/opt/vantis/deployment/bundle.py
 preflight_node=${NODE_BIN:-$(command -v node || true)}
 [[ -n "$preflight_node" && -x "$preflight_node" ]] || { printf 'RELEASE_AUTH_PREFLIGHT_NODE_REQUIRED\n' >&2; exit 1; }
 preflight_node=$(readlink -f -- "$preflight_node")
-python3 - "$verifier" "$trusted_bundle" "$preflight_node" <<'PYTRUST' || { printf 'RELEASE_AUTH_TRUSTED_RUNTIME_REQUIRED\n' >&2; exit 1; }
+python3 -I - "$verifier" "$trusted_bundle" "$preflight_node" <<'PYTRUST' || { printf 'RELEASE_AUTH_TRUSTED_RUNTIME_REQUIRED\n' >&2; exit 1; }
 import os, stat, sys
 from pathlib import Path
 for path in map(Path, sys.argv[1:]):
@@ -32,7 +34,7 @@ for path in map(Path, sys.argv[1:]):
 PYTRUST
 # Standard-library-only, read-only archive/SHA preflight. No incoming archive
 # code runs before the signed manifest identity is independently checked.
-python3 - "$1" "$2" "$work/preflight-manifest.json" <<'PYMANIFEST' || { printf 'RELEASE_ARCHIVE_PREFLIGHT_FAILED\n' >&2; exit 1; }
+python3 -I - "$1" "$2" "$work/preflight-manifest.json" <<'PYMANIFEST' || { printf 'RELEASE_ARCHIVE_PREFLIGHT_FAILED\n' >&2; exit 1; }
 import hashlib, json, sys, tarfile
 from pathlib import Path
 archive_path, expected, out = Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3])
@@ -51,9 +53,9 @@ if not isinstance(manifest, dict) or manifest.get('kind') != 'release': sys.exit
 manifest['archiveSha256'] = expected
 out.write_text(json.dumps(manifest, sort_keys=True) + '\n')
 PYMANIFEST
-"$preflight_node" "$verifier" "$work/preflight-manifest.json" >/dev/null || { printf 'SIGNED_RELEASE_APPROVAL_REQUIRED_BEFORE_RUNTIME_INSTALL\n' >&2; exit 1; }
+env -i PATH="$PATH" HOME=/nonexistent "$preflight_node" "$verifier" "$work/preflight-manifest.json" >/dev/null || { printf 'SIGNED_RELEASE_APPROVAL_REQUIRED_BEFORE_RUNTIME_INSTALL\n' >&2; exit 1; }
 # The first invocation of code from the release happens only after approval.
-python3 "$trusted_bundle" extract "$1" "$work/source" --sha256 "$2" >/dev/null
+python3 -I "$trusted_bundle" extract "$1" "$work/source" --sha256 "$2" >/dev/null
 chmod 0755 "$work"
 find "$work/source" -type d -exec chmod 0755 {} +
 find "$work/source" -type f -exec chmod 0644 {} +
@@ -62,11 +64,11 @@ usable=false
 if [[ -n "$candidate" && -x "$candidate" ]]; then
   candidate=$(readlink -f "$candidate")
   case "$candidate" in /root/*|/home/*|/run/user/*) ;; *)
-    if "$candidate" --input-type=module -e 'import * as h from "node:http";const [a,b]=process.versions.node.split(".").map(Number);if(a!==24||b<14||typeof h.setGlobalProxyFromEnv!=="function"||!AbortSignal.any)process.exit(1)' 2>/dev/null;then usable=true;fi;;
+    if env -i PATH="$PATH" HOME=/nonexistent "$candidate" --input-type=module -e 'import * as h from "node:http";const [a,b]=process.versions.node.split(".").map(Number);if(a!==24||b<14||typeof h.setGlobalProxyFromEnv!=="function"||!AbortSignal.any)process.exit(1)' 2>/dev/null;then usable=true;fi;;
   esac
 fi
 if [[ "$usable" != true ]]; then
   [[ "$install_node" == true ]] || { printf 'SYSTEM_NODE_24_14_REQUIRED; rerun with --install-node for the pinned official runtime.\n' >&2;exit 1; }
   candidate=$(bash "$work/source/deploy/install-node.sh")
 fi
-NODE_BIN="$candidate" bash "$work/source/deploy/install.sh" "$work/source"
+env -i PATH="$PATH" HOME=/root NODE_BIN="$candidate" bash "$work/source/deploy/install.sh" "$work/source"
