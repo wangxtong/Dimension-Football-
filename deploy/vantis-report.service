@@ -1,0 +1,21 @@
+[Unit]
+Description=Dimension Football authenticated loopback report feed
+After=network.target
+[Service]
+Type=simple
+User=vantis
+Group=vantis
+WorkingDirectory=/var/lib/vantis
+ExecStart=/opt/vantis/deployment/report-server.sh
+Restart=on-failure
+RestartSec=15s
+TimeoutStopSec=20s
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+[Install]
+WantedBy=multi-user.target

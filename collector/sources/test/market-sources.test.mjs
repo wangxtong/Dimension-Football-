@@ -51,6 +51,23 @@ test('different bookmaker prices remain different and zero handicap has no negat
   assert.ok(result.quotes[1].quote.quotes.every(q=>!Object.is(q.handicap,-0)));
 });
 
+test('one provider event cannot be assigned to two local fixture identities',async()=>{
+  const {result}=await read({}, {fixtures:[fixture,{...fixture,id:'other-provider-fixture',source:'api-football'}]});
+  assert.equal(result.quotes.length,0);
+  assert.equal(result.marketStates.length,6);
+  assert.ok(result.fixtureDiagnostics.every(d=>d.code==='fixture_identity_ambiguous'));
+  assert.ok(result.marketStates.every(s=>s.providerMatchId==='310001'&&s.marketState==='unavailable'));
+});
+
+test('a fresh incomplete provider snapshot retains an explicit negative market state',async()=>{
+  const {result}=await read({rows:market({4:''})});
+  assert.equal(result.quotes.length,0);
+  assert.equal(result.marketStates.length,3);
+  assert.ok(result.marketStates.every(s=>s.marketState==='unavailable'&&s.stateReason==='incomplete_market'
+    &&s.sourceId==='titan007'&&s.providerMatchId==='310001'&&s.sourceUpdatedAt==='2026-10-27T08:29:55.000Z'));
+  assert.ok(result.marketStates.every(s=>!Object.hasOwn(s,'decimalOdds')&&!Object.hasOwn(s,'opening')));
+});
+
 test('HTTP 200 without strict fixture identity is not reported connected',async()=>{
   for(const changes of [{2:'意乙'},{5:'尤文图斯'},{5:'拉齐奥',8:'萨索洛'},{11:'02:00'},{36:'10-29'},{36:'02-30'},{13:'1'}]){
     const {result}=await read({sched:schedule(changes)});assert.equal(result.quotes.length,0);

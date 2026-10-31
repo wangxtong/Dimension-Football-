@@ -1,4 +1,5 @@
 import { isoMillis } from '../policy.mjs';
+import { withEventIdentity } from '../data/identity.mjs';
 import { retryAfterMs } from './health.mjs';
 
 // API-Sports direct subscription, not the separate RapidAPI gateway.
@@ -73,13 +74,15 @@ function normalize(payload, league, checkedAt, now, until) {
     latest = Math.max(latest, kickoff);
     // TBD may contain a provisional date. Keep only confirmed, not-started games.
     if (row.status?.short !== 'NS' || kickoff <= now || kickoff > until) continue;
-    fixtures.push({
+    fixtures.push(withEventIdentity({
       id: `af-${row.id}`, providerMatchId: row.id, league,
       home: home.name.trim(), away: away.name.trim(), kickoff: new Date(kickoff).toISOString(),
+      homeTeamId: String(home.id), awayTeamId: String(away.id),
+      ...(Number.isSafeInteger(match.league.season) ? { season: String(match.league.season) } : {}),
       status: 'SCHEDULED', source: 'api-football', sourceId: 'api-football',
       evidenceUrl: `https://v3.football.api-sports.io/fixtures?id=${row.id}`,
       updatedAt: checkedAt, fetchedAt: checkedAt, sourceUpdatedAt: null,
-    });
+    }));
   }
   return { fixtures, receivedCount: payload.response.length, rejectedCount,
     // The request is bounded at 99 games. Do not claim coverage if all 99 fall in the requested window.

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { isoMillis, validQuote, DEFAULT_POLICY } from '../policy.mjs';
 import { safeName, safeId } from './provider-utils.mjs';
+import { SourceCooldownError, withSourceCooldown } from './cooldown.mjs';
 
 export const HKJC_ENDPOINT = 'https://info.cld.hkjc.com/graphql/base-get/';
 export const HKJC_PAGE = 'https://bet.hkjc.com/en/football/hdc';
@@ -79,13 +80,28 @@ export function parseHkjc(payload, { fixtures, observedAt, sourceAsOf, cacheMaxA
   const repeated = new Set([...mappings.values()].filter((id, i, all) => all.indexOf(id) !== i));
   const clean = quotes.filter(q => !repeated.has(q.providerMatchId));
   for (const d of fixtureDiagnostics) if (repeated.has(mappings.get(d.fixtureId))) Object.assign(d, { status: 'pending', code: 'fixture_identity_ambiguous', matchedCount: 0 });
-  return { quotes: clean, signals: [], fixtureDiagnostics, diagnostics: [diagnostic(observedAt, { status: 'partial', code: 'public_live_snapshot_partial_coverage',
+  // A successful publisher snapshot that no longer verifies a market must
+  // suppress older imported prices. This state is never itself a quotation.
+  const marketStates = fixtureDiagnostics.filter(d => d.status !== 'available' && d.code !== 'fixture_ineligible').map(d => {
+    const fixture = fixtures.find(f => f.id === d.fixtureId);
+    return { fixtureId: fixture.id, fixtureSnapshot: Object.fromEntries(['id', 'home', 'away', 'league', 'kickoff', 'source'].map(k => [k, fixture[k]])),
+      sourceId: 'hkjc', bookmaker: 'HKJC', providerMatchId: safeId(mappings.get(fixture.id)) ? String(mappings.get(fixture.id)) : null,
+      market: 'asian-handicap', period: 'full-time', marketState: 'unavailable', stateReason: d.code,
+      observedAt, sourceAsOf, evidenceUrl: HKJC_PAGE, verified: true, verificationMethod: 'automatic' };
+  });
+  return { quotes: clean, marketStates, signals: [], fixtureDiagnostics, diagnostics: [diagnostic(observedAt, { status: 'partial', code: 'public_live_snapshot_partial_coverage',
     responseAt: sourceAsOf, httpStatus: 200, parsedCount: events.length, matchedCount: new Set(clean.map(q => q.fixtureId)).size })] };
 }
 
 // Exact public frontend operation, with one HDC market. Never authenticate, submit
 // bets, introspect private fields, or change variables to evade page limitations.
-export async function fetchHkjcEvidence({ fixtures, nowISO, fetchImpl = fetch, clock = () => new Date().toISOString(), signal, remaining = () => Infinity }) {
+export async function fetchHkjcEvidence({ cooldownStatePath, fetchImpl = fetch, clock = () => new Date().toISOString(), signal, remaining = () => Infinity, ...options }) {
+  return withSourceCooldown({ statePath: cooldownStatePath, clock, signal, remaining }, cooldown =>
+    fetchHkjcSnapshot({ ...options, clock, signal, remaining,
+      fetchImpl: (url, init) => cooldown.fetch('hkjc', fetchImpl, url, init) }));
+}
+
+async function fetchHkjcSnapshot({ fixtures, nowISO, fetchImpl, clock, signal, remaining }) {
   if (!fixtures.length || !fixtures.some(f => aliases[f.league] && ['SCHEDULED', 'TIMED'].includes(f.status) && Date.parse(f.kickoff) > Date.parse(nowISO))) return { quotes: [], signals: [], diagnostics: [], fixtureDiagnostics: [] };
   let status = null; const controller = new AbortController(); let timer;
   try {
@@ -118,9 +134,11 @@ export async function fetchHkjcEvidence({ fixtures, nowISO, fetchImpl = fetch, c
       else joined.addEventListener('abort', () => reject(new Error('timeout')), { once: true });
     })]);
   } catch (error) {
-    const allowed = ['authorization_required', 'rate_limited', 'http_unavailable', 'stale_snapshot', 'invalid_snapshot', 'invalid_schedule', 'empty_snapshot', 'snapshot_too_large', 'crawler_budget_exhausted'];
+    const allowed = ['authorization_required', 'rate_limited', 'source_cooldown', 'http_unavailable', 'stale_snapshot', 'invalid_snapshot', 'invalid_schedule', 'empty_snapshot', 'snapshot_too_large', 'crawler_budget_exhausted'];
     const code = signal?.aborted ? 'crawler_cancelled' : controller.signal.aborted ? 'timeout' : allowed.includes(error?.message) ? error.message : 'network_unavailable';
-    return { quotes: [], signals: [], diagnostics: [diagnostic(clock(), { status: 'unavailable', code, httpStatus: status, matchedCount: 0 })],
+    const cooldown = error instanceof SourceCooldownError ? error : null;
+    return { quotes: [], signals: [], diagnostics: [diagnostic(clock(), { status: 'unavailable', code,
+      httpStatus: cooldown?.httpStatus ?? status, retryAfterMs: cooldown?.retryAfterMs ?? null, nextProbeAt: cooldown?.nextProbeAt ?? null, matchedCount: 0 })],
       fixtureDiagnostics: fixtures.map(f => ({ fixtureId: f.id, id: 'hkjc', status: 'unavailable', code, checkedAt: clock() })) };
   } finally { clearTimeout(timer); controller.abort(); }
 }

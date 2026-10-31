@@ -124,6 +124,42 @@ test('rolling validation is bounded and cannot use games after the evaluation ti
   assert.equal(interrupted.interrupted, true); assert.equal(interrupted.metrics, null);
 });
 
+test('backtest lead times exclude information acquired between the forecast and kickoff', () => {
+  const past = history(), target = past.at(-1), options = { source: 'openligadb', league: 'BL1', nowISO: NOW };
+  const between = { ...target, id: 'between-generation-and-kickoff', kickoff: new Date(Date.parse(target.kickoff) - 12 * 3600000).toISOString(), homeGoals: 20 };
+  const evaluation = (rows, horizonHours) => walkForwardBacktest(prepareForecastHistory(rows).matches, { ...options, horizonHours }).evaluations.find(row => row.fixtureId === target.id);
+  assert.deepEqual(evaluation(past, 24).probabilities, evaluation([...past, between], 24).probabilities);
+  assert.notDeepEqual(evaluation(past, 1).probabilities, evaluation([...past, between], 1).probabilities);
+  const report = predict(past, { ...fixture(), kickoff: at(0, 13.5) });
+  assert.equal(report.rows[0].validation.horizonHours, 13.5);
+  assert.deepEqual([1, 24, 72, 168].filter(hours => report.backtests.some(row => row.horizonHours === hours)), [1, 24, 72, 168]);
+});
+
+test('history metadata preserves observed-time provenance and isolates same matches under different IDs', () => {
+  const seed = history()[0], withMetadata = { ...seed, season: 2026, observedAt: NOW, resultObservedAt: NOW,
+    fetchedAt: NOW, sourceUpdatedAt: null, authorization: 'must-not-retain' };
+  const normalized = prepareForecastHistory([withMetadata]).matches[0];
+  assert.equal(normalized.season, '2026'); assert.equal(normalized.resultObservedAt, NOW);
+  assert.match(normalized.revisionId, /^[a-f0-9]{64}$/);
+  assert.ok(!JSON.stringify(normalized).includes('must-not-retain'));
+  assert.equal(prepareForecastHistory([{ ...withMetadata, observedAt: 'bad-date' }]).rejected, 1);
+  const conflict = prepareForecastHistory([seed, { ...seed, id: 'another-provider-id-for-same-match' }]);
+  assert.equal(conflict.matches.length, 0); assert.equal(conflict.logicalConflicts, 2);
+  const observedNow = history().map(row => ({ ...row, observedAt: NOW }));
+  const options = { source: 'openligadb', league: 'BL1', nowISO: NOW, horizonHours: 24 };
+  assert.equal(walkForwardBacktest(observedNow, { ...options, visibility: 'as-observed' }).evaluated, 0);
+  assert.ok(walkForwardBacktest(observedNow, { ...options, visibility: 'snapshot' }).evaluated > 0);
+});
+
+test('effective and seasonal samples disclose a cold start without inventing roster effects', () => {
+  const rows = history().map((row, i) => ({ ...row, season: i < 140 ? '2025' : '2026' }));
+  const { sample, sampleQuality } = predict(rows, { ...fixture(), season: '2026' }).rows[0];
+  assert.equal(sampleQuality.currentSeason.league, 4);
+  assert.equal(sampleQuality.coldStart.status, 'limited-current-season');
+  assert.ok(sampleQuality.weighted.home.effectiveMatches <= sample.home);
+  assert.ok(sampleQuality.weighted.home.weightedMatches < sample.home);
+});
+
 test('reversing all home/away venues reverses the predicted rates and outcomes', () => {
   const before = predict().rows[0];
   const reverse = row => ({ ...row, home: row.away, away: row.home, homeTeamId: row.awayTeamId, awayTeamId: row.homeTeamId,
@@ -155,9 +191,11 @@ test('a game that starts during collection has its forecast withdrawn before pub
 });
 
 test('history changes refresh probabilities even when unchanged market evidence is reused', async t => {
+  let now = NOW;
   const cwd = await workspace(t), args = { fixtures: [fixture()], statePath: join(cwd, 'state.json'), outDir: cwd,
-    clock: () => NOW, collectEvidence: async () => ({ quotes: [], signals: [], diagnostics: [] }) };
+    clock: () => now, collectEvidence: async () => ({ quotes: [], signals: [], diagnostics: [] }) };
   const before = await runCollection({ ...args, history: history() });
+  now = new Date(Date.parse(NOW) + 1).toISOString();
   const after = await runCollection({ ...args, history: history().map(row => row.homeTeamId === '1' ? { ...row, homeGoals: row.homeGoals + 2 } : row) });
   assert.equal(after.report.summary.reused, 1);
   assert.notDeepEqual(after.report.results[0].forecast.probabilities, before.report.results[0].forecast.probabilities);

@@ -45,6 +45,15 @@ test('inplay, suspended, other periods/markets and incomplete sides are rejected
     duplicateMain:e=>e.foPools[0].lines.push(structuredClone(e.foPools[0].lines[0])), futureUpdate:e=>e.foPools[0].updateAt='2027-01-01T00:00:00Z'};
   for(const [name,mutate] of Object.entries(mutations)) await t.test(name,()=>{const e=event();mutate(e);assert.equal(parse([e]).quotes.length,0);});
 });
+test('a fresh suspended HKJC pool retains a negative state without fabricating prices or update times', () => {
+  const e=event();e.foPools[0].status='SUSPENDED';
+  const result=parse([e]);
+  assert.equal(result.quotes.length,0);assert.equal(result.marketStates.length,1);
+  const state=result.marketStates[0];
+  assert.equal(state.providerMatchId,'50001');assert.equal(state.marketState,'unavailable');
+  assert.equal(state.sourceAsOf,NOW);assert.equal(state.observedAt,NOW);
+  assert.equal(Object.hasOwn(state,'sourceUpdatedAt'),false);assert.equal(Object.hasOwn(state,'decimalOdds'),false);
+});
 const response = (body={data:{matches:[event()]}},headers={}) => new Response(JSON.stringify(body),{headers:{Date:new Date(NOW).toUTCString(),'Content-Type':'application/json','Cache-Control':'public, max-age=29',...headers}});
 test('public transport sends one fixed readonly HDC request, required JSON header, and no credentials', async () => {
   let calls=0;

@@ -1,40 +1,30 @@
-name: 公开赛程预测与报告
+name: 公开数据过渡归档与灾备（不发布网站或通知）
 
 on:
   workflow_dispatch:
+  # Keep the current collection cadence until ECS has passed production acceptance.
+  # VANTIS_ECS_PRIMARY=true disables scheduled runs; manual recovery stays available.
   schedule:
     - cron: "17 * * * *"
-  push:
-    branches: [main]
-    paths:
-      - 'collector/public.mjs'
-      - 'collector/sources/public-fixtures.mjs'
-      - 'collector/forecast.mjs'
-      - 'collector/forecast-report.mjs'
-      - 'collector/pipeline.mjs'
-      - 'collector/report.mjs'
-      - 'collector/publication.mjs'
-      - 'collector/publish.mjs'
-      - 'collector/market-evidence.mjs'
-      - 'collector/policy.mjs'
-      - 'collector/sources/hkjc.mjs'
-      - 'collector/sources/hkjc-query.graphql'
-      - 'collector/sources/index.mjs'
-      - 'collector/delivery.mjs'
-      - 'config/delivery.json'
-      - '.github/workflows/public-sources.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
+  # Preserve the prior group so an already-running pre-upgrade job also serializes.
   group: dimension-football-public-sample
   cancel-in-progress: false
 
 jobs:
-  sample:
+  archive:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.VANTIS_ECS_PRIMARY != 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
+    permissions:
+      contents: write # The publisher only writes the dedicated published-reports branch.
+    env:
+      STATE_DIR: .collection-state/disaster-public
+      COLLECTOR_COMMIT: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -43,18 +33,62 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: 采集赛程与历史并生成预测（最多 2 分钟）
+      - name: 说明本轮职责与生产边界
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## 公开数据归档与灾备
+
+          本轮生成独立报告、Summary 和附件，并写入 GitHub 数据归档。
+          **不会更新网站、接管 ECS 状态或发送 Telegram。** 工作流成功不代表线上发布成功。
+          ECS 验收前保留每小时归档；验收后设置 VANTIS_ECS_PRIMARY=true 可关闭定时运行，手动灾备仍可用。
+          EOF
+      - name: 尝试恢复独立归档检查点（缓存可失效）
+        id: restore-state
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ env.STATE_DIR }}/*.json
+          key: disaster-public-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            disaster-public-v1-${{ runner.os }}-
+      - name: 记录检查点来源
+        env:
+          RESTORED_CACHE: ${{ steps.restore-state.outputs.cache-matched-key }}
+        run: |
+          if [ -n "$RESTORED_CACHE" ]; then
+            printf '%s\n' '本轮使用缓存的独立归档检查点；缓存不是永久状态，也不是 ECS 生产历史。' >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '%s\n' '本轮未取得归档检查点，从空状态开始，不能声称保留了长期历史。' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: 采集公开赛程与历史并生成归档报告（最多 2 分钟）
         env:
           SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
           ISPORTS_API_KEY: ${{ secrets.ISPORTS_API_KEY }}
-        run: npm run collect:public -- --budget-minutes 2
+        run: npm run collect:public -- --state "$STATE_DIR/state.json" --out reports/public --budget-minutes 2
+      - name: 保存检查点缓存（不能替代生产备份）
+        if: always() && hashFiles('.collection-state/disaster-public/state.json') != ''
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.STATE_DIR }}/*.json
+          key: disaster-public-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@v7
         id: report-upload
         if: always()
         with:
-          name: public-source-sample-${{ github.run_id }}-${{ github.run_attempt }}
+          name: public-archive-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: reports/public/
+          if-no-files-found: error
+          retention-days: 30
+      - name: 保留可下载检查点（人工恢复证据）
+        if: always() && hashFiles('.collection-state/disaster-public/state.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-archive-state-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.STATE_DIR }}/*.json
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
       - name: 记录报告附件实际上传回执
@@ -65,26 +99,15 @@ jobs:
           ARTIFACT_URL: ${{ steps.report-upload.outputs.artifact-url }}
           ARTIFACT_DIGEST: ${{ steps.report-upload.outputs.artifact-digest }}
         run: node collector/publish.mjs artifact reports/public
-      - name: 更新外部网站数据并回读核验
+      - name: 归档同一报告并回读（不是网站发布）
         if: always() && hashFiles('reports/public/publication.json') != ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node collector/publish.mjs website reports/public
-      - name: Telegram 通知（凭据未配置时不发送）
-        if: always() && hashFiles('reports/public/publication.json') != ''
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: node collector/publish.mjs telegram reports/public
+        run: node collector/publish.mjs archive reports/public
       - name: 发布分类预测并记录 Summary 回执
         if: always() && hashFiles('reports/public/publication.json') != ''
         run: node collector/publish.mjs summary reports/public
-      - name: 同步网站最终发布状态
-        if: always() && hashFiles('reports/public/publication.json') != ''
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node collector/publish.mjs website-receipt reports/public
-      - name: 保留最终发布回执
+      - name: 保留最终归档回执
         if: always() && hashFiles('reports/public/publication.json') != ''
         uses: actions/upload-artifact@v7
         with:

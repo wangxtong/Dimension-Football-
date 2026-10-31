@@ -156,19 +156,37 @@ function analyzeMarket(input,spec,now){
 }
 
 function asianFacts(input){
-  const companyEvidence=[];
+  const companyEvidence=[],rejectedCompanies=[...input.rejectedCompanies],conflicts=[];
   for(const [id,records] of input.groups){
-    const available=records.filter(row=>Array.isArray(row.bookmaker.bets)&&row.bookmaker.bets.some(bet=>bet?.id===4));
-    if(!available.length)continue;
-    const record=[...available].sort((a,b)=>(isoMillis(b.updatedAt)||0)-(isoMillis(a.updatedAt)||0))[0];
-    const values=record.bookmaker.bets.filter(bet=>bet?.id===4).flatMap(bet=>Array.isArray(bet.values)?bet.values:[])
-      .filter(row=>typeof row?.value==='string'&&Number.isFinite(odds(row.odd))).map(row=>({label:row.value,decimalOdds:odds(row.odd)}));
+    const latest=Math.max(...records.map(row=>isoMillis(row.updatedAt)).filter(Number.isFinite));
+    const latestRows=Number.isFinite(latest)?records.filter(row=>isoMillis(row.updatedAt)===latest):records;
+    const parsed=latestRows.map(record=>{
+      const bets=Array.isArray(record.bookmaker.bets)?record.bookmaker.bets.filter(bet=>bet?.id===4):[];
+      if(!bets.length)return {record,values:null,blockers:['ASIAN_HANDICAP_NOT_PUBLISHED']};
+      const markets=bets.map(bet=>{
+        if(!Array.isArray(bet.values)||!bet.values.length)return null;
+        if(bet.values.some(row=>typeof row?.value!=='string'||!row.value.trim()||!Number.isFinite(odds(row.odd)))
+          ||new Set(bet.values.map(row=>row.value)).size!==bet.values.length)return null;
+        return bet.values.map(row=>({label:row.value,decimalOdds:odds(row.odd)})).sort((a,b)=>a.label.localeCompare(b.label));
+      });
+      const blockers=markets.some(values=>!values)?['MARKET_VALUES_INVALID']:
+        new Set(markets.map(values=>JSON.stringify(values))).size!==1?['AMBIGUOUS_COMPANY_MARKET']:[];
+      return {record,values:markets[0],blockers};
+    });
+    if(parsed.every(row=>row.blockers.includes('ASIAN_HANDICAP_NOT_PUBLISHED')))continue;
+    const companyBlockers=unique(parsed.flatMap(row=>row.blockers));
+    if(new Set(parsed.filter(row=>!row.blockers.length).map(row=>JSON.stringify(row.values))).size>1)companyBlockers.push('AMBIGUOUS_COMPANY_MARKET');
+    if(companyBlockers.length){
+      rejectedCompanies.push({bookmakerId:id,bookmaker:records[0].bookmaker.name,blockers:companyBlockers});
+      conflicts.push(...companyBlockers);continue;
+    }
+    const {record,values}=parsed[0];
     companyEvidence.push({bookmakerId:id,bookmaker:record.bookmaker.name,updatedAt:record.updatedAt,ageMs:record.ageMs,values,
-      blockers:unique([...(record.ageMs===null?['SOURCE_TIMESTAMP_INVALID']:record.ageMs<0?['SOURCE_TIMESTAMP_FUTURE']:[]),
+      blockers:unique([...record.pageBlockers,...(record.ageMs===null?['SOURCE_TIMESTAMP_INVALID']:record.ageMs<0?['SOURCE_TIMESTAMP_FUTURE']:[]),
         ...(record.ageMs>RESEARCH_MAX_AGE_MS?['RESEARCH_SOURCE_STALE']:[]),...(record.ageMs>LIVE_MAX_AGE_MS?['LIVE_SOURCE_STALE']:[])])});
   }
   return {betId:4,market:'asian-handicap',period:'full-time',interpretation:'provider labels and decimal odds only; no inferred handicap pairing or cover probability',
-    companyCount:companyEvidence.length,companyEvidence,blockers:unique([...input.blockers,...companyEvidence.flatMap(row=>row.blockers),...(!companyEvidence.length?['ASIAN_HANDICAP_NOT_PUBLISHED']:[])]),
+    companyCount:companyEvidence.length,companyEvidence,rejectedCompanies,blockers:unique([...input.blockers,...conflicts,...companyEvidence.flatMap(row=>row.blockers),...(!companyEvidence.length?['ASIAN_HANDICAP_NOT_PUBLISHED']:[])]),
     formalRecommendation:{allowed:false,requiresExistingPolicyGate:true,blockers:[...FORMAL_BLOCKERS]}};
 }
 

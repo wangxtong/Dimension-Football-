@@ -1,4 +1,4 @@
-import { ProviderError } from './provider-http.mjs';
+import { ProviderError, collectProviderLeagues } from './provider-http.mjs';
 import { safeId, safeName, decimal, quarter, timestamp, matchFixture, baseObservation, impliedProbabilities, currentTime, diagnostic } from './provider-utils.mjs';
 
 export const oddsApiLeagues = Object.freeze({ PL: 'soccer_epl', PD: 'soccer_spain_la_liga', SA: 'soccer_italy_serie_a', BL1: 'soccer_germany_bundesliga', FL1: 'soccer_france_ligue_one' });
@@ -17,10 +17,12 @@ function outcomesFor(market, event) {
   return rows;
 }
 
-export async function fetchOddsApiEvidence({ fixtures, nowISO, client, regions = 'eu' }) {
-  const observations = [], diagnostics = [];
-  for (const [league, sport] of Object.entries(oddsApiLeagues)) {
-    const target = fixtures.filter(f => f.league === league); if (!target.length) continue;
+export async function fetchOddsApiEvidence({ fixtures, nowISO, client, regions = 'eu', leagueHealth, clock }) {
+  return collectProviderLeagues({ provider: 'the-odds-api', nowISO, clock, leagueHealth,
+    leagues: Object.keys(oddsApiLeagues).filter(league => fixtures.some(f => f.league === league)),
+    collect: async league => {
+    const observations = [], diagnostics = [], sport = oddsApiLeagues[league];
+    const target = fixtures.filter(f => f.league === league);
     const times = target.map(f => Date.parse(f.kickoff));
     const result = await client.get(`/v4/sports/${sport}/odds`, { regions, markets: 'h2h,spreads,totals', oddsFormat: 'decimal', dateFormat: 'iso',
       commenceTimeFrom: new Date(Math.max(Date.parse(nowISO), Math.min(...times) - 300000)).toISOString().replace('.000Z', 'Z'),
@@ -58,6 +60,6 @@ export async function fetchOddsApiEvidence({ fixtures, nowISO, client, regions =
     }
     diagnostics.push(diagnostic('the-odds-api', nowISO, { league, httpStatus: 200, matchedCount: matched.size,
       status: rejectedCount ? 'partial' : matched.size ? 'available' : 'pending', code: rejectedCount ? 'invalid_or_stale_markets' : matched.size ? 'ok' : 'no_matching_markets' }));
-  }
-  return { observations, signals: [], diagnostics };
+    return { observations, signals: [], diagnostics };
+  } });
 }

@@ -86,9 +86,10 @@ function lineup(team, idOffset = 0) {
   })) };
 }
 function independent(value, changes = {}, fixtureChanges = {}) {
-  value.independentReport = { results: [{ fixture: { ...value.evidence.fixtures[0], ...fixtureChanges },
+  value.independentReport = { publication: { reportId: hash }, results: [{ fixture: { ...value.evidence.fixtures[0], ...fixtureChanges },
     lastEvidence: { signals: [{ sourceId: 'statarea', market: '1x2', selection: 'home', probability: .6,
-      observedAt: at(-60_000), validUntil: at(3_600_000), verificationMethod: 'automatic', ...changes }] } }] };
+      observedAt: at(-60_000), validUntil: at(3_600_000), verificationMethod: 'automatic',
+      evidenceUrl: 'https://www.statarea.com/compare/teams/home/away', ...changes }] } }] };
 }
 
 test('all 48 fixtures receive all 12 dimensions despite absent Asian odds, injuries and lineups', () => {
@@ -234,11 +235,15 @@ test('Statarea uses bound fixture identity, verified 1X2 and six-hour timestamps
   for (const changes of [
     { sourceId: 'unverified-source' }, { market: 'goals-over-under' }, { selection: 'over' }, { probability: 1.1 },
     { probability: NaN }, { verificationMethod: 'unverified' }, { observedAt: at(1) },
-    { observedAt: at(-21_600_001) }, { validUntil: NOW },
+    { observedAt: at(-21_600_001) }, { validUntil: NOW }, { evidenceUrl: undefined },
+    { evidenceUrl: 'https://unrelated.example/compare/teams/home/away' },
+    { evidenceUrl: 'https://www.statarea.com/compare/teams/home/away?token=private' },
   ]) {
     const value = input(); independent(value, changes);
     assert.equal(first(value).independentForecast.signals.length, 0);
   }
+  const unbound = input(); independent(unbound); delete unbound.independentReport.publication;
+  assert.equal(first(unbound).independentForecast.signals.length, 0);
   for (const fixtureChanges of [{ kickoff: at(2 * DAY) }, { away: 'Wrong opponent' }, { source: 'other-provider' }]) {
     const value = input(); independent(value, {}, fixtureChanges);
     assert.equal(first(value).independentForecast.signals.length, 0);

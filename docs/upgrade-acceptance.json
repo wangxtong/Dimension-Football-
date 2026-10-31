@@ -1,0 +1,54 @@
+{
+  "kind": "acceptance",
+  "scope": "local-integration-and-production-bootstrap-not-ECS",
+  "passed": true,
+  "checkedAt": "2026-10-31T07:55:46.975493Z",
+  "commitSha": "cc44bd79113f7efeda694fc168f9a9048168619c",
+  "checks": [
+    {
+      "name": "Node integration",
+      "passed": 441,
+      "failed": 0
+    },
+    {
+      "name": "Python packaging and handoff",
+      "passed": 23,
+      "failed": 0
+    },
+    {
+      "name": "Chromium website build",
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "name": "Chromium crawler",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "name": "Production mobile dashboard",
+      "httpStatus": 200,
+      "pageErrors": 0,
+      "summary": {
+        "forecasts": 9,
+        "unavailable": 4,
+        "strictCandidates": 0
+      },
+      "mode": "bootstrap",
+      "siteVersion": 6
+    },
+    {
+      "name": "Independent replay of actual v2 data",
+      "historyCount": 370,
+      "probabilityAndTrainingHashMatches": 9,
+      "reportId": "8eae3910f8b55727dc36ceb093d6fb89d4d4d1af8a4024a4fb0340d3b1be46c7"
+    }
+  ],
+  "unverified": [
+    "ECS installation and persistent restart",
+    "Live Sites/ECS same-report readback",
+    "New production Telegram outbox delivery",
+    "Independent second Asian source with true opening",
+    "Global shared login rate limiting"
+  ]
+}

@@ -1,5 +1,6 @@
-import { createProviderClient, ProviderError } from './provider-http.mjs';
+import { createProviderClient, ProviderError, collectProviderLeagues } from './provider-http.mjs';
 import { LEAGUES, safeName, timestamp, matchFixture, baseObservation, diagnostic } from './provider-utils.mjs';
+import { withEventIdentity } from '../data/identity.mjs';
 
 export const sportmonksLeagues = Object.freeze({ PL: 8, PD: 564, SA: 384, BL1: 82, FL1: 301 });
 const fatal = new Set(['authorization_required', 'subscription_required', 'plan_restricted', 'rate_limited', 'request_limit', 'cancelled', 'budget_exhausted']);
@@ -11,8 +12,10 @@ function eventIdentity(row, league) {
   const home = participants.filter(p => p?.meta?.location === 'home'), away = participants.filter(p => p?.meta?.location === 'away');
   const kickoff = timestamp(row.starting_at_timestamp);
   if (home.length !== 1 || away.length !== 1 || !safeName(home[0].name) || !safeName(away[0].name)
+    || !Number.isSafeInteger(home[0].id) || home[0].id <= 0 || !Number.isSafeInteger(away[0].id) || away[0].id <= 0 || home[0].id === away[0].id
     || home[0].name === away[0].name || !kickoff) throw new ProviderError('invalid_records');
-  return { id: row.id, league, home: home[0].name.trim(), away: away[0].name.trim(), kickoff, state: row.state_id };
+  return { id: row.id, league, home: home[0].name.trim(), away: away[0].name.trim(),
+    homeTeamId: String(home[0].id), awayTeamId: String(away[0].id), kickoff, state: row.state_id };
 }
 
 async function readLeague(client, league, from, to, include, maxPages) {
@@ -48,9 +51,10 @@ export async function fetchSportmonksFixtures({ apiKey = '', nowISO = new Date()
       if (stopped) throw stopped;
       const result = await readLeague(client, league, nowISO.slice(0, 10), new Date(now + days * 86400000).toISOString().slice(0, 10), 'participants', maxPages);
       const accepted = result.rows.filter(({ identity: e }) => e.state === 1 && Date.parse(e.kickoff) > now && Date.parse(e.kickoff) <= now + days * 86400000);
-      for (const { identity: e } of accepted) fixtures.push({ id: `sm-${e.id}`, league, home: e.home, away: e.away,
+      for (const { identity: e } of accepted) fixtures.push(withEventIdentity({ id: `sm-${e.id}`, sourceFixtureId: String(e.id), league, home: e.home, away: e.away,
+        homeTeamId: e.homeTeamId, awayTeamId: e.awayTeamId,
         kickoff: e.kickoff, status: 'SCHEDULED', source: 'sportmonks', updatedAt: result.fetchedAt,
-        fetchedAt: result.fetchedAt, sourceUpdatedAt: null });
+        fetchedAt: result.fetchedAt, sourceUpdatedAt: null }));
       diagnostics.push(diagnostic('sportmonks', nowISO, { league, status: accepted.length ? 'available' : 'complete',
         httpStatus: 200, responseAt: result.responseAt, matchedCount: accepted.length }));
     } catch (error) {
@@ -63,9 +67,10 @@ export async function fetchSportmonksFixtures({ apiKey = '', nowISO = new Date()
   return { fixtures, diagnostics };
 }
 
-export async function fetchSportmonksEvidence({ fixtures, nowISO, client, maxPages = 10 }) {
-  const observations = [], signals = [], diagnostics = [];
-  for (const league of LEAGUES.filter(code => fixtures.some(f => f.league === code))) {
+export async function fetchSportmonksEvidence({ fixtures, nowISO, client, maxPages = 10, leagueHealth, clock }) {
+  return collectProviderLeagues({ provider: 'sportmonks', nowISO, clock, leagueHealth,
+    leagues: LEAGUES.filter(code => fixtures.some(f => f.league === code)), collect: async league => {
+    const observations = [], signals = [], diagnostics = [];
     const target = fixtures.filter(f => f.league === league), dates = target.map(f => f.kickoff.slice(0, 10)).sort();
     const result = await readLeague(client, league, dates[0], dates.at(-1), 'participants;predictions.type', maxPages);
     const mappings = result.rows.map(({ identity }) => matchFixture(identity, target)?.id);
@@ -93,6 +98,6 @@ export async function fetchSportmonksEvidence({ fixtures, nowISO, client, maxPag
     }
     diagnostics.push(diagnostic('sportmonks', nowISO, { league, matchedCount: matched, httpStatus: 200,
       status: matched ? 'available' : 'pending', code: matched ? 'ok' : 'no_matching_predictions' }));
-  }
-  return { observations, signals, diagnostics };
+    return { observations, signals, diagnostics };
+  } });
 }

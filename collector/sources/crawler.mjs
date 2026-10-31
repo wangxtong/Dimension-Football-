@@ -1,6 +1,7 @@
 import { acquireLock, atomicJson, readJson } from '../storage.mjs';
 import { CRAWLER_AGENT, robotsPolicy } from './robots.mjs';
 import { retryAfterMs } from './health.mjs';
+import { browserResourceTarget } from '../browser-runtime/index.mjs';
 
 const DAY = 86_400_000, BODY_LIMIT = 1_500_000, ROBOTS_LIMIT = 64_000;
 const ORIGINS = ['https://livestatic.titan007.com', 'https://www.statarea.com', 'https://www.ttyingqiu.com'];
@@ -8,7 +9,7 @@ export const CRAWLER_CODES = new Set(['robots_denied', 'robots_unavailable', 'ac
   'access_denied', 'rate_limited', 'http_unavailable', 'redirect_blocked', 'crawler_cooldown', 'crawler_budget_exhausted',
   'crawler_cancelled', 'crawler_timeout', 'crawler_response_too_large', 'crawler_network_unavailable',
   'crawler_target_denied', 'crawler_credentials_rejected', 'cache_validation_failed', 'crawl_delay_exceeds_budget']);
-for (const code of ['browser_navigation_failed', 'browser_target_denied']) CRAWLER_CODES.add(code);
+for (const code of ['browser_navigation_failed', 'browser_target_denied', 'browser_policy_required']) CRAWLER_CODES.add(code);
 export const DEFAULT_CRAWLER_POLICY = Object.freeze({ version: 1, minIntervalMs: 300, requestTimeoutMs: 3000,
   maxRequests: 24, maxRetries: 1, retryDelayMs: 300, cacheTtlMs: 15_000, robotsTtlMs: 21_600_000, blockedCooldownMs: 3_600_000 });
 const BOUNDS = { minIntervalMs: [100, 10_000], requestTimeoutMs: [100, 6000], maxRequests: [3, 100],
@@ -126,6 +127,7 @@ export async function withPublicCrawler({ statePath, policy = DEFAULT_CRAWLER_PO
   try {
     const state = await readCrawlerState(statePath), queues = new Map(), lastStart = new Map(), delays = new Map(), events = [], active = new Set();
     let networkRequests = 0;
+    const reservations = new Map();
     const now = () => Date.parse(clock());
     for (const [origin, row] of Object.entries(state.origins)) lastStart.set(origin, performance.now() - Math.max(0, now() - Date.parse(row.checkedAt)));
     const check = (requestSignal) => { aborted(requestSignal); aborted(signal); if (remaining() <= 0) fail('crawler_budget_exhausted'); };
@@ -135,7 +137,9 @@ export async function withPublicCrawler({ statePath, policy = DEFAULT_CRAWLER_PO
         nextAllowedAt: new Date(next).toISOString() };
     };
     const ready = origin => { if (Date.parse(state.origins[origin]?.nextAllowedAt) > now()) fail('crawler_cooldown'); };
-    async function request(url, init, origin, requestSignal, limit) {
+    async function reserve(origin, requestSignal) {
+      const previous = reservations.get(origin) || Promise.resolve();
+      const task = previous.then(async () => {
       check(requestSignal); ready(origin);
       if (networkRequests >= policy.maxRequests) fail('crawler_budget_exhausted');
       const interval = Math.max(policy.minIntervalMs, delays.get(origin) || 0);
@@ -145,12 +149,41 @@ export async function withPublicCrawler({ statePath, policy = DEFAULT_CRAWLER_PO
       await pause(delay, requestSignal); check(requestSignal); ready(origin);
       if (networkRequests >= policy.maxRequests) fail('crawler_budget_exhausted');
       networkRequests++; lastStart.set(origin, performance.now());
+      });
+      reservations.set(origin, task.catch(() => {}));
+      return task;
+    }
+    async function request(url, init, origin, requestSignal, limit) {
       const rendered = !!browser?.matches?.(url);
+      if (!rendered) await reserve(origin, requestSignal);
+      else { check(requestSignal); ready(origin); }
       const controller = new AbortController(), timer = setTimeout(() => controller.abort(), Math.min(rendered ? 25_000 : policy.requestTimeoutMs, Math.max(1, remaining())));
       const combined = AbortSignal.any([controller.signal, requestSignal, signal].filter(Boolean));
+      const requestPolicy = rendered ? {
+        beforeRequest: async descriptor => {
+          if (!browserResourceTarget(descriptor.url, descriptor) || new URL(descriptor.url).origin !== origin) fail('browser_target_denied');
+          const rules = robotsPolicy(await robots({ origin }, combined), descriptor.url);
+          if (!rules.allowed) fail('robots_denied');
+          delays.set(origin, rules.delayMs);
+          await reserve(origin, combined);
+        },
+        afterResponse: async ({ status, headers }) => {
+          check(combined);
+          const retryMs = retryAfterMs(headers.get('retry-after'), now());
+          if (status === 429) { cooldown(origin, 'rate_limited', Math.max(60_000, retryMs || 0)); fail('rate_limited', status); }
+          if (headers.get('cf-mitigated') === 'challenge') { cooldown(origin, 'access_challenge', policy.blockedCooldownMs); fail('access_challenge', status); }
+          if ([401, 403].includes(status)) {
+            const code = status === 403 ? 'access_denied' : 'authorization_required';
+            cooldown(origin, code, policy.blockedCooldownMs); fail(code, status);
+          }
+          if (status >= 300 && status < 400) fail('redirect_blocked', status);
+          if (status >= 500) { cooldown(origin, 'http_unavailable', retryMs || 60_000); fail('http_unavailable', status); }
+        },
+      } : undefined;
       try {
         return await interruptible((async () => {
-          const response = await (rendered ? browser.fetch : fetchImpl)(url, { ...init, redirect: 'manual', signal: combined });
+          const response = await (rendered ? browser.fetch : fetchImpl)(url, { ...init, redirect: 'manual', signal: combined,
+            ...(requestPolicy ? { requestPolicy } : {}) });
           const text = await readText(response, limit);
           return { status: response.status, headers: response.headers, text };
         })(), combined);

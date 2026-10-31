@@ -1,0 +1,19 @@
+[Unit]
+Description=Dimension Football rule-driven health and repair progress
+After=local-fs.target
+[Service]
+Type=oneshot
+User=vantis
+Group=vantis
+ExecStart=/opt/vantis/deployment/health.sh
+TimeoutStartSec=30s
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/vantis/operations
+RestrictAddressFamilies=AF_UNIX
+[Install]
+WantedBy=multi-user.target

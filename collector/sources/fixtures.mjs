@@ -2,6 +2,7 @@
 // v4 dateTo is exclusive: https://docs.football-data.org/general/v4/index.html
 // Authentication is supplied only as X-Auth-Token to the official API host.
 import { FAILURE_CODES, retryAfterMs } from './health.mjs';
+import { withEventIdentity } from '../data/identity.mjs';
 export const fixtureLeagues = Object.freeze(['PL', 'PD', 'SA', 'BL1', 'FL1']);
 const DAY = 86400000;
 const MAX_FIXTURES = 3000;
@@ -85,6 +86,8 @@ function normalizeMatches(payload, league, checkedAt, now, until) {
     const home = match?.homeTeam?.name, away = match?.awayTeam?.name;
     const validIdentity = Number.isSafeInteger(match?.id) && match.id > 0
       && match?.competition?.code === league
+      && Number.isSafeInteger(match?.homeTeam?.id) && match.homeTeam.id > 0
+      && Number.isSafeInteger(match?.awayTeam?.id) && match.awayTeam.id > 0 && match.homeTeam.id !== match.awayTeam.id
       && typeof home === 'string' && !!home.trim() && typeof away === 'string' && !!away.trim()
       && home.trim() !== away.trim() && Number.isFinite(kickoff);
     if (!validIdentity) { rejectedCount++; continue; }
@@ -92,16 +95,18 @@ function normalizeMatches(payload, league, checkedAt, now, until) {
     ids.add(match.id);
     if (!['SCHEDULED', 'TIMED'].includes(match.status) || kickoff <= now || kickoff > until) continue;
     const lastUpdated = sourceUTC(match.lastUpdated);
-    fixtures.push({
+    fixtures.push(withEventIdentity({
       id: `fd-${match.id}`, providerMatchId: match.id,
       league, home: home.trim(), away: away.trim(),
+      homeTeamId: String(match.homeTeam.id), awayTeamId: String(match.awayTeam.id),
+      ...(typeof match.season?.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(match.season.startDate) ? { season: match.season.startDate.slice(0, 4) } : {}),
       kickoff: new Date(kickoff).toISOString(), status: match.status,
       source: 'football-data.org', sourceId: 'football-data.org',
       evidenceUrl: `https://api.football-data.org/v4/matches/${match.id}`,
       // updatedAt/fetchedAt describe this successful fetch, never kickoff time.
       updatedAt: checkedAt, fetchedAt: checkedAt,
       sourceUpdatedAt: Number.isFinite(lastUpdated) ? new Date(lastUpdated).toISOString() : null,
-    });
+    }));
   }
   return {fixtures, receivedCount: payload.matches.length, rejectedCount};
 }

@@ -1,11 +1,9 @@
 [Unit]
-Description=Run Dimension Football collector every hour
-
+Description=Dimension Football layered scheduler tick
 [Timer]
-OnCalendar=*-*-* *:00:00
+OnCalendar=*-*-* *:*:00
 Persistent=true
-AccuracySec=30s
+AccuracySec=5s
 Unit=vantis-collector.service
-
 [Install]
 WantedBy=timers.target

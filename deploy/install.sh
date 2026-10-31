@@ -1,110 +1,78 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 027
-
-# Run once as root on a Linux ECS / lightweight server with systemd.
-# Usage: sudo env NODE_BIN=/usr/local/bin/node bash deploy/install.sh [SOURCE_DIR]
-die() { printf 'Install failed: %s\n' "$*" >&2; exit 1; }
-[[ ${EUID} -eq 0 ]] || die 'Run this script as root.'
-[[ $# -le 1 ]] || die 'Usage: install.sh [SOURCE_DIR]'
-[[ -d /run/systemd/system ]] || die 'This server must be running systemd.'
-for command_name in systemctl getent useradd install tar flock readlink runuser git curl timeout sha256sum; do
-  command -v "$command_name" >/dev/null || die "Missing command: $command_name"
-done
-
-source_dir=$(cd -- "${1:-$(dirname -- "${BASH_SOURCE[0]}")/..}" && pwd -P)
-deployment_files=(bootstrap.sh install.sh release.sh run.sh sync.sh vantis-collector.service vantis-collector.timer vantis-sync.service vantis-sync.timer)
-[[ -d "$source_dir/deploy" && ! -L "$source_dir/deploy" ]] || die 'Deployment source must be a regular directory.'
-for deployment_file in "${deployment_files[@]}"; do
-  [[ -f "$source_dir/deploy/$deployment_file" && ! -L "$source_dir/deploy/$deployment_file" ]] \
-    || die "Missing regular deployment file: $deployment_file"
-done
-
+die(){ printf 'INSTALL_FAILED: %s\n' "$1" >&2; exit 1; }
+[[ $EUID -eq 0 && $# -eq 1 && -d /run/systemd/system ]] || die 'ROOT_SYSTEMD_AND_VERIFIED_SOURCE_REQUIRED'
+source_dir=$(cd -- "$1" && pwd -P)
+for command in python3 systemctl getent useradd install flock readlink runuser git timeout sha256sum; do command -v "$command" >/dev/null || die 'REQUIRED_TOOL_MISSING'; done
+python3 "$source_dir/deploy/bundle.py" verify-directory "$source_dir" >/dev/null
 exec 8>/run/lock/vantis-install.lock
-flock -n 8 || die 'Another installation is running.'
-
+flock -n 8 || die 'INSTALL_ALREADY_RUNNING'
 node_bin=${NODE_BIN:-$(command -v node || true)}
-[[ -n "$node_bin" && -x "$node_bin" ]] || die 'Install Node.js 24+ system-wide first, or set NODE_BIN to its absolute path.'
-node_bin=$(readlink -f -- "$node_bin")
-case "$node_bin" in
-  /root/*|/home/*|/run/user/*) die 'Node.js must be outside user home directories because the service uses ProtectHome=true.' ;;
-esac
-node_major=$("$node_bin" -p 'Number(process.versions.node.split(".")[0])')
-[[ "$node_major" =~ ^[0-9]+$ ]] && (( node_major >= 24 )) || die 'Node.js 24 or later is required.'
-
-if ! getent passwd vantis >/dev/null; then
-  useradd --system --user-group --home-dir /var/lib/vantis --no-create-home --shell /usr/sbin/nologin vantis
-fi
-[[ $(id -u vantis) -ne 0 ]] || die 'The vantis account must not be root.'
-getent group vantis >/dev/null || die 'A group named vantis is required.'
-runuser -u vantis -- "$node_bin" --version >/dev/null || die 'The vantis user cannot execute this Node.js installation.'
-
-for managed_dir in /opt/vantis /opt/vantis/releases /opt/vantis/deployment /etc/vantis /var/lib/vantis /var/lib/vantis/reports /var/lib/vantis-sync; do
-  [[ ! -L "$managed_dir" ]] || die "Managed directory must not be a symbolic link: $managed_dir"
-done
-install -d -o root -g root -m 0755 /opt/vantis /opt/vantis/releases /opt/vantis/deployment
+[[ -n "$node_bin" && -x "$node_bin" ]] || die 'SYSTEM_NODE_24_14_REQUIRED'
+node_bin=$(readlink -f "$node_bin")
+case "$node_bin" in /root/*|/home/*|/run/user/*) die 'NODE_MUST_BE_SYSTEM_WIDE';; esac
+"$node_bin" --input-type=module -e 'import * as h from "node:http";const [a,b]=process.versions.node.split(".").map(Number);if(a!==24||b<14||typeof h.setGlobalProxyFromEnv!=="function"||!AbortSignal.any)process.exit(1)' || die 'NODE_24_14_CAPABILITY_REQUIRED'
+if ! getent passwd vantis >/dev/null; then useradd --system --user-group --home-dir /var/lib/vantis --no-create-home --shell /usr/sbin/nologin vantis; fi
+if ! getent passwd vantis-check >/dev/null; then useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin vantis-check; fi
+[[ $(id -u vantis) -ne 0 ]] || die 'SERVICE_USER_MUST_NOT_BE_ROOT'
+[[ $(id -u vantis-check) -ne 0 && " $(id -Gn vantis-check) " != *' vantis '* ]] || die 'TEST_USER_MUST_NOT_READ_PRODUCTION_GROUP'
+for dir in /opt/vantis /opt/vantis/releases /opt/vantis/deployment /etc/vantis /var/lib/vantis /var/lib/vantis/operations /var/lib/vantis/state /var/lib/vantis/reports /var/lib/vantis-sync; do [[ ! -L "$dir" ]] || die 'MANAGED_PATH_SYMLINK'; done
+install -d -o root -g root -m 0755 /opt/vantis /opt/vantis/releases /opt/vantis/deployment /var/lib/vantis-sync
 install -d -o root -g vantis -m 0750 /etc/vantis
-install -d -o vantis -g vantis -m 0750 /var/lib/vantis /var/lib/vantis/reports
-install -d -o root -g root -m 0755 /var/lib/vantis-sync
-# Preserve existing contents while allowing the service user to resume old state.
-chown -hR vantis:vantis /var/lib/vantis
-[[ ! -L /etc/vantis/collector.env && ! -L /etc/vantis/node-path ]] || die 'Configuration files must not be symbolic links.'
-
-# Existing credentials are preserved across installation and release updates.
+install -d -o vantis -g vantis -m 0750 /var/lib/vantis /var/lib/vantis/operations /var/lib/vantis/operations/evidence /var/lib/vantis/state /var/lib/vantis/reports
+if [[ ! -e /var/lib/vantis/operations/tasks.json ]]; then install -o vantis -g vantis -m 0640 "$source_dir/deploy/tasks.json" /var/lib/vantis/operations/tasks.json; fi
+for file in collector.env report.env operations.json source-mode node-path; do [[ ! -L "/etc/vantis/$file" ]] || die 'CONFIG_SYMLINK'; done
 if [[ ! -e /etc/vantis/collector.env ]]; then
-  (set -o noclobber; cat > /etc/vantis/collector.env <<'ENV'
-# Fill in one provider on this server. Do not put this file in Git.
-# Preference: FOOTBALL_DATA_API_KEY > FOOTBALL_DATA_API_TOKEN > API_FOOTBALL_KEY
-FOOTBALL_DATA_API_KEY=
-FOOTBALL_DATA_API_TOKEN=
-API_FOOTBALL_KEY=
-# Optional commercial feeds. Sportmonks can also supply fixture fallback.
-SPORTMONKS_API_TOKEN=
-THE_ODDS_API_KEY=
-ISPORTS_API_KEY=
-ENV
-  )
+  install -o root -g vantis -m 0640 /dev/null /etc/vantis/collector.env
+  printf '# Provider and delivery secrets are configured here by the owner; never commit this file.\n' > /etc/vantis/collector.env
 fi
-[[ -f /etc/vantis/collector.env ]] || die '/etc/vantis/collector.env must be a regular file.'
-chown root:vantis /etc/vantis/collector.env
-chmod 0640 /etc/vantis/collector.env
-
-node_path_tmp="/etc/vantis/.node-path-$$"
-trap 'rm -f -- "$node_path_tmp"' EXIT
-printf '%s\n' "$node_bin" > "$node_path_tmp"
-chown root:vantis "$node_path_tmp"
-chmod 0640 "$node_path_tmp"
-mv -T -- "$node_path_tmp" /etc/vantis/node-path
-
-# Infrastructure is maintained independently of the Git collector releases.
-# Replace each complete root-owned file atomically, including during upgrades.
-for deployment_file in "${deployment_files[@]}"; do
-  [[ ! -L "/opt/vantis/deployment/$deployment_file" ]] || die "Installed deployment tool must not be a symbolic link: $deployment_file"
-  tool_mode=0644
-  [[ "$deployment_file" != *.sh ]] || tool_mode=0755
-  tool_temp="/opt/vantis/deployment/.$deployment_file-$$"
-  install -o root -g root -m "$tool_mode" "$source_dir/deploy/$deployment_file" "$tool_temp"
-  mv -T -- "$tool_temp" "/opt/vantis/deployment/$deployment_file"
+if [[ ! -e /etc/vantis/report.env ]]; then
+  install -o root -g vantis -m 0640 /dev/null /etc/vantis/report.env
+  printf 'REPORTS_DIRECTORY=/var/lib/vantis/reports\nREPORTS_PORT=8787\n# Service tokens are created separately without printing. Loopback only; HTTPS required.\n' > /etc/vantis/report.env
+fi
+python3 "$source_dir/deploy/ensure-report-secrets.py"
+new_config=()
+if [[ ! -e /etc/vantis/operations.json ]]; then
+  install -o root -g vantis -m 0640 "$source_dir/deploy/operations.json" /etc/vantis/operations.json
+  new_config=(--new-config)
+fi
+python3 "$source_dir/deploy/persistent-config.py" configure "${new_config[@]}"
+if [[ ! -e /etc/vantis/source-mode ]]; then printf 'artifact\n' > /etc/vantis/source-mode; chmod 0644 /etc/vantis/source-mode; fi
+printf '%s\n' "$node_bin" > /etc/vantis/.node-path.new
+chown root:vantis /etc/vantis/.node-path.new;chmod 0640 /etc/vantis/.node-path.new
+mv -T /etc/vantis/.node-path.new /etc/vantis/node-path
+# Tests never inherit provider/notification secrets or run as root.
+chown -R root:root "$source_dir"
+find "$source_dir" -type d -exec chmod 0755 {} +
+find "$source_dir" -type f -exec chmod 0644 {} +
+mapfile -d '' -t tests < <(find "$source_dir/collector/test" "$source_dir/collector/sources/test" "$source_dir/website/test" -name '*.test.mjs' -type f -print0)
+(( ${#tests[@]} > 0 )) || die 'TESTS_MISSING'
+(cd "$source_dir" && timeout 300s runuser -u vantis-check -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent TMPDIR=/tmp "$node_bin" --test "${tests[@]}") >/dev/null 2>&1 || die 'SOURCE_TESTS_FAILED'
+python3 "$source_dir/deploy/bundle.py" verify-directory "$source_dir" >/dev/null
+runuser -u vantis -- "$node_bin" --env-file=/etc/vantis/collector.env "$source_dir/collector/operations.mjs" self-check \
+  --root /var/lib/vantis --release "$source_dir" --config /etc/vantis/operations.json || die 'CAPABILITY_OR_ENTRYPOINT_CHECK_FAILED'
+for src in "$source_dir"/deploy/*; do
+  [[ -f "$src" && ! -L "$src" ]] || continue
+  name=${src##*/};mode=0644;[[ "$name" != *.sh ]] || mode=0755
+  install -o root -g root -m "$mode" "$src" "/opt/vantis/deployment/.$name.new"
+  mv -T "/opt/vantis/deployment/.$name.new" "/opt/vantis/deployment/$name"
 done
-tooling_digest=$(cd -- "$source_dir/deploy" && sha256sum "${deployment_files[@]}" | sha256sum)
-tooling_digest=${tooling_digest%% *}
-printf '%s\n' "$tooling_digest" > "/opt/vantis/deployment/.tool-version-$$"
-chmod 0644 "/opt/vantis/deployment/.tool-version-$$"
-mv -T -- "/opt/vantis/deployment/.tool-version-$$" /opt/vantis/deployment/.tool-version
-
-install -o root -g root -m 0644 "$source_dir/deploy/vantis-collector.service" /etc/systemd/system/vantis-collector.service
-install -o root -g root -m 0644 "$source_dir/deploy/vantis-collector.timer" /etc/systemd/system/vantis-collector.timer
-install -o root -g root -m 0644 "$source_dir/deploy/vantis-sync.service" /etc/systemd/system/vantis-sync.service
-install -o root -g root -m 0644 "$source_dir/deploy/vantis-sync.timer" /etc/systemd/system/vantis-sync.timer
+python3 - "$source_dir/vantis-manifest.json" <<'PYMETA'
+import json,sys
+from pathlib import Path
+m=json.loads(Path(sys.argv[1]).read_text());p=Path('/opt/vantis/deployment/.tool-version.new');p.write_text(m['toolingDigest']+'\n');p.chmod(0o644);p.replace(p.with_name('.tool-version'))
+PYMETA
+for name in vantis-collector vantis-health vantis-sync; do
+  for kind in service timer; do install -o root -g root -m 0644 "$source_dir/deploy/$name.$kind" "/etc/systemd/system/$name.$kind"; done
+done
+install -o root -g root -m 0644 "$source_dir/deploy/vantis-report.service" /etc/systemd/system/vantis-report.service
 systemctl daemon-reload
 bash /opt/vantis/deployment/release.sh "$source_dir"
-systemctl enable --now vantis-collector.timer vantis-sync.timer
-
-printf '%s\n' \
-  'Installed. Fill one credential in /etc/vantis/collector.env using a local editor.' \
-  'Then verify one run: systemctl start vantis-collector.service' \
-  'Logs: journalctl -u vantis-collector.service -n 100 --no-pager' \
-  'Schedule: systemctl list-timers vantis-collector.timer vantis-sync.timer' \
-  'Git main is checked every two minutes; tested commits are published automatically.' \
-  'Sync logs: journalctl -u vantis-sync.service -n 100 --no-pager' \
-  "Independent deployment-tool SHA256: $tooling_digest"
+systemctl enable --now vantis-health.timer vantis-collector.timer
+systemctl enable vantis-report.service
+# Missing report credentials fail closed; health reports the exact inactive/failed service.
+systemctl restart vantis-report.service || true
+IFS= read -r mode < /etc/vantis/source-mode
+if [[ "$mode" == deploy-key ]]; then systemctl enable --now vantis-sync.timer; else systemctl disable --now vantis-sync.timer; fi
+printf 'INSTALL_COMPLETED; verify operations/health.json and authenticated Site report readback before acceptance.\n'

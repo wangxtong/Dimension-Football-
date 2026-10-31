@@ -1,10 +1,23 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { atomicJson, acquireLock } from './storage.mjs';
+import { atomicJson, acquireLock, readJson } from './storage.mjs';
 import { beginPublication, finishGeneration } from './publication.mjs';
 import { predictionDocument, renderPredictionsMarkdown, renderPredictionsHtml } from './forecast-report.mjs';
+import { createReplayBundle, prepareReplayInputs } from './data/run-manifest.mjs';
+import { dataHash } from './data/identity.mjs';
+import { appendReportPredictions } from './prediction-ledger.mjs';
+import { PUBLIC_FIXTURE_SOURCES } from './sources/public-fixtures.mjs';
 
 const statuses = { pending: '待续查', candidate: '候选，待人工复核', simulated_candidate: '模拟候选', avoid: '回避', source_insufficient: '来源不足' };
+async function immutableReplayFile(path, value) {
+  try {
+    const previous = await readJson(path);
+    if (dataHash(previous) !== dataHash(value)) throw new Error('IMMUTABLE_REPLAY_CONFLICT');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    await atomicJson(path, value);
+  }
+}
 const reasons = {
   NOT_PREMATCH: '非未开赛赛事', OUTSIDE_WINDOW: '超出本轮日期窗口', FIXTURE_FRESHNESS_UNVERIFIED: '赛程时效未核验',
   NO_FRESH_COMPLETE_ASIAN_MARKET: '无有效的完整双方亚洲盘', PRICE_OR_HANDICAP_OUTSIDE_POLICY: '价格或让受球超出规则',
@@ -108,12 +121,29 @@ export function renderMessage(report) {
   return `${lines.join('\n')}\n`;
 }
 
-export async function writeReports(report, directory) {
+export async function writeReports(report, directory, { history = [], codeVersion = null, clock = () => new Date().toISOString(),
+  appendPredictions = appendReportPredictions } = {}) {
   await mkdir(directory, { recursive: true });
   const release = await acquireLock(resolve(directory, 'publication.json'));
   let receipt;
   try {
+  const inputs = prepareReplayInputs({ fixtures: report.results.map(row => row.fixture), history, policy: report.policy, model: report.forecasts.model });
+  report.inputHash = dataHash(inputs);
   receipt = await beginPublication(report, directory);
+  const replay = createReplayBundle({ reportId: receipt.reportId, ...inputs, generatedAt: report.completedAt, cutoff: report.startedAt,
+    codeVersion, simulated: report.simulated });
+  report.replay = { manifest: 'run-manifest.json', inputs: 'run-inputs.json', archive: `replays/${receipt.reportId}`,
+    inputHash: replay.manifest.inputsHash, status: replay.manifest.replayStatus };
+  await immutableReplayFile(resolve(directory, 'replays', receipt.reportId, 'run-inputs.json'), replay.inputs);
+  await immutableReplayFile(resolve(directory, 'replays', receipt.reportId, 'run-manifest.json'), replay.manifest);
+  await atomicJson(resolve(directory, 'run-manifest.json'), replay.manifest);
+  await atomicJson(resolve(directory, 'run-inputs.json'), replay.inputs);
+  const publicFixtures = inputs.fixtures.filter(row => row.source === 'openligadb'), publicHistory = inputs.history.filter(row => row.source === 'openligadb');
+  await atomicJson(resolve(directory, 'openligadb-fixtures.json'), { reportId: receipt.reportId, attribution: PUBLIC_FIXTURE_SOURCES[0],
+    checkedAt: report.startedAt, usedInReport: !!(publicFixtures.length || publicHistory.length), fixtures: publicFixtures, history: publicHistory });
+  // The immutable ledger is written after the report ID is fixed and before any
+  // external publication can observe files marked ready.
+  report.predictionLedger = await appendPredictions({ directory: resolve(directory, 'forecast-ledger'), report: predictionDocument(report), nowISO: clock() });
   const name = `collection-${report.completedAt.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')}`;
   const brief = renderBrief(report), message = renderMessage(report);
   const jsonPath = resolve(directory, `${name}.json`);
@@ -127,10 +157,11 @@ export async function writeReports(report, directory) {
   await writeFile(resolve(directory, 'predictions.md'), renderPredictionsMarkdown(report), 'utf8');
   await writeFile(resolve(directory, 'predictions.html'), renderPredictionsHtml(report), 'utf8');
   await finishGeneration(directory, receipt, [`${name}.json`, `${name}-brief.md`, `${name}-message.md`,
-    'latest.json', 'latest-brief.md', 'latest-message.md', 'predictions.json', 'predictions.md', 'predictions.html']);
+    'latest.json', 'latest-brief.md', 'latest-message.md', 'predictions.json', 'predictions.md', 'predictions.html',
+    'run-manifest.json', 'run-inputs.json', 'openligadb-fixtures.json']);
   return { jsonPath, briefPath: resolve(directory, 'latest-brief.md'), messagePath: resolve(directory, 'latest-message.md'),
     predictionsPath: resolve(directory, 'predictions.json'), predictionsHtmlPath: resolve(directory, 'predictions.html'),
-    publicationPath: resolve(directory, 'publication.json') };
+    publicationPath: resolve(directory, 'publication.json'), runManifestPath: resolve(directory, 'run-manifest.json'), runInputsPath: resolve(directory, 'run-inputs.json') };
   } catch (error) {
     if (receipt) await finishGeneration(directory, receipt, [], true);
     throw error;

@@ -1,3 +1,4 @@
+import * as REPORT_FEED from './report-feed.mjs';
 const COOKIE = '__Host-dimension_session', SESSION_SECONDS = 43200;
 const encoder = new TextEncoder();
 const encode = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -66,6 +67,15 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     const config=configuration(env);if(!config)return response('登录服务尚未配置，请联系管理员。',503);
     const now=Math.floor(clock()/1000),path=new URL(request.url).pathname,method=request.method;
     const sameOrigin=request.headers.get('origin')===config.origin;
+    if(path==='/internal/report-status'){
+      const token=env.REPORTS_PROBE_TOKEN;
+      if(method!=='GET')return response('Method not allowed',405);
+      if(!/^[a-f0-9]{64}$/.test(token||'')||request.headers.get('authorization')!=='Bearer '+token)return response('Unauthorized',401);
+      try{
+        const bundle=await REPORT_FEED.readDashboardBundle(env,{fetchImpl,now:clock()});
+        return response(JSON.stringify({version:1,reportId:bundle.reportId,reportHash:bundle.reportHash,generatedAt:bundle.report.generatedAt,mode:bundle.freshness.mode,health:bundle.health.status}),200,'application/json; charset=utf-8');
+      }catch{return response(JSON.stringify({error:'REPORT_UPSTREAM_UNAVAILABLE'}),503,'application/json; charset=utf-8');}
+    }
     if(path==='/login'&&method==='POST'){
       if(!sameOrigin)return response('请求来源不匹配。',403);
       if(!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded'))return response('不支持的表单格式。',415);
@@ -92,16 +102,13 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     const signedIn=await authenticated(request,config,now);
     if(path==='/login')return signedIn?redirect('/'):method==='HEAD'?response(null,200,'text/html; charset=utf-8'):loginPage();
     if(!signedIn)return path==='/'||path==='/index.html'?redirect('/login'):response('请先登录。',401);
-    const feeds={'/api/predictions.json':'predictions.json','/api/publication.json':'publication.json','/api/openligadb-fixtures.json':'openligadb-fixtures.json'};
-    if(Object.hasOwn(feeds,path)){
-      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+    if(['/api/report','/api/predictions.json','/api/publication.json','/api/openligadb-fixtures.json'].includes(path)){
       try{
-        const upstream=await fetchImpl('https://raw.githubusercontent.com/wangxtong/Dimension-Football-/published-reports/'+feeds[path],{redirect:'manual',signal:controller.signal,headers:{Accept:'application/json'}});
-        if(!upstream.ok||!upstream.headers.get('content-type')?.match(/json|text\/plain/)){const status=upstream.status;await upstream.body?.cancel();return response(JSON.stringify({error:'REPORT_UPSTREAM_UNAVAILABLE',upstreamStatus:status}),502,'application/json; charset=utf-8');}
-        const text=await boundedBody(upstream,4000000);JSON.parse(text);
-        return response(method==='HEAD'?null:text,200,'application/json; charset=utf-8');
-      }catch(error){return response(JSON.stringify({error:'REPORT_FETCH_FAILED',kind:['TypeError','SyntaxError','TimeoutError','AbortError'].includes(error?.name)?error.name:'Error'}),502,'application/json; charset=utf-8');}
-      finally{clearTimeout(timer);}
+        const bundle=await REPORT_FEED.readDashboardBundle(env,{fetchImpl,now:clock()});
+        const data=REPORT_FEED.dashboardBundleFile(bundle,path);
+        if(data===null)return response(JSON.stringify({error:'REPORT_COMPONENT_UNAVAILABLE'}),404,'application/json; charset=utf-8');
+        return response(method==='HEAD'?null:JSON.stringify(data),200,'application/json; charset=utf-8',{'X-Report-Id':bundle.reportId});
+      }catch{return response(JSON.stringify({error:'REPORT_UPSTREAM_UNAVAILABLE'}),502,'application/json; charset=utf-8');}
     }
     const file=path==='/'?'/index.html':path;
     if(!Object.hasOwn(assets,file))return response('Not found',404);

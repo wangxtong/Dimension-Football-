@@ -8,11 +8,12 @@ export function demoInput(nowISO) {
   const common = { fixtureId: fixture.id, fixtureSnapshot: snapshot, verified: true, verificationMethod: 'automatic', observedAt: nowISO,
     sourceUpdatedAt: nowISO, validUntil: at(300_000), market: 'asian-handicap', period: 'full-time', inPlay: false, closed: false };
   const quotes = ['titan007', 'oddstorm'].flatMap((sourceId, index) => ['home', 'away'].map(selection => ({
-    ...common, sourceId, bookmaker: index ? 'SBOBET' : 'M88', selection,
+    ...common, sourceId, providerMatchId: `synthetic-${index + 1}`, bookmaker: index ? 'SBOBET' : 'M88', selection,
     handicap: selection === 'home' ? -.25 : .25, decimalOdds: selection === 'home' ? 1.9 : 1.92,
     evidenceUrl: index ? 'https://www.oddstorm.com/' : 'https://live.titan007.com/index2in1.aspx?id=17',
     ...(selection === 'home' ? { opening: { handicap: -.25, decimalOdds: 1.85, observedAt: at(-3_600_000), recordedAt: nowISO,
       basis: 'provider-opening', sourceId, bookmaker: index ? 'SBOBET' : 'M88', selection, fixtureId: fixture.id,
+      market: 'asian-handicap', period: 'full-time', providerMatchId: `synthetic-${index + 1}`, fixtureSnapshot: snapshot,
       evidenceUrl: index ? 'https://www.oddstorm.com/' : 'https://live.titan007.com/index2in1.aspx?id=17' } } : {}),
   })));
   const signals = [{ ...common, sourceId: 'statarea', market: '1x2', selection: 'home', probability: .6,

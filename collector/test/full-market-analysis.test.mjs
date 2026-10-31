@@ -140,10 +140,29 @@ test('Asian handicap remains provider-specific facts without inventing line pair
   const asian={id:4,values:[{value:'Home +0.25',odd:'1.85'},{value:'Away +0.25',odd:'2.00'}]};
   const result=analyze(snapshot([page([company(1,[winner(),goals(),asian]),company(2),company(3)])])).markets.asianHandicap;
   assert.equal(result.companyCount,1);assert.deepEqual(result.companyEvidence[0].values,[
-    {label:'Home +0.25',decimalOdds:1.85},{label:'Away +0.25',decimalOdds:2},
+    {label:'Away +0.25',decimalOdds:2},{label:'Home +0.25',decimalOdds:1.85},
   ]);
   assert.equal(Object.hasOwn(result,'normalizedImpliedProbability'),false);
   assert.equal(result.formalRecommendation.allowed,false);
+});
+
+test('same-time contradictory Asian facts are rejected regardless of page or input ordering',()=>{
+  const asian=price=>({id:4,values:[{value:'Home -0.25',odd:price},{value:'Away +0.25',odd:'1.95'}]});
+  const companies=[company(1,[asian('1.85')]),company(1,[asian('1.65')])];
+  for(const rows of [companies,[...companies].reverse()]){
+    const result=analyze(snapshot([page(rows)])).markets.asianHandicap;
+    assert.equal(result.companyCount,0);assert.ok(result.blockers.includes('AMBIGUOUS_COMPANY_MARKET'));
+    assert.ok(result.rejectedCompanies.some(row=>row.bookmakerId===1&&row.blockers.includes('AMBIGUOUS_COMPANY_MARKET')));
+    assert.equal(result.formalRecommendation.allowed,false);
+  }
+  const acrossPages=analyze(snapshot([page([companies[0]],{paging:{current:1,total:2}}),page([companies[1]],{paging:{current:2,total:2}})])).markets.asianHandicap;
+  assert.ok(acrossPages.blockers.includes('AMBIGUOUS_COMPANY_MARKET'));
+});
+
+test('a newer Asian snapshot with no market does not reuse an older published price',()=>{
+  const asian={id:4,values:[{value:'Home -0.25',odd:'1.85'},{value:'Away +0.25',odd:'1.95'}]};
+  const result=analyze(snapshot([page([company(1,[asian])],{update:at(-120000)}),page([company(1,[])])])).markets.asianHandicap;
+  assert.equal(result.companyCount,0);assert.ok(result.blockers.includes('ASIAN_HANDICAP_NOT_PUBLISHED'));
 });
 
 test('analysis is deterministic, does not mutate its input and validates top-level bounds before work',()=>{

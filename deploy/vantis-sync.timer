@@ -1,5 +1,5 @@
 [Unit]
-Description=Check the Dimension Football public Git main branch every two minutes
+Description=Check the Dimension Football configured private source every two minutes
 
 [Timer]
 OnCalendar=*-*-* *:00/2:00

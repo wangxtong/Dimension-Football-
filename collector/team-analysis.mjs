@@ -31,7 +31,7 @@ function historyRows(history) {
 function normalizedRows(rows, cutoff, targetId) {
   const unique = new Map(), conflicts = new Set();
   const excluded = { notFinished: 0, atOrAfterCutoff: 0, invalidIdentity: 0, invalidTime: 0,
-    invalidScore: 0, targetFixture: 0, duplicate: 0, conflictingIds: 0 };
+    invalidScore: 0, targetFixture: 0, duplicate: 0, conflictingIds: 0, notYetObserved: 0 };
   for (const row of rows) {
     if (row?.fixture?.status?.short !== 'FT') { excluded.notFinished++; continue; }
     const id = row?.fixture?.id, homeId = row?.teams?.home?.id, awayId = row?.teams?.away?.id;
@@ -44,10 +44,13 @@ function normalizedRows(rows, cutoff, targetId) {
       excluded.invalidTime++; continue;
     }
     if (ms >= cutoff) { excluded.atOrAfterCutoff++; continue; }
+    if (row.observedAt != null && (!Number.isFinite(isoMillis(row.observedAt)) || isoMillis(row.observedAt) > cutoff)) { excluded.notYetObserved++; continue; }
     if (!scoreOK(row?.goals?.home) || !scoreOK(row?.goals?.away)) { excluded.invalidScore++; continue; }
     const match = { id, kickoff: new Date(ms).toISOString(), leagueId: row.league.id,
       homeId, awayId, homeName: row.teams.home.name ?? null, awayName: row.teams.away.name ?? null,
-      homeGoals: row.goals.home, awayGoals: row.goals.away };
+      homeGoals: row.goals.home, awayGoals: row.goals.away,
+      season: row.league.season == null ? null : String(row.league.season),
+      observedAt: row.observedAt || null, fetchedAt: row.fetchedAt || null, sourceUpdatedAt: row.sourceUpdatedAt || null };
     if (conflicts.has(id)) { excluded.duplicate++; continue; }
     const previous = unique.get(id);
     if (previous) {
@@ -68,7 +71,8 @@ function teamMatch(match, teamId) {
   const goalsFor = home ? match.homeGoals : match.awayGoals, goalsAgainst = home ? match.awayGoals : match.homeGoals;
   return { fixtureId: match.id, kickoff: match.kickoff, leagueId: match.leagueId, venue: home ? 'home' : 'away',
     opponentId: home ? match.awayId : match.homeId, opponent: home ? match.awayName : match.homeName,
-    goalsFor, goalsAgainst, result: goalsFor > goalsAgainst ? 'W' : goalsFor < goalsAgainst ? 'L' : 'D' };
+    goalsFor, goalsAgainst, result: goalsFor > goalsAgainst ? 'W' : goalsFor < goalsAgainst ? 'L' : 'D',
+    season: match.season, observedAt: match.observedAt, fetchedAt: match.fetchedAt, sourceUpdatedAt: match.sourceUpdatedAt };
 }
 
 function summarize(matches, teamId) {

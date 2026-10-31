@@ -25,6 +25,11 @@ function validResponse(row, endpoint) {
     && !Object.keys(data.errors).length && Array.isArray(data.response) && data.results === data.response.length;
 }
 const responseRows = (row, endpoint) => validResponse(row, endpoint) ? row.data.response : [];
+function signalEvidenceUrl(value) {
+  try { const url = new URL(value); return url.protocol === 'https:' && ['statarea.com', 'www.statarea.com'].includes(url.hostname)
+    && url.pathname.startsWith('/compare/teams/') && !url.username && !url.password && !url.hash
+    && ![...url.searchParams.keys()].some(key => /key|token|secret|password|auth/i.test(key)); } catch { return false; }
+}
 
 /** Every fixture receives every dimension; missing one dimension never stops the others. */
 export function buildFullAnalysis({ evidence, marketSnapshot, priorHistory = [], independentReport, nowISO } = {}) {
@@ -49,8 +54,11 @@ export function buildFullAnalysis({ evidence, marketSnapshot, priorHistory = [],
   const market = analyzeFullMarketSnapshot({ ...marketSnapshot,
     fixtures: marketSnapshot.fixtures.map(entry => ({ ...entry, fixture: reconcile(entry?.fixture) })) }, { nowISO: new Date(asOf).toISOString() });
   const index = new Map(market.fixtures.filter(row => row.fixture?.id).map(row => [row.fixture.id, row]));
-  const history = evidence.evidence.filter(row => row.kind === 'history' && available(row)).flatMap(row => responseRows(row, 'fixtures'))
-    .concat(priorHistory.filter(available).flatMap(row => responseRows(row, 'fixtures')));
+  const historicalRows = row => responseRows(row, 'fixtures').map(match => ({ ...match,
+    observedAt: match.observedAt || row.observedAt || row.fetchedAt, fetchedAt: row.fetchedAt,
+    sourceUpdatedAt: match.sourceUpdatedAt || null }));
+  const history = evidence.evidence.filter(row => row.kind === 'history' && available(row)).flatMap(historicalRows)
+    .concat(priorHistory.filter(available).flatMap(historicalRows));
   const matches = fixtures.map(fixture => {
     const id = Number(fixture.id.replace(/^af-/, ''));
     const candidates = targets.filter(row => row?.fixture?.id === id);
@@ -78,9 +86,11 @@ export function buildFullAnalysis({ evidence, marketSnapshot, priorHistory = [],
     const independentRow = independentReport?.results?.find(row => row.fixture?.id === fixture.id);
     const independentIdentity = independentRow && ['id', 'league', 'home', 'away', 'source'].every(key => independentRow.fixture[key] === fixture[key])
       && isoMillis(independentRow.fixture.kickoff) === isoMillis(fixture.kickoff);
-    const independentSignals = (independentIdentity ? independentRow.lastEvidence?.signals || [] : []).filter(row => row?.sourceId === 'statarea'
+    const reportBound = independentReport?.simulated !== true && /^[a-f0-9]{64}$/.test(independentReport?.publication?.reportId || '');
+    const independentSignals = (independentIdentity && reportBound ? independentRow.lastEvidence?.signals || [] : []).filter(row => row?.sourceId === 'statarea'
       && row.market === '1x2' && ['home', 'draw', 'away'].includes(row.selection) && Number.isFinite(row.probability) && row.probability >= 0 && row.probability <= 1
-      && ['automatic', 'owner-verified'].includes(row.verificationMethod) && isoMillis(row.observedAt) <= asOf
+      && signalEvidenceUrl(row.evidenceUrl) && ['automatic', 'owner-verified'].includes(row.verificationMethod) && isoMillis(row.observedAt) <= asOf
+      && isoMillis(row.observedAt) < isoMillis(fixture.kickoff)
       && asOf - isoMillis(row.observedAt) <= 21600000 && isoMillis(row.validUntil) > asOf);
     const independentComparison = !independentSignals.length ? 'missing' : !markets.matchWinner?.selection ? 'market_unavailable'
       : independentSignals.some(signal => signal.selection !== markets.matchWinner.selection) ? 'conflict' : 'same_direction';
@@ -100,7 +110,10 @@ export function buildFullAnalysis({ evidence, marketSnapshot, priorHistory = [],
       providerPrediction: { status: predictionIdentity ? 'available' : 'unverified',
         prediction: predictionIdentity ? prediction.predictions : null,
         note: 'API供应商模型意见，未校准；不是事实、市场概率或命中率。' },
-      independentForecast: { signals: independentSignals, comparison: independentComparison, note: 'Statarea仅辅助胜平负，不改写为大小球概率。' },
+      independentForecast: { signals: independentSignals, comparison: independentComparison,
+        evidenceReportId: reportBound ? independentReport.publication.reportId : null,
+        independenceBasis: 'registered-source-group', statisticalIndependence: 'not-established',
+        note: 'Statarea仅辅助胜平负；来源组不同不证明统计独立，不改写为大小球概率。' },
       actions: Object.fromEntries(['matchWinner', 'goalsOverUnder25'].map(key => [key, { action: '不下注',
         reasons: unique([...(identityVerified ? [] : ['FIXTURE_IDENTITY_UNVERIFIED']),
           ...(markets[key]?.formalRecommendation?.blockers || ['MARKET_UNAVAILABLE']).filter(code => key !== 'matchWinner' || code !== 'INDEPENDENT_FORECAST_NOT_IN_SNAPSHOT'),

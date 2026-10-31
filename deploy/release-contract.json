@@ -1,0 +1,1 @@
+{"version":1,"operationsContractVersion":2,"supportedStateSchemas":[1],"supportedStatePaths":["state.json","state/state.json"],"minimumNode":"24.14.0","entrypoint":"collector/orchestrate.mjs"}

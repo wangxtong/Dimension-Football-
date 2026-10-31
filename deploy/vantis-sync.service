@@ -1,5 +1,5 @@
 [Unit]
-Description=Synchronize Dimension Football from the public Git main branch
+Description=Synchronize Dimension Football using a scoped private Git deploy identity
 Wants=network-online.target
 After=network-online.target
 
@@ -20,7 +20,7 @@ PrivateTmp=true
 PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/vantis /var/lib/vantis-sync /run/lock
+ReadWritePaths=/opt/vantis /var/lib/vantis /var/lib/vantis-sync /run/lock
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

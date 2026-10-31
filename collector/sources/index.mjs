@@ -53,7 +53,7 @@ export async function collectPublicEvidence({fixtures = [], nowISO = new Date().
     ...predictions.sources.map(source => ({...source, sourceId: source.id, independenceGroup: source.id,
       capability: sourceCapabilities[source.id]})),
   ];
-  return {quotes, signals: predictions.signals.map(signal => ({...signal, independenceGroup: signal.sourceId})), diagnostics,
+  return {quotes, marketStates: markets.marketStates || [], signals: predictions.signals.map(signal => ({...signal, independenceGroup: signal.sourceId})), diagnostics,
     fixtureDiagnostics: markets.fixtureDiagnostics};
 }
 
@@ -74,13 +74,15 @@ export async function collectIntegratedEvidence({ fixtures, nowISO, env, provide
     collectCrawledEvidence({ fixtures, nowISO, ...crawlerOptions }),
     collectProviderEvidence({ fixtures, nowISO, env, statePath: providerStatePath, policy: providerPolicy,
       fetchImpl: crawlerOptions.fetchImpl, signal: crawlerOptions.signal, clock: crawlerOptions.clock, remaining: crawlerOptions.remaining }),
-    fetchHkjcEvidence({ fixtures, nowISO, fetchImpl: crawlerOptions.fetchImpl, signal: crawlerOptions.signal, clock: crawlerOptions.clock, remaining: crawlerOptions.remaining }),
+    fetchHkjcEvidence({ fixtures, nowISO, cooldownStatePath: crawlerOptions.statePath ? `${crawlerOptions.statePath}.hkjc-cooldown.json` : undefined,
+      fetchImpl: crawlerOptions.fetchImpl, signal: crawlerOptions.signal, clock: crawlerOptions.clock, remaining: crawlerOptions.remaining }),
   ]);
   if (results.every(r => r.status === 'rejected')) throw new Error('EVIDENCE_UNAVAILABLE');
   const data = results.map((r, index) => r.status === 'fulfilled' ? r.value
     : { quotes: [], signals: [], diagnostics: [{ id: ['public-crawler', 'commercial-providers', 'hkjc'][index], status: 'failed',
-      code: ['PROVIDER_STATE_INVALID', 'PROVIDER_STATE_UNREADABLE', 'CRAWLER_STATE_INVALID', 'CRAWLER_STATE_UNREADABLE', 'COLLECTION_ALREADY_LOCKED'].includes(r.reason?.message)
+      code: ['PROVIDER_STATE_INVALID', 'PROVIDER_STATE_UNREADABLE', 'CRAWLER_STATE_INVALID', 'CRAWLER_STATE_UNREADABLE',
+        'SOURCE_COOLDOWN_INVALID', 'SOURCE_COOLDOWN_UNREADABLE', 'COLLECTION_ALREADY_LOCKED'].includes(r.reason?.message)
         ? r.reason.message : 'COLLECTION_FAILED', checkedAt: nowISO }] });
-  return { quotes: data.flatMap(r => r.quotes), signals: data.flatMap(r => r.signals), diagnostics: data.flatMap(r => r.diagnostics),
+  return { quotes: data.flatMap(r => r.quotes), marketStates: data.flatMap(r => r.marketStates || []), signals: data.flatMap(r => r.signals), diagnostics: data.flatMap(r => r.diagnostics),
     fixtureDiagnostics: [...(data[0].fixtureDiagnostics || []), ...(data[2].fixtureDiagnostics || [])], crawler: data[0].crawler || null, providers: data[1].providers || null };
 }

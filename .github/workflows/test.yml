@@ -19,6 +19,9 @@ jobs:
       - run: npm test
       - run: npm run collect:demo
       - run: python -m unittest scripts/test_package.py
+      - run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest deploy/test_bundle.py deploy/test_handoff.py
+      - run: for script in deploy/*.sh; do bash -n "$script" || exit; done
+      - run: node website/build.mjs /tmp/dimension-site-ci
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -34,3 +37,36 @@ jobs:
       - run: node collector/browser-runtime/node_modules/playwright/cli.js install --with-deps chromium
       - run: npm run crawler:doctor
       - run: npm run test:browser
+      - name: 验证实际网站构建、登录与报告页面
+        env:
+          PLAYWRIGHT_MODULE: ${{ github.workspace }}/collector/browser-runtime/node_modules/playwright/index.mjs
+        run: node --test --test-isolation=none website/test/e2e.mjs
+  release:
+    needs: [test, browser]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: 从通过检查的精确提交生成 ECS 离线部署包
+        run: |
+          mkdir -p "$RUNNER_TEMP/dimension-ecs"
+          python3 deploy/bundle.py build "$GITHUB_WORKSPACE" "$GITHUB_SHA" "$RUNNER_TEMP/dimension-ecs/dimension-ecs-release.tar" > "$RUNNER_TEMP/dimension-ecs/release-metadata.json"
+          python3 deploy/bundle.py verify "$RUNNER_TEMP/dimension-ecs/dimension-ecs-release.tar"
+          release_sha256=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["sha256"])' "$RUNNER_TEMP/dimension-ecs/release-metadata.json")
+          python3 deploy/bundle.py extract "$RUNNER_TEMP/dimension-ecs/dimension-ecs-release.tar" "$RUNNER_TEMP/dimension-verified-source" --sha256 "$release_sha256"
+          node "$RUNNER_TEMP/dimension-verified-source/collector/orchestrate.mjs" --help
+          cp deploy/bootstrap.sh deploy/bundle.py "$RUNNER_TEMP/dimension-ecs/"
+          cd "$RUNNER_TEMP/dimension-ecs"
+          sha256sum dimension-ecs-release.tar > SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dimension-ecs-${{ github.sha }}
+          path: ${{ runner.temp }}/dimension-ecs/
+          retention-days: 14
+          if-no-files-found: error

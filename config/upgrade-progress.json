@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "baseline": "028f43cdf63dff0b470e5288c9866f1463d14b29",
+  "controller": "A1",
+  "tasks": [
+    {
+      "id": "sources",
+      "owner": "A2",
+      "status": "review",
+      "priority": "P1",
+      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+    },
+    {
+      "id": "data",
+      "owner": "A3",
+      "status": "review",
+      "priority": "P1",
+      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+    },
+    {
+      "id": "models",
+      "owner": "A4",
+      "status": "review",
+      "priority": "P1",
+      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+    },
+    {
+      "id": "markets",
+      "owner": "A5",
+      "status": "review",
+      "priority": "P1",
+      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+    },
+    {
+      "id": "delivery",
+      "owner": "A6",
+      "status": "review",
+      "priority": "P0",
+      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+    },
+    {
+      "id": "operations",
+      "owner": "A7",
+      "status": "review",
+      "priority": "P1",
+      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+    },
+    {
+      "id": "website",
+      "owner": "A8",
+      "status": "review",
+      "priority": "P0",
+      "note": "Implementation and integration tests passed; production role acceptance awaits ECS."
+    },
+    {
+      "id": "ecs-access",
+      "owner": "A1",
+      "status": "blocked",
+      "priority": "P0",
+      "blocker": "No connected ECS command identity; verified artifact installation through existing Workbench remains required."
+    }
+  ],
+  "updatedAt": "2026-10-31T07:55:46.975493Z",
+  "phase": "integration_verified_production_handoff_pending",
+  "acceptance": "docs/upgrade-acceptance.json",
+  "productionWebsite": {
+    "version": 6,
+    "mode": "bootstrap",
+    "reportId": "d9d61ff8969b662a1a82b9ead07dcfa83e200104d2eb4484c8bff84866dc804c",
+    "httpStatus": 200,
+    "pageErrors": 0
+  }
+}
