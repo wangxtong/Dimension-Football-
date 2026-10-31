@@ -1,12 +1,8 @@
 import { validateReport, validateReceipt, validateBundle } from './report-schema.mjs';
+import { teamName, sourceName, reasonText, leagueName, licenseName } from './locale-zh.mjs';
 const REPO = 'wangxtong/Dimension-Football-', BASE = '/api/';
 const WORKFLOW_URL = `https://github.com/${REPO}/actions/workflows/public-sources.yml`;
-const leagues = { PL: '英超', PD: '西甲', SA: '意甲', BL1: '德甲', FL1: '法甲' }, choices = { home: '主胜', draw: '平局', away: '客胜' };
-const reasons = { HISTORY_UNAVAILABLE: '缺同源联赛历史', HOME_HISTORY_INSUFFICIENT: '主队历史不足', AWAY_HISTORY_INSUFFICIENT: '客队历史不足',
-  LEAGUE_HISTORY_INSUFFICIENT: '联赛样本不足', VENUE_HISTORY_INSUFFICIENT: '主客场样本不足', TEAM_ID_REQUIRED: '球队身份待核对',
-  BACKTEST_INSUFFICIENT: '回测样本不足或未完成', TEAM_HISTORY_STALE: '球队历史过旧', FORECAST_EXPIRED: '预测已过期',
-  NOT_PREMATCH: '比赛已开始或状态已改变', NO_FRESH_COMPLETE_ASIAN_MARKET: '无有效完整亚洲盘',
-  SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING: '缺第二独立报价', TRUE_OPENING_RECORD_MISSING: '缺真实初盘记录' };
+const choices = { home: '主胜', draw: '平局', away: '客胜' };
 const $ = id => document.getElementById(id);
 const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
 const time = date => Number.isFinite(Date.parse(date)) ? new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(date)) : '未知';
@@ -58,15 +54,15 @@ function grouped() {
 function card(row) {
   const { fixture: f, forecast: p, marketCandidate: m } = row, root = el('article', null, 'card');
   root.dataset.fixtureId = f.id;
-  const meta = el('div', null, 'meta'); meta.append(el('span', leagues[f.league] || f.league, 'league-tag'), el('span', `${time(f.kickoff)} 北京时间`));
-  const teams = el('div', null, 'teams'); teams.append(el('div', f.home), el('span', 'VS'), el('div', f.away)); root.append(meta, teams);
+  const meta = el('div', null, 'meta'); meta.append(el('span', leagueName(f.league), 'league-tag'), el('span', `${time(f.kickoff)} 北京时间`));
+  const teams = el('div', null, 'teams'); teams.append(el('div', teamName(f.home, { source: f.source, teamId: f.homeTeamId })), el('span', '对阵'), el('div', teamName(f.away, { source: f.source, teamId: f.awayTeamId }))); root.append(meta, teams);
   if (view === 'strict') {
     const c = m.candidate; root.append(el('div', '严格候选 · 待人工复核', 'pill'), el('p', `${choices[c.selection]} ${c.handicap} @ ${c.decimalOdds}`),
-      el('p', `独立来源：${c.quoteGroups.join(' / ')}`, 'facts'), el('p', `初盘 ${c.opening.handicap} @ ${c.opening.decimalOdds} · ${time(c.opening.observedAt)}`, 'facts'));
+      el('p', `独立来源：${c.quoteGroups.map(value => sourceName(value)).join(' / ')}`, 'facts'), el('p', `初盘 ${c.opening.handicap} @ ${c.opening.decimalOdds} · ${time(c.opening.observedAt)}`, 'facts'));
     return root;
   }
   if (!current(row)) {
-    const why = p.status === 'forecast' ? ['预测已过期，等待下一轮采集'] : (p.reasons || []).map(r => reasons[r] || r);
+    const why = p.status === 'forecast' ? ['预测已过期，等待下一轮采集'] : (p.reasons || []).map(code => reasonText(code));
     root.append(el('div', '暂不可评估', 'pill expired'), el('p', why.join('；')), el('p', `盘口独立来源 ${m.readiness?.quoteGroups.length || 0} / 2；真实初盘 ${m.readiness?.verifiedOpeningCount || 0} 条`, 'facts'));
     return root;
   }
@@ -84,7 +80,7 @@ function card(row) {
     `有效加权样本（主 / 客）${effectiveLabel(p.sampleQuality?.weighted?.home?.effectiveMatches)} / ${effectiveLabel(p.sampleQuality?.weighted?.away?.effectiveMatches)}`,
     `同源回测 ${p.validation.evaluated} 场；跳过 ${p.validation.skipped} 场`,
     `盘口有效独立来源 ${m.readiness?.quoteGroups.length || 0} / 2；真实初盘 ${m.readiness?.verifiedOpeningCount || 0} 条`,
-    ...(m.readiness?.blockers || []).map(r => reasons[r] || r)]) details.append(el('div', line, 'detail-row'));
+    ...(m.readiness?.blockers || []).map(code => reasonText(code))]) details.append(el('div', line, 'detail-row'));
   root.append(details); return root;
 }
 function renderCards(rows) {
@@ -118,7 +114,7 @@ function renderCoverage() {
   for (const row of rows) {
     const status = value => typeof value === 'string' && Object.hasOwn(statuses, value) ? statuses[value] : '状态未记录';
     const entry = el('div', null, 'detail-row');
-    entry.append(el('strong', `${leagues[row.league] || row.league} · ${row.source}`),
+    entry.append(el('strong', `${leagueName(row.league)} · ${sourceName(row.source)}`),
       el('p', `赛程 ${row.fixtureCount} 场 · ${status(row.fixtureStatus)}；历史 ${row.historyCount} 场 · ${status(row.historyStatus)}`, 'note'));
     container.append(entry);
   }
@@ -143,24 +139,24 @@ function render() {
     || b.purpose === 'actual-publication-horizon' && [1, 24, 72, 168].includes(b.horizonHours));
   const backtests = hasPurposes ? [...new Map(referenceRows.map(b => [
     JSON.stringify([safeLabel(b.source), b.league, b.horizonHours, safeLabel(b.visibility)]), b])).values()] : report.backtests;
-  for (const b of backtests) { $('validation').append(el('p', `${leagues[b.league] || b.league} · ${safeLabel(b.source, '来源未记录')} · ${horizonLabel(b.horizonHours)} · ${visibilityLabel(b.visibility)}`),
+  for (const b of backtests) { $('validation').append(el('p', `${leagueName(b.league)} · ${sourceName(b.source)} · ${horizonLabel(b.horizonHours)} · ${visibilityLabel(b.visibility)}`),
     el('p', `${b.evaluated} 场回测 / ${b.skipped} 场跳过`, 'note'),
-    el('p', b.metrics ? `Brier ${b.metrics.brier.toFixed(4)}，基准 ${b.metrics.baselineBrier.toFixed(4)}；Log loss ${b.metrics.logLoss.toFixed(4)}` : '当前无足够回测数据。', 'note')); }
+    el('p', b.metrics ? `布里尔评分 ${b.metrics.brier.toFixed(4)}，基准 ${b.metrics.baselineBrier.toFixed(4)}；对数损失 ${b.metrics.logLoss.toFixed(4)}` : '当前无足够回测数据。', 'note')); }
   if (!$('validation').childNodes.length) $('validation').append(el('p', '当前无足够回测数据。', 'muted'));
   renderCoverage();
   $('delivery').replaceChildren();
   const statuses = { published: '已完成', accepted: '平台已接收', failed: '失败', not_configured: '待配置', not_attempted: '未执行', skipped: '已跳过', unknown: '发送结果待核对' };
-  const labels = { files: '报告生成', githubArtifact: '报告附件', externalWebsite: '网站数据', notifications: 'Telegram 通知' };
+  const labels = { files: '报告生成', githubArtifact: '报告附件', externalWebsite: '网站数据', notifications: '机器人通知' };
   if (receipt?.reportId === report.publication.reportId) for (const [key, label] of Object.entries(labels)) {
     const n = el('div', null, 'receipt'); n.append(el('span', label), el('span', statuses[receipt.channels[key]?.status] || '状态待同步')); $('delivery').append(n);
   } else $('delivery').append(el('p', '最新发布回执正在同步。', 'muted'));
-  $('updated').textContent = `报告 ID ${report.publication.reportId.slice(0,12)} · 更新时间 ${time(report.generatedAt)}`;
+  $('updated').textContent = `报告编号 ${report.publication.reportId.slice(0,12)} · 更新时间 ${time(report.generatedAt)}`;
   const artifactUrl = receipt?.reportId === report.publication.reportId ? receipt.channels.githubArtifact?.url : null;
   $('run-link').href = typeof artifactUrl === 'string' && new RegExp(`^https://github\\.com/${REPO}/actions/runs/[0-9]+(?:/artifacts/[0-9]+)?$`).test(artifactUrl)
     ? artifactUrl : WORKFLOW_URL;
   $('attribution').replaceChildren();
-  for (const a of report.attribution) { const n = el('a', `${a.name} · ${a.license}`); if (/^https:\/\//.test(a.url)) { n.href = a.url; n.target = '_blank'; n.rel = 'noreferrer'; $('attribution').append(n); } }
-  const data = el('a', 'OpenLigaDB 原始数据与许可 ↗'); data.href = BASE+'openligadb-fixtures.json'; data.target = '_blank'; data.rel = 'noreferrer'; $('attribution').append(data);
+  for (const a of report.attribution) { const n = el('a', `${sourceName(safeLabel(a.id, null) || a.name)} · ${licenseName(a.license)}`); if (/^https:\/\//.test(a.url)) { n.href = a.url; n.target = '_blank'; n.rel = 'noreferrer'; $('attribution').append(n); } }
+  const data = el('a', '开放联赛原始数据与许可 ↗'); data.href = BASE+'openligadb-fixtures.json'; data.target = '_blank'; data.rel = 'noreferrer'; $('attribution').append(data);
 }
 const loader = createSnapshotLoader();
 let refreshing = null;

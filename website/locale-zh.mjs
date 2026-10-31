@@ -1,0 +1,89 @@
+// Display labels only: never rewrite provider identities, report hashes or model inputs.
+const normalize = value => String(value ?? '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[.']/g, '').replace(/\s+/g, ' ').trim();
+const clubRows = [
+  ['勒沃库森','Bayer 04 Leverkusen','Bayer Leverkusen'],['斯图加特','VfB Stuttgart','Stuttgart'],
+  ['奥格斯堡','FC Augsburg','Augsburg'],['弗赖堡','SC Freiburg','Freiburg'],
+  ['门兴格拉德巴赫','Borussia Mönchengladbach','Borussia Monchengladbach','Borussia Moenchengladbach','Mönchengladbach'],
+  ['帕德博恩','SC Paderborn 07','Paderborn'],['云达不来梅','SV Werder Bremen','Werder Bremen'],
+  ['霍芬海姆','TSG Hoffenheim','TSG 1899 Hoffenheim','Hoffenheim'],['沙尔克04','FC Schalke 04','Schalke 04'],
+  ['莱比锡','RB Leipzig','RasenBallsport Leipzig'],['拜仁慕尼黑','FC Bayern München','Bayern Munich','Bayern München'],
+  ['多特蒙德','Borussia Dortmund','Dortmund'],['柏林联合','1. FC Union Berlin','Union Berlin'],
+  ['科隆','1. FC Köln','FC Cologne','FC Koln','Köln'],['法兰克福','Eintracht Frankfurt','Frankfurt'],
+  ['汉堡','Hamburger SV','Hamburg'],['美因茨','1. FSV Mainz 05','Mainz 05','Mainz'],
+  ['沃尔夫斯堡','VfL Wolfsburg','Wolfsburg'],['海登海姆','1. FC Heidenheim 1846','Heidenheim'],
+  ['圣保利','FC St. Pauli','St Pauli'],['基尔','Holstein Kiel','Kiel'],['波鸿','VfL Bochum','VfL Bochum 1848','Bochum'],
+  ['柏林赫塔','Hertha BSC','Hertha Berlin'],['达姆施塔特','SV Darmstadt 98','Darmstadt'],
+  ['切尔西','Chelsea'],['曼彻斯特联','Manchester United','Man United','Man Utd'],
+  ['曼彻斯特城','Manchester City','Man City'],['利物浦','Liverpool'],['阿森纳','Arsenal'],
+  ['托特纳姆热刺','Tottenham Hotspur','Tottenham'],['纽卡斯尔联','Newcastle United','Newcastle'],
+  ['阿斯顿维拉','Aston Villa'],['布莱顿','Brighton & Hove Albion','Brighton and Hove Albion','Brighton'],
+  ['伯恩茅斯','AFC Bournemouth','Bournemouth'],['布伦特福德','Brentford'],['富勒姆','Fulham'],
+  ['水晶宫','Crystal Palace'],['埃弗顿','Everton'],['西汉姆联','West Ham United','West Ham'],
+  ['诺丁汉森林','Nottingham Forest'],['狼队','Wolverhampton Wanderers','Wolves'],
+  ['利兹联','Leeds United','Leeds'],['伯恩利','Burnley'],['桑德兰','Sunderland'],
+  ['莱斯特城','Leicester City','Leicester'],['南安普顿','Southampton'],['伊普斯维奇','Ipswich Town','Ipswich'],
+  ['莱万特','Levante','Levante UD'],['马德里竞技','Atlético Madrid','Atletico Madrid','Club Atlético de Madrid'],
+  ['皇家马德里','Real Madrid','Real Madrid CF'],['巴塞罗那','Barcelona','FC Barcelona'],
+  ['毕尔巴鄂竞技','Athletic Club','Athletic Bilbao'],['皇家社会','Real Sociedad'],
+  ['皇家贝蒂斯','Real Betis','Real Betis Balompié'],['比利亚雷亚尔','Villarreal','Villarreal CF'],
+  ['塞维利亚','Sevilla','Sevilla FC'],['瓦伦西亚','Valencia','Valencia CF'],
+  ['维戈塞尔塔','Celta Vigo','RC Celta de Vigo'],['赫罗纳','Girona','Girona FC'],
+  ['马略卡','Mallorca','RCD Mallorca'],['奥萨苏纳','Osasuna','CA Osasuna'],
+  ['巴列卡诺','Rayo Vallecano'],['赫塔费','Getafe','Getafe CF'],
+  ['西班牙人','Espanyol','RCD Espanyol'],['阿拉维斯','Alavés','Deportivo Alavés'],
+  ['埃尔切','Elche','Elche CF'],['皇家奥维耶多','Real Oviedo'],['拉斯帕尔马斯','Las Palmas','UD Las Palmas'],
+  ['莱加内斯','Leganés','CD Leganés'],['巴拉多利德','Valladolid','Real Valladolid'],
+  ['博洛尼亚','Bologna','Bologna FC 1909'],['蒙扎','Monza','AC Monza'],
+  ['国际米兰','Inter','Inter Milan','Internazionale','FC Internazionale Milano'],['米兰','AC Milan','Milan'],
+  ['尤文图斯','Juventus','Juventus FC'],['那不勒斯','Napoli','SSC Napoli'],
+  ['罗马','AS Roma','Roma'],['拉齐奥','Lazio','SS Lazio'],['亚特兰大','Atalanta','Atalanta BC'],
+  ['佛罗伦萨','Fiorentina','ACF Fiorentina'],['都灵','Torino','Torino FC'],
+  ['乌迪内斯','Udinese','Udinese Calcio'],['热那亚','Genoa','Genoa CFC'],
+  ['萨索洛','Sassuolo','US Sassuolo Calcio'],['帕尔马','Parma','Parma Calcio 1913'],
+  ['卡利亚里','Cagliari','Cagliari Calcio'],['莱切','Lecce','US Lecce'],
+  ['维罗纳','Hellas Verona','Verona'],['科莫','Como','Como 1907'],
+  ['克雷莫内塞','Cremonese','US Cremonese'],['比萨','Pisa','Pisa SC'],
+  ['恩波利','Empoli','Empoli FC'],['威尼斯','Venezia','Venezia FC'],
+  ['特鲁瓦','Troyes','ESTAC Troyes'],['勒芒','Le Mans','Le Mans FC'],
+  ['巴黎圣日耳曼','Paris Saint-Germain','Paris Saint Germain','PSG'],['马赛','Marseille','Olympique Marseille','Olympique de Marseille'],
+  ['里昂','Lyon','Olympique Lyonnais'],['摩纳哥','Monaco','AS Monaco'],
+  ['里尔','Lille','Lille OSC','LOSC Lille'],['尼斯','Nice','OGC Nice'],
+  ['朗斯','Lens','RC Lens'],['雷恩','Rennes','Stade Rennais'],
+  ['斯特拉斯堡','Strasbourg','RC Strasbourg Alsace'],['图卢兹','Toulouse','Toulouse FC'],
+  ['南特','Nantes','FC Nantes'],['布雷斯特','Brest','Stade Brestois 29'],
+  ['欧塞尔','Auxerre','AJ Auxerre'],['昂热','Angers','Angers SCO'],
+  ['勒阿弗尔','Le Havre','Le Havre AC'],['洛里昂','Lorient','FC Lorient'],
+  ['梅斯','Metz','FC Metz'],['巴黎足球俱乐部','Paris FC'],['兰斯','Reims','Stade de Reims'],
+  ['圣埃蒂安','Saint-Étienne','AS Saint-Étienne'],['蒙彼利埃','Montpellier','Montpellier HSC'],
+];
+const clubs = new Map(clubRows.flatMap(([zh,...aliases]) => aliases.map(name => [normalize(name),zh])));
+export function teamName(name) { return clubs.get(normalize(name)) || name; }
+const sources = {
+  openligadb:'开放联赛数据库', 'OpenLigaDB':'开放联赛数据库',
+  'thesportsdb-free':'体育数据库公开赛程', 'TheSportsDB Free':'体育数据库公开赛程',
+  'football-data':'足球赛程数据库', 'football-data.org':'足球赛程数据库',
+  'api-football':'足球数据接口', sportmonks:'体育蒙克数据', 'the-odds-api':'赔率数据接口', 'odds-api':'赔率数据接口',
+  hkjc:'香港赛马会', HKJC:'香港赛马会', 'hkjc-first-party':'香港赛马会官方报价',
+  titan007:'球探体育', statarea:'足球统计平台', 'isports-api':'爱体育数据接口',
+};
+const lookup = (table, key, fallback) => typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : fallback;
+export function sourceName(value) { return lookup(sources, value, '其他数据来源'); }
+export function leagueName(value) { return lookup({PL:'英超',PD:'西甲',SA:'意甲',BL1:'德甲',FL1:'法甲'}, value, typeof value === 'string' && /\p{Script=Han}/u.test(value) ? value : '其他联赛'); }
+export function licenseName(value) {
+  return lookup({'ODbL-1.0':'开放数据库许可 1.0','Provider terms; shared free tier':'提供方条款与公开免费额度'}, value, '数据使用条款');
+}
+const reasons = {
+  HISTORY_UNAVAILABLE:'缺少同源联赛历史', HOME_HISTORY_INSUFFICIENT:'主队历史样本不足', AWAY_HISTORY_INSUFFICIENT:'客队历史样本不足',
+  LEAGUE_HISTORY_INSUFFICIENT:'联赛历史样本不足', VENUE_HISTORY_INSUFFICIENT:'对应主客场样本不足', TEAM_ID_REQUIRED:'球队身份待核对',
+  BACKTEST_INSUFFICIENT:'回测样本不足或未完成', TEAM_HISTORY_STALE:'球队历史记录过旧', FORECAST_EXPIRED:'预测已过期',
+  LEAGUE_GOALS_INSUFFICIENT:'联赛进球样本不足', NOT_PREMATCH:'比赛已开始或状态已改变', OUTSIDE_WINDOW:'不在当前预测日期范围',
+  FIXTURE_FRESHNESS_UNVERIFIED:'赛程更新时间无法核验', BUDGET_EXHAUSTED:'本轮采集时间已用尽', SIMULATION_ONLY:'模拟数据，不作为正式预测',
+  NO_FRESH_COMPLETE_ASIAN_MARKET:'缺少有效完整亚洲盘', SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING:'缺少第二独立报价来源',
+  TRUE_OPENING_RECORD_MISSING:'缺少可验证的真实初盘', PRICE_OR_HANDICAP_OUTSIDE_POLICY:'赔率或让球幅度不满足筛选条件',
+  OPENING_TRAJECTORY_MISSING_OR_CHANGED:'初盘记录缺失或盘口变化不满足要求', LATEST_MARKET_UNAVAILABLE:'最新盘口已暂停或不可用',
+  LATEST_MARKET_INCOMPLETE:'最新盘口数据不完整', CURRENT_MARKET_AMBIGUOUS:'当前盘口存在冲突',
+  MARKET_SNAPSHOT_REGRESSED:'报价快照时间倒退，暂不采用', MARKET_SNAPSHOT_TIMESTAMP_INVALID:'报价快照时间无法核验',
+  INDEPENDENT_FORECAST_MISSING:'缺少独立预测证据', FORECAST_CONFLICT:'独立预测方向存在冲突',
+  EVIDENCE_GATE_PASSED_REQUIRES_REVIEW:'证据门槛已通过，等待人工复核',
+};
+export function reasonText(code) { return lookup(reasons, code, '数据条件尚未满足，等待进一步核验'); }
