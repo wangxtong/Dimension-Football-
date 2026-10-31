@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 027
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 die(){ printf 'RELEASE_FAILED: %s\n' "$1" >&2; exit 1; }
 [[ $EUID -eq 0 && $# -eq 1 ]] || die 'ROOT_AND_VERIFIED_SOURCE_REQUIRED'
 source_dir=$(cd -- "$1" && pwd -P)
-python3 /opt/vantis/deployment/bundle.py verify-directory "$source_dir" >/dev/null
+python3 -I /opt/vantis/deployment/bundle.py verify-directory "$source_dir" >/dev/null
 exec 9>/run/lock/vantis-deploy.lock
 flock -n 9 || die 'DEPLOY_ALREADY_RUNNING'
 # Match rollback/backup lock order; never switch code during an active lane.
@@ -14,7 +15,7 @@ IFS= read -r node_bin < /etc/vantis/node-path
 [[ "$node_bin" == /* && -x "$node_bin" && -d /opt/vantis/releases && ! -L /opt/vantis/releases ]] || die 'INSTALL_REQUIRED'
 # A test-passing main commit is never sufficient ECS deployment approval.
 [[ -f /opt/vantis/deployment/release-authorization.mjs && ! -L /opt/vantis/deployment/release-authorization.mjs ]] || die 'SIGNED_RELEASE_VERIFIER_MISSING'
-"$node_bin" /opt/vantis/deployment/release-authorization.mjs "$source_dir/vantis-manifest.json" >/dev/null || die 'SIGNED_RELEASE_APPROVAL_REQUIRED'
+env -i PATH="$PATH" HOME=/nonexistent "$node_bin" /opt/vantis/deployment/release-authorization.mjs "$source_dir/vantis-manifest.json" >/dev/null || die 'SIGNED_RELEASE_APPROVAL_REQUIRED'
 [[ ! -e /opt/vantis/current || -L /opt/vantis/current ]] || die 'CURRENT_MUST_BE_SYMLINK'
 python3 /opt/vantis/deployment/persistent-config.py check-contract "$source_dir/deploy/release-contract.json" >/dev/null
 release_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
