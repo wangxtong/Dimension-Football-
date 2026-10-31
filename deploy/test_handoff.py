@@ -277,4 +277,72 @@ class BootstrapTrustBoundaryTests(unittest.TestCase):
                     self.assertNotEqual(process.returncode, 0, 'unsafe verifier path accepted')
 
 
+
+class PreflightTrustAnchorCoverageTests(unittest.TestCase):
+    def test_direct_install_rejects_unsafe_verifier_bundle_or_node(self):
+        script=Path(__file__).with_name('install.sh').read_text()
+        guard=script.split("<<'PYTRUST'",1)[1].split(chr(10),1)[1].split(chr(10)+'PYTRUST',1)[0]
+        self.assertIn('for path in map(Path, sys.argv[1:]):',guard)
+        # Simulate root-owned trust anchors without needing runner root or ECS.
+        shim="""
+import os, stat
+from types import SimpleNamespace
+anchors={'/trusted/verifier.mjs','/trusted/bundle.py','/trusted/node'}
+bad=os.environ.get('TEST_BAD_PATH')
+kind=os.environ.get('TEST_BAD_KIND')
+def fake_lstat(path):
+    value=str(path)
+    if value==bad and kind=='missing': raise FileNotFoundError()
+    if value in anchors:
+        mode=stat.S_IFREG | 0o644
+    elif value in ('/','/trusted'):
+        mode=stat.S_IFDIR | 0o755
+    else:
+        raise FileNotFoundError()
+    uid=0
+    if value==bad and kind=='writable': mode |= 0o022
+    if value==bad and kind=='symlink': mode=stat.S_IFLNK | 0o777
+    if value==bad and kind=='unowned': uid=1000
+    return SimpleNamespace(st_uid=uid,st_mode=mode)
+os.lstat=fake_lstat
+"""
+        anchors=['/trusted/verifier.mjs','/trusted/bundle.py','/trusted/node']
+        def run(bad='',kind=''):
+            env=dict(os.environ,TEST_BAD_PATH=bad,TEST_BAD_KIND=kind)
+            return subprocess.run([sys.executable,'-I','-c',shim+'\\n'+guard,*anchors],
+                                  env=env,capture_output=True,text=True)
+        valid=run()
+        self.assertEqual(valid.returncode,0,valid.stderr)
+        for anchor in anchors:
+            for kind in ('missing','writable','symlink','unowned'):
+                with self.subTest(anchor=anchor,kind=kind):
+                    self.assertNotEqual(run(anchor,kind).returncode,0)
+
+    def test_signing_preflights_do_not_inherit_pythonpath_or_node_options(self):
+        bootstrap=Path(__file__).with_name('bootstrap.sh').read_text()
+        install=Path(__file__).with_name('install.sh').read_text()
+        release=Path(__file__).with_name('release.sh').read_text()
+        sync=Path(__file__).with_name('sync.sh').read_text()
+        for script in (bootstrap,install,release,sync):
+            self.assertIn('export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',script)
+            self.assertIn('env -i PATH=',script)
+        self.assertIn("python3 -I - \"$verifier\"",bootstrap)
+        self.assertIn("python3 -I - \"$1\" \"$2\"",bootstrap)
+        self.assertIn('python3 -I - \"$release_verifier\"',install)
+        self.assertIn('python3 -I /opt/vantis/deployment/bundle.py verify-directory',release)
+        self.assertIn('python3 -I /opt/vantis/deployment/bundle.py build',sync)
+        # Actual Python isolated mode must ignore an injected sitecustomize.
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            marker=root/'preflight-poison-marker'
+            (root/'sitecustomize.py').write_text(
+                'from pathlib import Path\\nPath('+repr(str(marker))+').write_text("POISON")\\n')
+            env=dict(os.environ,PYTHONPATH=directory)
+            result=subprocess.run([sys.executable,'-I','-c','print("SAFE_PREFLIGHT")'],
+                                  env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(result.stdout.strip(),'SAFE_PREFLIGHT')
+            self.assertFalse(marker.exists())
+
+
 if __name__=='__main__':unittest.main()
