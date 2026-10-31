@@ -16,11 +16,21 @@ case "$node_bin" in /root/*|/home/*|/run/user/*) die 'NODE_MUST_BE_SYSTEM_WIDE';
 # Verify approval before changing accounts, tools, units or persistent state.
 # For upgrades prefer the already installed root-controlled verifier, never
 # allow incoming release code to weaken an existing production check.
-release_verifier="$source_dir/deploy/release-authorization.mjs"
-if [[ -e /opt/vantis/deployment/release-authorization.mjs ]]; then
-  [[ -f /opt/vantis/deployment/release-authorization.mjs && ! -L /opt/vantis/deployment/release-authorization.mjs ]] || die 'INSTALLED_RELEASE_VERIFIER_UNSAFE'
-  release_verifier=/opt/vantis/deployment/release-authorization.mjs
-fi
+release_verifier=/opt/vantis/deployment/release-authorization.mjs
+# Never let a candidate artifact authenticate itself on first installation.
+# This verifier must be staged and audited independently by the ECS operator.
+python3 - "$release_verifier" <<'PYTRUST' || die 'ROOT_TRUSTED_VERIFIER_REQUIRED'
+import os, stat, sys
+from pathlib import Path
+p=Path(sys.argv[1])
+for entry in (*reversed(p.parents), p):
+    try: info=os.lstat(entry)
+    except OSError: sys.exit(1)
+    if info.st_uid != 0 or info.st_mode & 0o022 or stat.S_ISLNK(info.st_mode): sys.exit(1)
+    if entry == p:
+        if not stat.S_ISREG(info.st_mode): sys.exit(1)
+    elif not stat.S_ISDIR(info.st_mode): sys.exit(1)
+PYTRUST
 "$node_bin" "$release_verifier" "$source_dir/vantis-manifest.json" >/dev/null || die 'SIGNED_RELEASE_APPROVAL_REQUIRED'
 if ! getent passwd vantis >/dev/null; then useradd --system --user-group --home-dir /var/lib/vantis --no-create-home --shell /usr/sbin/nologin vantis; fi
 if ! getent passwd vantis-check >/dev/null; then useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin vantis-check; fi
