@@ -19,6 +19,12 @@ const marketReasons = {
   invalid_snapshot: '盘口快照格式无法核验', access_denied: '源返回403', authorization_required: '源要求授权',
   rate_limited: '源限流', http_unavailable: '源HTTP请求失败', empty_snapshot: '源快照为空', snapshot_too_large: '源快照超限',
   timeout: '请求超时', network_unavailable: '网络未接通', maintenance: '源维护中',
+  robots_denied: '站点 robots 规则不允许采集', robots_unavailable: '站点 robots 规则暂无法确认',
+  access_challenge: '站点返回访问验证页面', crawler_cooldown: '来源正在冷却', redirect_blocked: '来源发生重定向，待复核',
+  crawler_budget_exhausted: '爬虫请求或时间预算已用完', crawler_cancelled: '爬虫已取消',
+  crawler_timeout: '爬虫请求超时', crawler_network_unavailable: '爬虫网络请求失败',
+  crawler_response_too_large: '爬虫响应大小超限', cache_validation_failed: '缓存复验未通过',
+  crawl_delay_exceeds_budget: '站点要求的访问间隔超过本次等待预算',
 };
 function marketDetail(rows = []) {
   const groups = new Map();
@@ -56,6 +62,14 @@ export function renderMessage(report) {
     lines.push('', '冷却到期后由下一轮采集复查；健康历史不是当前数据可用证明。', '',
       '| 公开证据源 | 本轮状态 | 能力 | 自动备用 |', '| --- | --- | --- | --- |');
     for (const source of m.publicSources || []) lines.push(`| ${cell(source.id)} | ${cell(source.status)} | ${cell(source.capability)} | 尚无已验证的同类备用源 |`);
+  }
+  if (report.crawler) {
+    lines.push('', '## 网页爬虫采集', '',
+      `本轮网络请求 ${report.crawler.networkRequests}/${report.crawler.maxRequests} 次（含 robots 与重试）；缓存命中与 HTTP 成功不等于有效预测。`, '',
+      `HTML 页面引擎：${cell(report.crawler.runtime?.engine || 'http')}；浏览器子请求：${report.crawler.runtime?.browserRequests || 0}；环境说明：${cell(report.crawler.runtime?.reason || '已探测')}。`, '',
+      '| 来源 | 请求结果 | 缓存 | HTTP |', '| --- | --- | --- | --- |');
+    for (const event of report.crawler.events) lines.push(`| ${cell(event.sourceId)} | ${cell(marketReasons[event.code] || event.code)} | ${cell(event.cache || '未使用')} | ${event.httpStatus ?? '未取得'} |`);
+    for (const issue of report.crawler.parserIssues || []) lines.push(`- ${cell(issue.sourceId)}：${cell(issue.code)}，当前格式或页面日期未通过核验。`);
   }
   lines.push('', '## 🎯候选证据', '');
   const candidates = report.results.filter(row => ['candidate', 'simulated_candidate'].includes(row.result.status));

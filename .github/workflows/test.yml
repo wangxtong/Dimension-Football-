@@ -18,3 +18,19 @@ jobs:
           package-manager-cache: false
       - run: npm test
       - run: npm run collect:demo
+      - run: python -m unittest scripts/test_package.py
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: npm ci --prefix collector/browser-runtime --ignore-scripts --no-fund
+      - run: node collector/browser-runtime/node_modules/playwright/cli.js install --with-deps chromium
+      - run: npm run crawler:doctor
+      - run: npm run test:browser

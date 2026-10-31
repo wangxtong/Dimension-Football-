@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "minIntervalMs": 300,
+  "requestTimeoutMs": 3000,
+  "maxRequests": 24,
+  "maxRetries": 1,
+  "retryDelayMs": 300,
+  "cacheTtlMs": 15000,
+  "robotsTtlMs": 21600000,
+  "blockedCooldownMs": 3600000
+}

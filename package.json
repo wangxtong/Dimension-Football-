@@ -8,6 +8,10 @@
     "collect": "node collector/run.mjs",
     "collect:demo": "node collector/run.mjs --demo",
     "sources:status": "node collector/run.mjs --source-status",
+    "crawl:check": "node collector/crawl.mjs",
+    "crawler:install": "node scripts/setup-crawler.mjs",
+    "crawler:doctor": "node collector/browser.mjs",
+    "test:browser": "npm test --prefix collector/browser-runtime",
     "analyze:full": "node collector/analyze.mjs",
     "test": "node --test collector/test/*.test.mjs collector/sources/test/*.test.mjs",
     "check": "node --check collector/run.mjs"

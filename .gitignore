@@ -5,6 +5,11 @@
 /*.tar.gz
 /verify-platform.mjs
 node_modules/
+.auth/
+.browser-state/
+storage/
+collector/browser-runtime/browsers/
+*.auth.json
 .env
 .env.*
 !.env.example
@@ -15,3 +20,5 @@ reports/
 coverage/
 artifacts/
 *.log
+__pycache__/
+*.pyc

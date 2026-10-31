@@ -129,4 +129,4 @@ node collector/recover-lock.mjs --state /srv/dimension-football/state/state.json
 
 恢复命令只清除本机已不存在的进程留下的锁；仍在运行、来自其他主机或格式损坏的锁会明确拒绝。完成后可恢复调度并从检查点继续。
 
-不要把整个工作目录打包进 artifact 或 cache。此工作流只缓存专用的 `state.json` 和 `state.json.sources.json`（不缓存运行锁），只上传报告目录，密钥不进入这些文件。新增健康状态后缓存前缀升级为 `collection-v2`，首次运行重新建立缓存；ECS 的原有持久检查点不受此前缀变化影响。
+不要把整个工作目录打包进 artifact 或 cache。此工作流只缓存专用的 `state.json`、`state.json.sources.json` 和 `state.json.crawl.json`（不缓存运行锁或登录会话），只上传报告目录。公开爬虫缓存保留公开页面用于条件请求；授权浏览器会话的页面不缓存。缓存前缀升级为 `collection-v3`，首次运行重新建立缓存；ECS 的原有持久检查点不受此前缀变化影响。

@@ -2,6 +2,7 @@ import { digest, fixtureKey, preparePool, basicScreen, evaluateFixture, retained
 import { acquireLock, readState, atomicJson } from './storage.mjs';
 import { writeReports } from './report.mjs';
 import { publicSourceHealth } from './sources/manager.mjs';
+import { CRAWLER_CODES } from './sources/crawler.mjs';
 
 // Persist only diagnostic metadata, never headers, response bodies or thrown messages.
 export function safeDiagnostics(rows = []) {
@@ -24,7 +25,7 @@ export function safeDiagnostics(rows = []) {
 const marketDiagnosticCodes = new Set(['fixture_ineligible', 'fixture_identity_unmatched', 'fixture_identity_ambiguous',
   'not_prematch', 'market_not_published', 'market_ambiguous', 'invalid_market_fields', 'incomplete_market',
   'quote_expired', 'quote_validation_failed', 'matched', 'access_denied', 'authorization_required', 'rate_limited', 'http_unavailable',
-  'stale_snapshot', 'empty_snapshot', 'snapshot_too_large', 'timeout', 'network_unavailable', 'invalid_schedule',
+  ...CRAWLER_CODES, 'stale_snapshot', 'empty_snapshot', 'snapshot_too_large', 'timeout', 'network_unavailable', 'invalid_schedule',
   'invalid_snapshot', 'maintenance']);
 const marketCompanies = { m88: ['M88', 17], '12bet': ['12Bet', 24], sbobet: ['SBOBET', 31] };
 
@@ -133,6 +134,7 @@ export async function runCollection({
     const report = { version: 1, task: '维度足球长期公开信息采集', simulated, timezone: 'Asia/Shanghai', startedAt, completedAt,
       poolComplete, status: sourceFailed ? 'failed' : summary.pending || hasSourceIssue || !poolComplete ? 'partial' : 'complete',
       summary, diagnostics, marketDiagnostics, results, limitations: LIMITATIONS, policy,
+      crawler: evidence.crawler || null,
       sourceManagement: sourceManagement ? { ...sourceManagement, publicSources: publicSourceHealth(evidence.diagnostics) } : null,
       candidates: simulated ? [] : results.filter(row => row.result.status === 'candidate') };
     state.runs = [...state.runs.slice(-49), { startedAt, completedAt, status: report.status, summary }];

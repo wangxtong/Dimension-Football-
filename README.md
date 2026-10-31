@@ -1,6 +1,6 @@
 # 维度足球 · 长期采集任务
 
-把原来的云端定时采集整理为可审阅、可部署的 Node.js 24 项目。入口为 `npm run collect`，GitHub Actions 支持手动运行与每小时运行。项目没有 npm 第三方依赖。
+把原来的云端定时采集整理为可审阅、可部署的 Node.js 24 项目。入口为 `npm run collect`，GitHub Actions 支持手动运行与每小时运行。核心 HTTP 采集无 npm 第三方依赖；可选浏览器运行时采用锁定版本的 Crawlee + Playwright。
 
 本版负责取得赛程和已实现的数据源证据、按规则逐场筛选、保存进度并输出报告。它不调用 OpenAI API，不发送 Telegram 消息，也不下注。`candidate` 表示证据门槛通过后仍需人工复核的候选，不代表已经发布的推荐。
 
@@ -44,6 +44,20 @@ npm run sources:status -- --state .collection-state/state.json
 ```
 
 这是随现有采集轮次执行的自动维护机制；默认调度仍为每小时，冷却时间不是新的独立定时器。
+
+## 开源爬虫与浏览器采集
+
+网页采集已加入 robots 规则、域名串行限速、GET 有限重试、429 冷却、条件缓存复验、访问挑战识别和格式诊断。球探 XML/JS 快照与天天盈球列表采用 HTTP；安装浏览器运行时后，Statarea 页面通过 **Crawlee 3.18.2 + Playwright 1.64.1** 执行 JavaScript 再送入同一身份核验与解析流程。
+
+```sh
+npm run crawler:install
+npm run crawler:doctor
+npm run crawl:check -- --source all
+```
+
+`auto` 模式会探测依赖、Chromium 和 JavaScript 执行能力；浏览器运行环境不可用时使用 HTTP 并记录原因。`VANTIS_CRAWLER_ENGINE=crawlee` 强制要求浏览器。服务器可将依赖装入发布目录之外的固定位置，保留系统代理与 TLS 验证；已有授权登录状态可由站点专用文件载入。登录过期或验证页面会记录阻断原因，不能把该页面当成预测数据。
+
+工具选择、自动环境检查、持久安装、会话配置、缓存时效和验证边界见 [开源爬虫接入说明](docs/CRAWLER_INTEGRATION.md)。`crawl:check` 只检查公开抓取链路，返回内容不等于已取得有效比赛预测。
 
 ## 部署到 GitHub Actions
 
@@ -113,6 +127,7 @@ API-Football 单服务的 ECS 在同步该版本运行源码后，每轮自动�
 collector/                        数据源、筛选、进度、报告与测试
 config/collection.json            运行预算、时效与筛选阈值
 config/sources.json               官方赛程源优先级与失败冷却
+config/crawler.json               网页爬虫限速、重试、缓存与请求预算
 config/cloud-task.md              从可读取记录整理的原任务规则
 docs/CLOUD_TASK_MIGRATION.md       输入契约、迁移步骤和已知限制
 ```

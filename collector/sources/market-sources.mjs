@@ -1,4 +1,5 @@
 import {teamName} from './team-names.mjs';
+import {CRAWLER_CODES} from './crawler.mjs';
 
 // Company IDs are corroborated by Titan's own commonWs.js and the named
 // company table in iSports' public documentation. They are separate prices,
@@ -17,6 +18,7 @@ const marketSourceFailureReasons={access_denied:'公开赔率源返回 HTTP 403�
   snapshot_too_large:'快照超过已核验的数据大小上限，已停止解析。',timeout:'8 秒内未取得完整快照，已停止本次请求。',
   network_unavailable:'网络请求未成功，未取得可校验快照。',invalid_schedule:'赛程快照不符合已核验格式，无法关联比赛。',
   invalid_snapshot:'赔率快照不符合已核验的 XML 字段格式。',maintenance:'公开源标记赔率数据正在维护。'};
+for(const code of CRAWLER_CODES)if(!Object.hasOwn(marketSourceFailureReasons,code))marketSourceFailureReasons[code]=`爬虫未取得可用内容：${code}；保留缺项并按来源策略复查。`;
 class MarketSourceError extends Error {
   constructor(code,status){super(code);this.code=code;if(status)this.status=status;}
 }
@@ -56,7 +58,7 @@ async function marketSourceRead(path,companyId,fetchImpl,now){
       return {text,httpStatus:status,sourceUpdatedAt:new Date(updated).toISOString(),feedUrl};
     })();
     return await Promise.race([operation,new Promise((resolve,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new MarketSourceError('timeout'));},8000);})]);
-  }catch(error){if(error instanceof MarketSourceError)throw error;throw new MarketSourceError('network_unavailable');}
+  }catch(error){if(error instanceof MarketSourceError)throw error;if(CRAWLER_CODES.has(error?.code))throw new MarketSourceError(error.code,error.status);throw new MarketSourceError('network_unavailable');}
   finally{clearTimeout(timer);}
 }
 function marketSourceSchedule(text){

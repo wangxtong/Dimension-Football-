@@ -4,7 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { readJson } from './storage.mjs';
 import { readPolicy, DEFAULT_POLICY, isoMillis } from './policy.mjs';
 import { runCollection } from './pipeline.mjs';
-import { collectPublicEvidence } from './sources/index.mjs';
+import { collectCrawledEvidence } from './sources/index.mjs';
+import { readCrawlerPolicy } from './sources/crawler.mjs';
+import { browserRuntime } from './browser.mjs';
+import { configureEnvironmentProxy } from './network.mjs';
 import { collectManagedFixtures, readSourcePolicy, readSourceHealth, sourceHealthSnapshot } from './sources/manager.mjs';
 import { demoInput } from './demo.mjs';
 
@@ -17,6 +20,7 @@ const HELP = `维度足球长期公开信息采集（Node.js 24+）
   --out DIR                双版本报告目录；默认 reports
   --config FILE            规则配置；默认 config/collection.json
   --sources-config FILE    信息源优先级与冷却配置；默认 config/sources.json
+  --crawler-config FILE    网页爬虫限速、重试和缓存；默认 config/crawler.json
   --source-status          离线查看指定 --state 对应的来源健康记录，不发起请求
   --budget-minutes N       单轮预算，不超过20分钟
   --evidence FILE          外部证据 {"quotes": [...], "signals": [...]}，默认不受信任
@@ -38,7 +42,7 @@ export function parseArgs(argv) {
     if (['--demo', '--help', '--accept-reviewed-evidence', '--deep-analysis', '--source-status'].includes(argument)) {
       const key = argument.slice(2); if (Object.hasOwn(result, key)) throw new Error('DUPLICATE_ARGUMENT'); result[key] = true; continue;
     }
-    if (!['--input', '--state', '--out', '--config', '--sources-config', '--budget-minutes', '--evidence'].includes(argument)) throw new Error('UNKNOWN_ARGUMENT');
+    if (!['--input', '--state', '--out', '--config', '--sources-config', '--crawler-config', '--budget-minutes', '--evidence'].includes(argument)) throw new Error('UNKNOWN_ARGUMENT');
     const key = argument.slice(2), value = argv[++index];
     if (!value || value.startsWith('--') || Object.hasOwn(result, key)) throw new Error('INVALID_ARGUMENT');
     result[key] = value;
@@ -65,6 +69,7 @@ export async function runCli(argv, {
 } = {}) {
   const options = parseArgs(argv);
   if (options.help) { stdout(HELP); return { help: true, exitCode: 0 }; }
+  if (fetchImpl === fetch && !options.demo && !options['source-status']) configureEnvironmentProxy(env);
   const sourcePolicy = readSourcePolicy(await readJson(options['sources-config'] ? resolve(cwd, options['sources-config']) : resolve(ROOT, 'config/sources.json')));
   if (options['source-status']) {
     const healthPath = `${resolve(cwd, options.state || '.collection-state/state.json')}.sources.json`;
@@ -73,6 +78,7 @@ export async function runCli(argv, {
     return { sourceManagement, exitCode: 0 };
   }
   if (options['deep-analysis'] && (typeof env.API_FOOTBALL_KEY !== 'string' || !env.API_FOOTBALL_KEY.trim())) throw new Error('DEEP_ANALYSIS_API_KEY_REQUIRED');
+  const crawlerPolicy = readCrawlerPolicy(await readJson(options['crawler-config'] ? resolve(cwd, options['crawler-config']) : resolve(ROOT, 'config/crawler.json')));
   const policy = readPolicy(await readJson(options.config ? resolve(cwd, options.config) : resolve(ROOT, 'config/collection.json')));
   if (options.budgetMs !== undefined) policy.budgetMs = options.budgetMs;
   const startedTick = performance.now(), remaining = () => Math.max(0, policy.budgetMs - (performance.now() - startedTick));
@@ -116,7 +122,10 @@ export async function runCli(argv, {
   const importedEvidence = options.evidence ? reviewedEvidence(await readJson(resolve(cwd, options.evidence)), options['accept-reviewed-evidence']) : { quotes: [], signals: [] };
   const result = await runCollection({ fixtures, statePath, outDir, policy, simulated, fixtureDiagnostics, poolComplete, sourceManagement, clock, startedTick, signal,
     importedEvidence, collectEvidence: simulated ? async () => structuredClone(demo.evidence)
-      : async ({ fixtures, nowISO, signal }) => collectPublicEvidence({ fixtures, nowISO, fetchImpl: boundedFetch(signal) }),
+      : async ({ fixtures, nowISO, signal: stageSignal }) => collectCrawledEvidence({ fixtures, nowISO, fetchImpl: boundedFetch(stageSignal),
+        statePath: `${statePath}.crawl.json`, policy: crawlerPolicy, clock, remaining,
+        browser: await browserRuntime({env, enabled: fetchImpl === fetch}),
+        signal: AbortSignal.any([signal, stageSignal].filter(Boolean)) }),
   });
   const allFixturesFailed = !inputFile && !simulated && fixtureDiagnostics.length > 0 && fixtureDiagnostics.every(source => !['available', 'complete'].includes(source.status));
   const exitCode = signal?.aborted || sourceManagement?.interrupted || allFixturesFailed || result.report.status === 'failed' ? 1 : 0;
@@ -153,7 +162,9 @@ export const SAFE_ERRORS = new Set(['INVALID_POLICY', 'FIXTURE_POOL_INVALID_OR_T
   'INVALID_NOW', 'JSON_FILE_TOO_LARGE', 'COLLECTION_ALREADY_LOCKED', 'STATE_UNREADABLE', 'STATE_INVALID_OR_MODE_MISMATCH',
   'DUPLICATE_ARGUMENT', 'UNKNOWN_ARGUMENT', 'INVALID_ARGUMENT', 'CONFLICTING_ARGUMENTS', 'INVALID_BUDGET', 'INVALID_EVIDENCE_FILE',
   'INVALID_FIXTURE_FILE', 'FIXTURE_API_KEY_OR_INPUT_REQUIRED', 'EXAMPLE_FIXTURES_REQUIRE_DEMO', 'DEEP_ANALYSIS_API_KEY_REQUIRED',
-  'INVALID_SOURCE_POLICY', 'SOURCE_STATE_UNREADABLE', 'SOURCE_STATE_INVALID', 'REQUIRED_SOURCE_DISABLED']);
+  'INVALID_SOURCE_POLICY', 'SOURCE_STATE_UNREADABLE', 'SOURCE_STATE_INVALID', 'REQUIRED_SOURCE_DISABLED',
+  'INVALID_CRAWLER_POLICY', 'CRAWLER_STATE_UNREADABLE', 'CRAWLER_STATE_INVALID',
+  'ENV_PROXY_REQUIRES_NODE_24_14', 'ENV_PROXY_CONFIGURATION_INVALID']);
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const controller = new AbortController(), stop = () => controller.abort();

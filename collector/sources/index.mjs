@@ -1,5 +1,6 @@
 import {fetchMarketSourceAudit} from './market-sources.mjs';
 import {fetchPredictionSignals} from './signals.mjs';
+import {withPublicCrawler} from './crawler.mjs';
 
 export {fetchFootballFixtures, fixtureLeagues} from './fixtures.mjs';
 export {fetchApiFootballFixtures, apiFootballLeagues} from './api-football.mjs';
@@ -51,4 +52,13 @@ export async function collectPublicEvidence({fixtures = [], nowISO = new Date().
   ];
   return {quotes, signals: predictions.signals.map(signal => ({...signal, independenceGroup: signal.sourceId})), diagnostics,
     fixtureDiagnostics: markets.fixtureDiagnostics};
+}
+
+export async function collectCrawledEvidence({fixtures, nowISO, ...crawlerOptions}) {
+  const {result, crawler} = await withPublicCrawler(crawlerOptions,
+    fetchImpl => collectPublicEvidence({fixtures, nowISO, fetchImpl}));
+  const formatCodes = new Set(['invalid_schedule', 'invalid_snapshot', 'prediction_format_not_verified', 'stale_page']);
+  crawler.parserIssues = result.diagnostics.filter(row => formatCodes.has(row.note))
+    .map(row => ({sourceId: row.sourceId || row.id, code: row.note}));
+  return {...result, crawler};
 }
