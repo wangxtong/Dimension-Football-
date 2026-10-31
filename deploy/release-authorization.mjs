@@ -29,7 +29,7 @@ export function hashReleaseFileManifest(files) {
   if (!paths.length || paths.length > 20000) blocked('SOURCE_FILE_MANIFEST_INVALID');
   const entries = paths.map(path => {
     const file = files[path];
-    if (!path || path.includes('\\0') || !file || typeof file !== 'object' || Array.isArray(file) ||
+    if (!path || path.includes(String.fromCharCode(0)) || !file || typeof file !== 'object' || Array.isArray(file) ||
         !SHA64.test(file.sha256 ?? '') || !Number.isSafeInteger(file.size) || file.size < 0)
       blocked('SOURCE_FILE_MANIFEST_INVALID');
     return [path, file.sha256, file.size];
