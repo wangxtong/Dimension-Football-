@@ -45,6 +45,9 @@ python3 -c 'import json,subprocess,shutil; from pathlib import Path; names=["van
 
 ## 离线制品、安装及私库同步
 
+**新增 fail-closed 签名审查（待 A1 验收，未安装）**：见 [ECS-SIGNED-RELEASE](ECS-SIGNED-RELEASE.md)。除受信任 CI 精确 SHA 与包 SHA-256 外，需要独立审批人离线 Ed25519 签署精确源 SHA、archive SHA-256、工具摘要、CI 结论和有时限的授权 JSON。install.sh、release.sh、可选 sync.sh 在切换前验证固定公钥、独立签署及权限；即使 Git 拉到了 main 且单测 GREEN 也不能切换。已有 ECS 若仍运行旧版工具，须由有权限的 Workbench 管理员先停用自动更新，受控升级并回读工具摘要。代码 PR 不等于部署证据。该门禁只用于代码版本切换，正式预测发布由 A1/PR #21 单独批准，始终 BLOCKED。
+
+
 系统需要 Python 3、Git、OpenSSH client、Bash、flock 和 systemd，以及系统级 Node.js **24.x、至少 24.14**。bootstrap 可显式追加 `--install-node`：仅在现有 Node 不符合能力要求时，从 `nodejs.org/dist/v24.19.0/` 下载固定 x64/arm64 发行与 SHASUMS256，校验后安装独立 runtime 到 `/opt/vantis-node/`。只提取 Node 可执行文件和许可证，不执行 npm、不使用 sudo npm、不修改系统默认 Node。自检验证版本和实际代理/AbortSignal 能力。浏览器是显式可选能力：设置 `browserRequired:true` 后，发布自检必须成功启动固定版本的浏览器运行时。依赖可放在独立的 `VANTIS_CRAWLER_RUNTIME_DIR`；安装失败不能被标成浏览器可用。
 
 CI/已批准工作站从完整提交构建制品；未提交文件不进入包：
