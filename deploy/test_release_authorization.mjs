@@ -57,6 +57,15 @@ test('digest is insensitive to file listing order but sensitive to file changes'
     hashReleaseFileManifest({ ...manifest.files,
       'collector/operations.mjs': { sha256: '0'.repeat(64), size: 123 } }));
 });
+test('cross-language UTF-8 filename ordering has a fixed signing digest', () => {
+  const files = {
+    'collector/😀.mjs': { sha256: 'a'.repeat(64), size: 12 },
+    'collector/.mjs': { sha256: 'b'.repeat(64), size: 34 }
+  };
+  // Python json.dumps with ensure_ascii=False and UTF-8 byte-sorted paths.
+  assert.equal(hashReleaseFileManifest(files),
+    'aeb18281708f408c74e7bf3fba20a0e43c9d73afe932ec127297771f18811b47');
+});
 test('valid independently signed pinned artifact authorizes code switch only', async () => {
   const f = await fixture();
   try {
