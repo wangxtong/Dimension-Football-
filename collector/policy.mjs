@@ -168,7 +168,10 @@ export function validQuote(row, fixture, now, p = DEFAULT_POLICY) {
     && !/crown|皇冠|crow\*/i.test(row.bookmaker) && row.inPlay === false && row.closed === false
     && Number.isFinite(row.handicap) && Number.isInteger(row.handicap * 4) && Math.abs(row.handicap) <= 10
     && Number.isFinite(row.decimalOdds) && row.decimalOdds > 1 && row.decimalOdds <= 21
-    && Number.isFinite(updated) && updated <= now && (row.sourceId === 'hkjc' ? firstPartyLive : now - updated <= p.maxQuoteAgeMs);
+    // Archiving also calls validQuote directly: reject impossible capture order
+    // here, before a rejected current snapshot can become a reusable opening.
+    && Number.isFinite(updated) && updated <= isoMillis(row.observedAt) && updated <= now
+    && (row.sourceId === 'hkjc' ? firstPartyLive : now - updated <= p.maxQuoteAgeMs);
 }
 
 export function hasPair(quote, quotes) {

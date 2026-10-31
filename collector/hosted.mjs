@@ -277,31 +277,38 @@ async function hasMarketTargets(out,nowISO) {
   const now=Date.parse(nowISO);return snapshot.fixtures.some(row=>['SCHEDULED','TIMED'].includes(row.status)&&Date.parse(row.kickoff)>now&&Date.parse(row.kickoff)<=now+86400000);
 }
 export async function runHosted({ root,env=process.env,fetchImpl=fetch,clock=stamp,monotonic=()=>performance.now(),budgetMs=180000,
-  signal,stdout=text=>process.stdout.write(text),runOrchestrationImpl=runOrchestration,client:providedClient }={}) {
+  signal,stdout=text=>process.stdout.write(text),runOrchestrationImpl=runOrchestration,client:providedClient,privateResearch=false }={}) {
   if(!root||!Number.isFinite(budgetMs)||budgetMs<1000||budgetMs>180000||!Number.isFinite(Date.parse(clock())))fail('HOSTED_INVALID_ARGUMENT');
   if(!/^[a-f0-9]{40}$/.test(env.GITHUB_SHA||''))fail('HOSTED_COMMIT_REQUIRED');
   root=resolve(root);const started=monotonic(),remaining=()=>Math.max(0,budgetMs-(monotonic()-started));
   const overall=AbortSignal.any([signal,AbortSignal.timeout(budgetMs)].filter(Boolean));
   const client=providedClient||createHostedClient({env,fetchImpl,clock:()=>Date.parse(clock()),signal:overall});
-  const session=await createStateSession(root,client),out=resolve(root,'reports'),schedulerPath=resolve(root,'state/hosted-scheduler.json');
+  if(typeof privateResearch!=='boolean')fail('HOSTED_INVALID_ARGUMENT');
+  const session=await createStateSession(root,client),out=resolve(root,'reports'),schedulerPath=resolve(root,privateResearch?'state/hosted-research-scheduler.json':'state/hosted-scheduler.json');
   const scheduler=await optionalJson(schedulerPath)||{version:1,lanes:{}};
   if(scheduler.version!==1||!object(scheduler.lanes))fail('HOSTED_SCHEDULER_INVALID');
-  const publisher=createHostedPublisher({client,session,clock}),outcomes=[];let failure=null;
+  const publisher=privateResearch?async()=>fail('HOSTED_PRIVATE_RESEARCH_DELIVERY_FORBIDDEN'):createHostedPublisher({client,session,clock}),outcomes=[];let failure=null;
   const common={env:{...env,COLLECTOR_COMMIT:env.GITHUB_SHA},cwd:root,clock,fetchImpl,stdout:()=>{},dependencies:{publishAll:publisher}};
   async function execute(lane,maxMs){
     const workMs=Math.min(maxMs,remaining()-20000);if(workMs<1000)return false;
     scheduler.lanes[lane]={...scheduler.lanes[lane],startedAt:clock(),status:'active'};await atomicJson(schedulerPath,scheduler);
     const workSignal=AbortSignal.any([overall,AbortSignal.timeout(Math.ceil(workMs))]);
-    const outcome=await runOrchestrationImpl(['--lane',lane,'--state',resolve(root,'state/state.json'),'--out',out,'--budget-minutes',String(workMs/60000)],{...common,signal:workSignal});
+    const outcome=await runOrchestrationImpl(['--lane',lane,...(privateResearch?['--mode','private-research']:[]),'--state',resolve(root,'state/state.json'),'--out',out,'--budget-minutes',String(workMs/60000)],{...common,signal:workSignal});
     if(session.blocked)fail(session.blocked);
     scheduler.lanes[lane]={startedAt:scheduler.lanes[lane].startedAt,finishedAt:clock(),status:outcome.status,
       ...(outcome.code?{code:/^[A-Z0-9_]+$/.test(outcome.code)?outcome.code:'LANE_FAILED'}:{}),...(ID.test(outcome.reportId||'')?{reportId:outcome.reportId}:{})};
-    await atomicJson(schedulerPath,scheduler);outcomes.push({lane,status:outcome.status,exitCode:outcome.exitCode,...(outcome.reportId?{reportId:outcome.reportId}:{})});return true;
+    await atomicJson(schedulerPath,scheduler);outcomes.push({lane,status:outcome.status,exitCode:outcome.exitCode,
+      ...(scheduler.lanes[lane].code?{code:scheduler.lanes[lane].code}:{}),...(outcome.reportId?{reportId:outcome.reportId}:{})});return true;
   }
   try {
     const now=Date.parse(clock()),receipt=await optionalJson(resolve(out,'publication.json'));
     const retryFixtures=['failed','blocked'].includes(scheduler.lanes.fixtures?.status)&&due(scheduler,'fixtures',300000,now);
-    if(due(scheduler,'fixtures',900000,now)||retryFixtures){await execute('fixtures',140000);}
+    if(privateResearch){
+      // Results have their own cadence and budget priority: a failing collection
+      // must not indefinitely starve settlement of already frozen predictions.
+      if(due(scheduler,'results',3600000,now))await execute('results',60000);
+      if(!session.blocked&&(due(scheduler,'fixtures',900000,now)||retryFixtures))await execute('fixtures',140000);
+    } else if(due(scheduler,'fixtures',900000,now)||retryFixtures){await execute('fixtures',140000);}
     else {
       const pending=receipt?.channels?.files?.status==='published'&&(receipt.channels.externalWebsite?.servedVerified!==true||receipt.channels.receiptSync?.status==='failed');
       if(pending)await execute('delivery',60000);
@@ -314,8 +321,9 @@ export async function runHosted({ root,env=process.env,fetchImpl=fetch,clock=sta
     else failure=session.blocked;
   }
   const result={version:1,status:failure?'blocked':outcomes.some(row=>row.exitCode||['partial','failed','blocked'].includes(row.status))?'partial':outcomes.length?'complete':'idle',
+    ...(privateResearch?{mode:'private-research',RELEASE_GATE:'BLOCKED',forecastPublished:false,publicationStatus:'not_attempted'}:{}),
     ...(failure?{code:failure}:{}),checkedAt:clock(),revision:session.revision,outcomes,
-    meaning:'scheduled-target-five-minutes-github-may-delay; notifications-owned-by-site'};
+    meaning:privateResearch?'Private research only; frozen and settled records are not public delivery evidence; automatic research scheduling is not enabled.':'scheduled-target-five-minutes-github-may-delay; notifications-owned-by-site'};
   await atomicJson(resolve(root,'hosted-run.json'),result);
   stdout(JSON.stringify(result)+'\n');return {...result,exitCode:failure||outcomes.some(row=>row.exitCode)?1:0};
 }
@@ -435,7 +443,7 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
       if(options['--mode']&&!['observations','research'].includes(options['--mode']))fail('HOSTED_INVALID_ARGUMENT');
       configureEnvironmentProxy(process.env);
       const run=options['--mode']==='research'?runHosted:runShadow;
-      process.exitCode=(await run({root:options['--root'],budgetMs:Number(options['--budget-minutes']||3)*60000})).exitCode;
+      process.exitCode=(await run({root:options['--root'],budgetMs:Number(options['--budget-minutes']||3)*60000,...(options['--mode']==='research'?{privateResearch:true}:{})})).exitCode;
     }
   }catch(error){console.error(JSON.stringify({status:'blocked',code:safeCode(error)}));process.exitCode=1;}
 }

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'observations 只更新真实赛程；research 仅离线研究，预测发布仍 BLOCKED'
+        description: 'observations 更新赛程观察；research 仅私有采集、冻结与核账，不发布或通知'
         type: choice
         default: observations
         options: [observations, research]
@@ -75,6 +75,8 @@ jobs:
           公开赛程仅到 15 分钟采集周期才请求；未到期保持原始观测时间，不把缓存标为刚更新。
           状态来自原 Sites 的持久存储，以 revision 做条件更新；冲突或超限会停止，不使用空状态替代失败恢复。
           当前通知入口受独立门禁阻断，runner 与 Sites 均不发送自动预测。
-          本轮采集与运行记录保留为 90 天附件；仅手动 research 模式生成完整回测。R2 保存观察报告与当前状态，既有预测账本不删除。
+          本轮采集与运行记录保留为 90 天附件；仅手动 research 模式采集研究数据、冻结预测并优先核账，绝不调用正式发布或通知。
+          私有研究冻结不是已发布预测成绩；长期账本容量、归档与恢复尚待验证，因此不自动启用持续研究采样。
+          R2 保存观察报告与当前状态，既有预测账本不删除。
           网站成功仅以同 reportId、同报告摘要、hosted/available 实际回读为准；本工作流不表示 ECS 已部署。
           EOF

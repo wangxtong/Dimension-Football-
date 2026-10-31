@@ -1,9 +1,25 @@
-import { digest, fixtureKey, validQuote, safeQuote, validOpening, safeOpening, openingIdentity, inspectMarket, SOURCES, DEFAULT_POLICY, isoMillis } from './policy.mjs';
+import { digest, fixtureKey, validQuote, safeQuote, validOpening, safeOpening, openingIdentity, inspectMarket, quoteSourceGroup, SOURCES, DEFAULT_POLICY, isoMillis } from './policy.mjs';
 
 const keyOf = q => digest([q.sourceId, q.bookmaker, q.selection]);
+const proofFields = ['version', 'openingHash', 'fixtureKey', 'sourceId', 'provider', 'bookmaker', 'companyId', 'selection',
+  'providerMatchId', 'market', 'period', 'observedAt', 'sourceUpdatedAt', 'sourceAsOf', 'archivedAt'];
+const safeProof = value => Object.fromEntries(proofFields.filter(key => Object.hasOwn(value, key)).map(key => [key, value[key]]));
 
-// Only verified provider openings can be replayed. Legacy identity is never
-// repaired by copying fields from a current quote.
+function validCaptureProof(record, opening, proof, identity) {
+  if (record.version !== 3 || !proof || proof.version !== 1 || record.captureProofHash !== digest(record.captureProof) || record.captureProofHash !== digest(proof)
+    || proof.openingHash !== record.hash || proof.openingHash !== digest(opening) || proof.fixtureKey !== identity
+    || proof.archivedAt !== record.firstRecordedAt || quoteSourceGroup(proof) === null
+    || ['sourceId', 'bookmaker', 'selection', 'providerMatchId', 'market', 'period'].some(key => proof[key] !== opening[key])) return false;
+  const observed = isoMillis(proof.observedAt), updated = isoMillis(proof.sourceUpdatedAt), recorded = isoMillis(record.firstRecordedAt);
+  return Number.isFinite(observed) && Number.isFinite(updated) && Number.isFinite(recorded)
+    && updated <= observed && observed <= recorded && isoMillis(opening.recordedAt) <= recorded
+    && isoMillis(opening.observedAt) < observed && isoMillis(opening.observedAt) <= updated
+    && (proof.sourceId !== 'hkjc' || updated <= isoMillis(proof.sourceAsOf) && isoMillis(proof.sourceAsOf) <= observed);
+}
+
+// Only provider openings with a valid capture proof can be replayed. Legacy
+// archives stay pending: neither quote timestamps nor identity can be recovered
+// by copying fields from a current quote.
 export function reconcileMarketEvidence(fixture, quotes, previous = [], nowISO, policy = DEFAULT_POLICY) {
   const records = new Map(), pending = new Map(), conflicts = new Set(), fixtureIdentity = fixtureKey(fixture);
   let overflow = false;
@@ -13,12 +29,16 @@ export function reconcileMarketEvidence(fixture, quotes, previous = [], nowISO, 
     if (!r.opening || typeof r.opening !== 'object') continue;
     const opening = safeOpening(r.opening), key = keyOf(opening);
     const hash = typeof r.hash === 'string' && /^[a-f0-9]{64}$/.test(r.hash) ? r.hash : null;
-    const integrityFailure = hash !== digest(r.opening) || r.archiveStatus === 'integrity_failure';
+    const proof = r.captureProof && typeof r.captureProof === 'object' && !Array.isArray(r.captureProof) ? safeProof(r.captureProof) : null;
+    const proven = validCaptureProof(r, opening, proof, fixtureIdentity);
+    const proofFailure = (r.version === 3 || r.captureProof !== undefined || r.captureProofHash !== undefined) && !proven;
+    const integrityFailure = hash !== digest(r.opening) || r.archiveStatus === 'integrity_failure' || proofFailure;
     const probe = { ...opening, opening, observedAt: nowISO, sourceUpdatedAt: nowISO };
-    const verified = validOpening(probe, fixture, nowISO);
-    const record = { version: 2, fixtureKey: fixtureIdentity, opening, hash: integrityFailure ? hash : digest(opening),
+    const verified = proven && isoMillis(r.firstRecordedAt) <= isoMillis(nowISO) && validOpening(probe, fixture, nowISO);
+    const record = { version: r.version === 3 || proof ? 3 : 2, fixtureKey: fixtureIdentity, opening, hash: integrityFailure ? hash : digest(opening),
+      ...(proof ? { captureProof: proof, captureProofHash: typeof r.captureProofHash === 'string' && /^[a-f0-9]{64}$/.test(r.captureProofHash) ? r.captureProofHash : null } : {}),
       ...(!integrityFailure && hash !== digest(opening) ? { migratedFromHash: hash } : {}),
-      firstRecordedAt: Number.isFinite(isoMillis(r.firstRecordedAt)) ? r.firstRecordedAt : opening.recordedAt,
+      firstRecordedAt: Number.isFinite(isoMillis(r.firstRecordedAt)) ? r.firstRecordedAt : null,
       conflict: r.conflict === true || integrityFailure,
       archiveStatus: integrityFailure ? 'integrity_failure' : r.conflict === true ? 'conflict' : verified ? 'verified' : 'pending_verification' };
     if (!verified && !record.conflict) {
@@ -39,8 +59,11 @@ export function reconcileMarketEvidence(fixture, quotes, previous = [], nowISO, 
     if (old && (old.conflict || openingIdentity(old.opening) !== openingIdentity(opening))) {
       records.set(key, { ...old, conflict: true, archiveStatus: old.archiveStatus === 'integrity_failure' ? 'integrity_failure' : 'conflict' });
       conflicts.add(key);
-    } else if (!old) records.set(key, { version: 2, fixtureKey: fixtureIdentity, opening, hash: digest(opening),
-      firstRecordedAt: nowISO, conflict: false, archiveStatus: 'verified' });
+    } else if (!old) {
+      const captureProof = safeProof({ ...quote, version: 1, openingHash: digest(opening), fixtureKey: fixtureIdentity, archivedAt: nowISO });
+      records.set(key, { version: 3, fixtureKey: fixtureIdentity, opening, hash: digest(opening), captureProof, captureProofHash: digest(captureProof),
+        firstRecordedAt: nowISO, conflict: false, archiveStatus: 'verified' });
+    }
   }
   const allRecords = [...records.values(), ...pending.values()];
   // A bounded archive must not silently forget discarded conflicts. Overflow

@@ -2,7 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const [output]=process.argv.slice(2);
 if(!output||process.argv.length!==3)throw Error('Usage: node website/build.mjs OUTPUT_DIRECTORY');
-const assets={};for(const name of ['index.html','style.css','app.mjs','report-schema.mjs','locale-zh.mjs'])assets['/'+name]=await readFile(new URL(name,import.meta.url),'utf8');
+const assets={};for(const name of ['index.html','style.css','app.mjs','report-schema.mjs','locale-zh.mjs','evaluation-evidence.json'])assets['/'+name]=await readFile(new URL(name,import.meta.url),'utf8');
 // The deployed Worker is one self-contained ESM file; browser assets stay separate.
 const namespaces=new Map(),bundled=[];
 function inlineImports(source) {

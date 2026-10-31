@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validDate, validateReport, validateReceipt, validateBundle, MAX_REPORT_BACKTESTS } from '../report-schema.mjs';
-import { createSnapshotLoader } from '../app.mjs';
+import { createSnapshotLoader, createEvaluationLoader, validateEvaluationEvidence } from '../app.mjs';
+import { readFile } from 'node:fs/promises';
 import { sampleReport, sampleReceipt, sampleBundle, NOW } from './fixtures.mjs';
 
 test('report schema accepts production-shaped categories and optional extensions', () => {
@@ -89,4 +90,30 @@ test('an expired session on the receipt request also requires login', async () =
   const loader = createSnapshotLoader({ now: () => NOW, fetchImpl: async url => url.includes('/report?')
     ? new Response(null, { status: 404 }) : url.includes('predictions') ? Response.json(sampleReport()) : new Response(null, { status: 401 }) });
   await assert.rejects(loader.load(), /AUTH_REQUIRED/);
+});
+
+test('historical evidence validates bound real metrics and never accepts invented deltas or promotion', async () => {
+  const evidence = JSON.parse(await readFile(new URL('../evaluation-evidence.json', import.meta.url), 'utf8'));
+  assert.equal(validateEvaluationEvidence(evidence), evidence);
+  const selected = evidence.groups.find(row => row.league === 'BL1' && row.horizonHours === 24);
+  assert.equal(selected.evaluated, 63);
+  assert.ok(Math.abs(selected.deltaVsBaseline.brier - (selected.metrics.brier - selected.baseline.brier)) < 1e-10);
+  for (const change of [v => { v.releaseGate = 'GREEN'; }, v => { v.historicalOnly = false; },
+    v => { v.binding.inputsHash = 'missing'; }, v => { v.groups.find(row => row.metrics).deltaVsBaseline.brier = 99; },
+    v => { v.groups.find(row => row.metrics).metrics.accuracy = 1.1; }, v => { v.groups = Array(101).fill(v.groups[0]); }]) {
+    const copy = structuredClone(evidence); change(copy); assert.throws(() => validateEvaluationEvidence(copy), /HISTORICAL_EVIDENCE_INVALID/);
+  }
+});
+
+test('historical evidence loads independently with same-origin auth and shares in-flight work', async () => {
+  const evidence = JSON.parse(await readFile(new URL('../evaluation-evidence.json', import.meta.url), 'utf8'));
+  let release, calls = 0;
+  const loader = createEvaluationLoader({ fetchImpl: async (url, options) => {
+    assert.equal(url, '/evaluation-evidence.json'); assert.equal(options.credentials, 'same-origin');
+    calls++; return new Promise(resolve => { release = resolve; });
+  } });
+  const first = loader.load(); assert.equal(loader.load(), first); assert.equal(calls, 1);
+  release(Response.json(evidence)); assert.equal((await first).groups.length, evidence.groups.length);
+  const failed = loader.load(); release(new Response(null, { status: 503 })); await assert.rejects(failed, /HISTORICAL_EVIDENCE_UNAVAILABLE/);
+  const next = loader.load(); release(Response.json(evidence)); assert.equal((await next).releaseGate, 'BLOCKED');
 });

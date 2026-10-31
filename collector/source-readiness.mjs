@@ -15,7 +15,7 @@ const LEAGUES = ['PL', 'PD', 'SA', 'BL1', 'FL1'];
 const aliases = { m88: 'titan007', '12bet': 'titan007', sbobet: 'titan007' };
 const sourceOf = row => aliases[row.sourceId || row.id] || row.sourceId || row.id;
 const knownCodes = new Set([...FAILURE_CODES, ...CRAWLER_CODES, 'ok', 'matched', 'source_cooldown', 'cooldown', 'not_configured',
-  'contract_required', 'community_schedule_unverified', 'free_tier_limited', 'history_cache_hit', 'prediction_format_not_verified',
+  'contract_required', 'community_schedule_unverified', 'free_tier_limited', 'history_cache_hit', 'history_cache_unavailable', 'prediction_format_not_verified',
   'public_live_snapshot_partial_coverage', 'no_matching_markets', 'no_matching_predictions', 'no_matching_fixtures',
   'outside_today_coverage', 'invalid_or_stale_markets', 'stale_page', 'fixture_identity_unmatched', 'market_not_published']);
 const codeOf = row => knownCodes.has(row.code || row.note) ? row.code || row.note : 'unrecognized_diagnostic';
