@@ -62,6 +62,10 @@ test('installer, bootstrap and sync all point to external gate and private Git p
   assert.match(files['sync.sh'], /GIT_ASKPASS/);
   assert.match(files['sync.sh'], /github-read-token/);
   assert.match(files['bootstrap.sh'], /GIT_ASKPASS/);
+  assert.match(files['bootstrap.sh'], /tool_mode=0755/);
+  assert.match(files['bootstrap.sh'], /-x \"\$askpass\"/);
+  assert.match(files['sync.sh'], /chmod 0600 \"\$marker\"/);
+  assert.match(files['release.sh'], /0:600/);
   assert.doesNotMatch(files['sync.sh'], /codeload\.github\.com/);
   assert.doesNotMatch(files['bootstrap.sh'], /codeload\.github\.com\/wangxtong/);
 });
