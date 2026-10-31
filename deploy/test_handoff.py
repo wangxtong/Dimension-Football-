@@ -219,12 +219,12 @@ class BootstrapTrustBoundaryTests(unittest.TestCase):
         self.assertIn('RELEASE_AUTH_PREFLIGHT_NODE_REQUIRED', bootstrap)
         self.assertIn('RELEASE_AUTH_TRUSTED_RUNTIME_REQUIRED', bootstrap)
         self.assertIn('SIGNED_RELEASE_APPROVAL_REQUIRED_BEFORE_RUNTIME_INSTALL', bootstrap)
-        self.assertIn("stat.S_ISLNK(mode.st_mode)", bootstrap)
-        self.assertIn("mode.st_mode & 0o022", bootstrap)
+        self.assertIn("stat.S_ISLNK(info.st_mode)", bootstrap)
+        self.assertIn("info.st_mode & 0o022", bootstrap)
 
     def test_archive_preflight_validates_sha_and_rejects_missing_duplicate_manifest(self):
         bootstrap = Path(__file__).with_name('bootstrap.sh').read_text()
-        guard = bootstrap.split("<<'PYMANIFEST'", 1)[1].split('\\nPYMANIFEST', 1)[0]
+        guard = bootstrap.split("<<'PYMANIFEST'", 1)[1].split(chr(10) + 'PYMANIFEST', 1)[0]
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
             path=root/'release.tar'
