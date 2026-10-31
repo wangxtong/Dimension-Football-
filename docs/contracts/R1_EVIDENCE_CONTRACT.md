@@ -32,7 +32,7 @@
 
 - 时间须可验证且含时区，存储标准UTC，界面可显示北京时间。
 - `observedAt` 是本系统实际观察证据；`sourceUpdatedAt` 是供应商更新时间，不能相互代填。`fetchedAt` 是抓取时间，读缓存不得刷新证据时间。
-- 赛果版本的 `resultObservedAt` 与账本实际 `recordedAt` 分开；回放不得看到截止时刻以后才入账的结果。
+- 赛果版本的 `resultObservedAt` 与账本实际 `recordedAt` 分开；账本按截至时点评估不得纳入其后才入账的结果；这不表示所有manifest回放都验证了recordedAt。
 - manifest要求 `cutoff <= generatedAt`；预测登记要求 `trainingCutoff <= generatedAt <= recordedAt < kickoff`，登记时还须未过期。当前实现另要求生成到登记少于一小时。
 - 实际预测提前量按 `recordedAt` 计算；`generationHorizonHours` 只说明生成提前量。不能用回填生成时间替代真实赛前登记。
 - 首次留存观察不能证明更早的历史可见性；`snapshot-only` 与 `observed-result-versions` 分开。历史缓存是当前快照，永久重放由独立manifest保存。
