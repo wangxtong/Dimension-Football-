@@ -1,6 +1,7 @@
 import { acquireLock, atomicJson, readJson } from '../storage.mjs';
 import { fetchFootballFixtures, fixtureLeagues } from './fixtures.mjs';
 import { fetchApiFootballFixtures } from './api-football.mjs';
+import { fetchSportmonksFixtures } from './sportmonks.mjs';
 import { FAILURE_CODES } from './health.mjs';
 
 export const SOURCE_REGISTRY = Object.freeze({
@@ -8,8 +9,10 @@ export const SOURCE_REGISTRY = Object.freeze({
     origin: 'https://api.football-data.org', fallback: 'api-football' },
   'api-football': { capability: 'fixtures', independenceGroup: 'api-football',
     origin: 'https://v3.football.api-sports.io', fallback: 'football-data.org' },
+  sportmonks: { capability: 'fixtures', independenceGroup: 'sportmonks',
+    origin: 'https://api.sportmonks.com', fallback: 'football-data.org' },
 });
-const ADAPTERS = { 'football-data.org': fetchFootballFixtures, 'api-football': fetchApiFootballFixtures };
+const ADAPTERS = { 'football-data.org': fetchFootballFixtures, 'api-football': fetchApiFootballFixtures, sportmonks: fetchSportmonksFixtures };
 const IDS = Object.keys(SOURCE_REGISTRY), DAY = 86_400_000;
 const OK = new Set(['available', 'complete']);
 export const DEFAULT_SOURCE_POLICY = Object.freeze({ version: 1,
@@ -92,7 +95,7 @@ function summarize(result) {
   const failures = rows.filter(row => !OK.has(row.status));
   const notes = failures.map(row => row.note || row.code);
   // Actionable failures take precedence over generic transport/schema errors.
-  const code = ['quota_exceeded', 'rate_limited', 'authorization_required', 'access_denied', 'plan_restricted']
+  const code = ['quota_exceeded', 'rate_limited', 'authorization_required', 'access_denied', 'plan_restricted', 'subscription_required', 'invalid_credentials']
     .find(code => notes.includes(code)) || notes.find(code => FAILURE_CODES.has(code))
     || (status === 'healthy' ? 'ok' : status === 'degraded' ? 'partial_coverage' : 'source_unavailable');
   return { status, code, healthyLeagues, score: healthyLeagues * 10 + partialLeagues,
@@ -108,7 +111,7 @@ function observe(state, id, summary, policy, nowISO) {
   if (consecutiveFailures >= policy.failureThreshold) {
     delay = Math.min(policy.maxCooldownMs, policy.cooldownMs * 2 ** Math.min(16, consecutiveFailures - policy.failureThreshold));
   }
-  if (summary.status === 'unavailable' && ['authorization_required', 'access_denied', 'plan_restricted'].includes(summary.code)) {
+  if (summary.status === 'unavailable' && ['authorization_required', 'access_denied', 'plan_restricted', 'subscription_required', 'invalid_credentials'].includes(summary.code)) {
     delay = Math.max(delay, policy.authCooldownMs);
   }
   if (summary.code === 'quota_exceeded') delay = Math.max(delay, policy.quotaCooldownMs);
@@ -120,7 +123,7 @@ function observe(state, id, summary, policy, nowISO) {
     nextProbeAt: delay ? new Date(Date.parse(nowISO) + delay).toISOString() : null };
 }
 
-/** One bounded round: at most two adapters / ten league requests, never cross-provider ID merging. */
+/** One bounded round; Sportmonks has bounded pagination. Never merge provider IDs. */
 export async function collectManagedFixtures({ statePath, credentials, policy = DEFAULT_SOURCE_POLICY,
   nowISO, clock = () => new Date().toISOString(), days = 7, fetchImpl = fetch,
   requiredSource = null, signal, remaining = () => Infinity }) {
@@ -152,7 +155,7 @@ export async function collectManagedFixtures({ statePath, credentials, policy = 
       const started = performance.now();
       let result, summary;
       try {
-        result = await ADAPTERS[id]({ apiKey: credentials[id], nowISO: checkedAt, days, fetchImpl });
+        result = await ADAPTERS[id]({ apiKey: credentials[id], nowISO: checkedAt, days, fetchImpl, clock, signal, remaining });
         summary = summarize(result);
       } catch {
         result = { fixtures: [], diagnostics: fixtureLeagues.map(league => ({ id, league,

@@ -46,10 +46,11 @@ export function safeMarketDiagnostics(rows = [], fixtures = []) {
 }
 
 const LIMITATIONS = [
-  '内置自动解析：football-data.org 或 API-Football 五大联赛赛程、Titan007 的 M88/12bet/SBOBET 亚洲盘、Statarea 胜平负辅助；其他站点尚未自动解析。',
+  '赛程支持 football-data.org、API-Football、Sportmonks；公开证据沿用 Titan007 / Statarea。配置凭据后增加 Sportmonks 模型、The Odds API 市场参考及 iSports 当日亚洲盘。',
   'M88、12bet、SBOBET 在 Titan007 的展示合计只算一个独立网站来源。无第二报价源或初盘轨迹时保持来源不足。',
   '未把胜平负概率改写成亚洲盘赢盘率；不自动生成大小球或比分，也不承诺命中率。',
   '本项目不向旧站点写回、不冻结预测、不调用 Telegram、投注或结算接口。',
+  '商业赔率参考不自动增加独立报价票；初盘时间和上游独立性未核实前，不进入正式亚洲盘候选。',
 ];
 
 export async function runCollection({
@@ -135,6 +136,8 @@ export async function runCollection({
       poolComplete, status: sourceFailed ? 'failed' : summary.pending || hasSourceIssue || !poolComplete ? 'partial' : 'complete',
       summary, diagnostics, marketDiagnostics, results, limitations: LIMITATIONS, policy,
       crawler: evidence.crawler || null,
+      providers: evidence.providers ? { ...evidence.providers, observations: evidence.providers.observations.map(row => ({ ...row,
+        currentAtPublication: Date.parse(row.validUntil) > Date.parse(completedAt) })) } : null,
       sourceManagement: sourceManagement ? { ...sourceManagement, publicSources: publicSourceHealth(evidence.diagnostics) } : null,
       candidates: simulated ? [] : results.filter(row => row.result.status === 'candidate') };
     state.runs = [...state.runs.slice(-49), { startedAt, completedAt, status: report.status, summary }];

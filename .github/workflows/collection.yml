@@ -49,9 +49,11 @@ jobs:
             ${{ env.STATE_DIR }}/state.json
             ${{ env.STATE_DIR }}/state.json.sources.json
             ${{ env.STATE_DIR }}/state.json.crawl.json
+            ${{ env.STATE_DIR }}/state.json.providers.json
           # cache 不可覆盖；每次执行及重新执行均创建独立条目。
-          key: collection-v3-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: collection-v4-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            collection-v4-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-
             collection-v3-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-
 
       - name: 执行一轮正式采集（最多 20 分钟）
@@ -60,6 +62,9 @@ jobs:
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
           FOOTBALL_DATA_API_TOKEN: ${{ secrets.FOOTBALL_DATA_API_TOKEN }}
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+          ISPORTS_API_KEY: ${{ secrets.ISPORTS_API_KEY }}
           FIXTURES_FILE: ${{ vars.FIXTURES_FILE }}
         shell: bash
         run: npm run collect -- --state "$STATE_DIR/state.json" --out reports --budget-minutes 20
@@ -70,14 +75,15 @@ jobs:
         run: npm run collect -- --demo --state "$STATE_DIR/state.json" --out reports --budget-minutes 20
 
       - name: 保存最新检查点（采集失败时也尝试保存）
-        if: always() && hashFiles(format('{0}/state.json', env.STATE_DIR), format('{0}/state.json.sources.json', env.STATE_DIR), format('{0}/state.json.crawl.json', env.STATE_DIR)) != ''
+        if: always() && hashFiles(format('{0}/state.json', env.STATE_DIR), format('{0}/state.json.sources.json', env.STATE_DIR), format('{0}/state.json.crawl.json', env.STATE_DIR), format('{0}/state.json.providers.json', env.STATE_DIR)) != ''
         uses: actions/cache/save@v6
         with:
           path: |
             ${{ env.STATE_DIR }}/state.json
             ${{ env.STATE_DIR }}/state.json.sources.json
             ${{ env.STATE_DIR }}/state.json.crawl.json
-          key: collection-v3-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
+            ${{ env.STATE_DIR }}/state.json.providers.json
+          key: collection-v4-${{ runner.os }}-${{ github.ref_name }}-${{ env.COLLECTION_MODE }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: 保留本轮报告
         if: always()

@@ -61,6 +61,7 @@ sudo bash /opt/vantis/deployment/release.sh /path/to/source
 | `/var/lib/vantis/state.json` | 持久检查点，vantis 用户可写 |
 | `/var/lib/vantis/state.json.sources.json` | 官方赛程来源健康状态、失败冷却及最近切换记录；备份时与检查点一同保留 |
 | `/var/lib/vantis/state.json.crawl.json` | 公开爬虫域名冷却、robots 与页面缓存；不保存授权浏览器会话 |
+| `/var/lib/vantis/state.json.providers.json` | 商业分析接口健康与冷却；不含凭据或原始响应 |
 | `/var/lib/vantis/reports/` | 持久报告，vantis 用户可写 |
 | `/var/lib/vantis-sync/` | root 所有的同步临时目录，不包含凭据 |
 | systemd journal | 运行日志，使用上面的 journalctl 命令查看 |

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "enabled": ["sportmonks", "the-odds-api", "isports"],
+  "maxRequestsPerProvider": 30,
+  "maxPages": 10,
+  "oddsRegions": "eu",
+  "failureCooldownMs": 300000,
+  "maxCooldownMs": 3600000,
+  "authCooldownMs": 21600000
+}

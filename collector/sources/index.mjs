@@ -1,6 +1,7 @@
 import {fetchMarketSourceAudit} from './market-sources.mjs';
 import {fetchPredictionSignals} from './signals.mjs';
 import {withPublicCrawler} from './crawler.mjs';
+import {collectProviderEvidence} from './providers.mjs';
 
 export {fetchFootballFixtures, fixtureLeagues} from './fixtures.mjs';
 export {fetchApiFootballFixtures, apiFootballLeagues} from './api-football.mjs';
@@ -61,4 +62,22 @@ export async function collectCrawledEvidence({fixtures, nowISO, ...crawlerOption
   crawler.parserIssues = result.diagnostics.filter(row => formatCodes.has(row.note))
     .map(row => ({sourceId: row.sourceId || row.id, code: row.note}));
   return {...result, crawler};
+}
+
+/** Credentialed APIs and the existing public crawler have separate policies/state.
+ * A subscription failure never sends its key or private endpoint to a browser.
+ */
+export async function collectIntegratedEvidence({ fixtures, nowISO, env, providerStatePath, providerPolicy, ...crawlerOptions }) {
+  const results = await Promise.allSettled([
+    collectCrawledEvidence({ fixtures, nowISO, ...crawlerOptions }),
+    collectProviderEvidence({ fixtures, nowISO, env, statePath: providerStatePath, policy: providerPolicy,
+      fetchImpl: crawlerOptions.fetchImpl, signal: crawlerOptions.signal, clock: crawlerOptions.clock, remaining: crawlerOptions.remaining }),
+  ]);
+  if (results.every(r => r.status === 'rejected')) throw new Error('EVIDENCE_UNAVAILABLE');
+  const data = results.map((r, index) => r.status === 'fulfilled' ? r.value
+    : { quotes: [], signals: [], diagnostics: [{ id: index ? 'commercial-providers' : 'public-crawler', status: 'failed',
+      code: ['PROVIDER_STATE_INVALID', 'PROVIDER_STATE_UNREADABLE', 'CRAWLER_STATE_INVALID', 'CRAWLER_STATE_UNREADABLE', 'COLLECTION_ALREADY_LOCKED'].includes(r.reason?.message)
+        ? r.reason.message : 'COLLECTION_FAILED', checkedAt: nowISO }] });
+  return { quotes: data.flatMap(r => r.quotes), signals: data.flatMap(r => r.signals), diagnostics: data.flatMap(r => r.diagnostics),
+    fixtureDiagnostics: data[0].fixtureDiagnostics || [], crawler: data[0].crawler || null, providers: data[1].providers || null };
 }

@@ -46,6 +46,7 @@ mkdir -- "$stage_dir"
 # separately in /opt/vantis/deployment and is never replaced by a Git sync.
 tar -C "$source_dir" --exclude='.env' --exclude='.env.*' --exclude='node_modules' \
   --exclude='.auth' --exclude='.browser-state' --exclude='*.auth.json' --exclude='storage' --exclude='browsers' \
+  --exclude='*.providers.json' --exclude='*.sources.json' --exclude='*.crawl.json' --exclude='*.lock' \
   --exclude='*.log' -cf - -- collector config package.json \
   | tar -C "$stage_dir" --no-same-owner --no-same-permissions -xf -
 [[ -z $(find "$stage_dir" -type l -print -quit) ]] || die 'Runtime source must not contain symbolic links.'

@@ -8,6 +8,7 @@
     "collect": "node collector/run.mjs",
     "collect:demo": "node collector/run.mjs --demo",
     "sources:status": "node collector/run.mjs --source-status",
+    "providers:status": "node collector/run.mjs --provider-status",
     "crawl:check": "node collector/crawl.mjs",
     "crawler:install": "node scripts/setup-crawler.mjs",
     "crawler:doctor": "node collector/browser.mjs",

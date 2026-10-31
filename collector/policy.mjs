@@ -10,6 +10,7 @@ export const DEFAULT_POLICY = Object.freeze({
 
 // Independence comes from this registry, never a provider-supplied vote count.
 export const SOURCES = Object.freeze({
+  sportmonks: { group: 'sportmonks-model', hosts: ['api.sportmonks.com'] },
   titan007: { group: 'titan007', hosts: ['live.titan007.com', 'livestatic.titan007.com'] },
   oddsgpt: { group: 'oddsgpt', hosts: ['oddsgpt.com', 'www.oddsgpt.com'] },
   oddstorm: { group: 'oddstorm', hosts: ['oddstorm.com', 'www.oddstorm.com'] },

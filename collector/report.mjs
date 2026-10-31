@@ -71,6 +71,23 @@ export function renderMessage(report) {
     for (const event of report.crawler.events) lines.push(`| ${cell(event.sourceId)} | ${cell(marketReasons[event.code] || event.code)} | ${cell(event.cache || '未使用')} | ${event.httpStatus ?? '未取得'} |`);
     for (const issue of report.crawler.parserIssues || []) lines.push(`- ${cell(issue.sourceId)}：${cell(issue.code)}，当前格式或页面日期未通过核验。`);
   }
+  if (report.providers) {
+    lines.push('', '## 商业数据来源', '',
+      '模型概率与市场隐含概率分别展示。报价参考尚未通过上游独立性和初盘时间核验，不增加正式候选票。', '',
+      '| 来源 | 本轮状态 | 请求数 | 下次探测 |', '| --- | --- | --- | --- |');
+    for (const row of report.providers.attempts) lines.push(`| ${cell(row.id)} | ${cell(row.status)} | ${row.requests} | ${row.nextProbeAt ? beijingTime(row.nextProbeAt) : '—'} |`);
+    lines.push('', '| 比赛 | 来源 / 公司 | 市场 | 概率或报价 | 时效 |', '| --- | --- | --- | --- | --- |');
+    const fixtures = new Map(report.results.map(row => [row.fixture.id, row.fixture]));
+    for (const row of report.providers.observations) {
+      const fixture = fixtures.get(row.fixtureId);
+      const values = row.kind === 'model-probability'
+        ? Object.entries(row.probabilities).map(([key, value]) => `${key} ${(value * 100).toFixed(2)}%`).join(' / ')
+        : row.outcomes.map(value => `${value.selection}${value.line !== undefined ? ` ${value.line}` : ''} @ ${value.decimalOdds}`).join(' / ');
+      lines.push(`| ${cell(fixture ? `${fixture.home} vs ${fixture.away}` : row.fixtureId)} | ${cell(row.provider)}${row.bookmaker ? ` / ${cell(row.bookmaker)}` : ''} | ${cell(row.market)} | ${cell(values)} | ${row.currentAtPublication ? '发布时有效' : '已过期'}；${row.sourceUpdatedAt ? beijingTime(row.sourceUpdatedAt) : '模型生成时间未提供；每日赛前模型'} |`);
+    }
+    if (!report.providers.observations.length) lines.push('| — | — | — | 本轮没有取得可匹配的新数据；查看配置及来源诊断 | — |');
+    lines.push('', 'iSports 当前仅匹配 UTC 当日未开赛比赛；每轮报告保留采集快照，不能据此宣称拥有完整逐笔赔率历史。');
+  }
   lines.push('', '## 🎯候选证据', '');
   const candidates = report.results.filter(row => ['candidate', 'simulated_candidate'].includes(row.result.status));
   if (!candidates.length) lines.push('本轮没有通过完整证据门槛的候选。');

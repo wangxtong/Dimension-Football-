@@ -13,7 +13,7 @@ for name in (".github", "collector", "config", "deploy", "docs", "examples", "sc
             raise SystemExit("Refusing a symbolic link in source directories")
         for item in names:
             path = Path(directory) / item
-            if item.startswith((".env", "runtime-secrets")) or item.endswith((".auth.json", ".crawl.json", ".sources.json")) \
+            if item.startswith((".env", "runtime-secrets")) or item.endswith((".auth.json", ".crawl.json", ".sources.json", ".providers.json")) \
                     or path.suffix in {".sqlite", ".db", ".lock", ".pyc", ".log"}:
                 continue
             files.append(path)
