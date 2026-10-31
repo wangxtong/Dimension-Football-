@@ -5,7 +5,7 @@
 ## 权限与信任边界
 
 - A7 不持有 ECS/SSH/RAM/Workbench 身份，没有读取或创建生产凭据。以下操作仅由有权限的管理员及独立批准人执行；不得在 Issue/PR/聊天中披露任何私钥或 token。
-- 离线包先在受信任渠道核对 CI 完整提交 SHA 与 SHA-256；不要信任不明附件附带的 SHA256SUMS。独立审核 CI run、旧版本无回归、上线授权，签名声明中的成功状态不等于程序实时验证了 GitHub。
+- 离线包先在受信任渠道核对 CI 完整提交 SHA 与 SHA-256；不要信任不明附件附带的 SHA256SUMS。独立审核 CI run、旧版本无回归、上线授权，签名声明中的成功状态不等于程序实时验证了 GitHub。签名另须绑定完整 `manifest.files` 的规范化摘要 `filesDigest`：**单独签署归档摘要字符串并不能阻止已经解包的目录修改文件清单后冒用旧 SHA**；`bundle.py verify-directory` 必须继续逐文件验证。
 - 专用离线 Ed25519 私钥必须留在安全签名环境，不能放在 ECS、仓库、ChatGPT 或网站。ECS 上仅安装 root 固定的公钥 /etc/vantis/release-authorization.pub.pem。
 - /etc/vantis 和 /etc/vantis/release-approvals/ 必须 root 所有、不可组/其他人写，建议审批目录 0700。每次批准须有 <sourceCommit>.json 与对应 <sourceCommit>.json.sig 原始二进制签名。缺失、过期、摘要不一致、签名损坏或目录权限不安全均拒绝。
 - install.sh 在任何安装变更前验签；release.sh 在取得部署锁及采集运行锁后验签；deploy-key 模式的 sync.sh 即使拉到 main 且测试 GREEN 仍须事先验签。升级时 install.sh 优先调用已安装的 verifier，而不是让新来源替换旧检查。
@@ -20,6 +20,7 @@
   "sourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "archiveSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "toolingDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "filesDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
   "ciRunUrl": "https://github.com/wangxtong/Dimension-Football-/actions/runs/123",
   "ciCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "ciEvent": "push",
@@ -37,7 +38,23 @@
 
 **不得把 PR CI 的绿色检查或附件当作可签署生产制品**：pull_request 的 GITHUB_SHA 通常是临时 merge commit（与 PR head 不同）。必须审核独立 **main push** CI，验证 event=push、branch=main、真实 main SHA 与来源归档一致；GitHub artifact ZIP 的 digest 不是内层 release.tar 的摘要。
 
-sourceCommit、archiveSha256、toolingDigest 必须与已验证解包的 vantis-manifest.json 完全相同。审批人和复核人必须不同。批准期最长 7 天；不能为未知 CI、未知回归或未授权的部署将字段设为 true。
+sourceCommit、archiveSha256、toolingDigest 必须与已验证解包的 vantis-manifest.json 完全相同；filesDigest 必须由**同一已验证解包目录**的 `manifest.files` 算出。签名验证器对全部条目的排序、SHA 与字节长度计算固定摘要；本身不读取未校验文件内容，部署调用方必须先完成 `bundle.py verify-directory`。审批人和复核人必须不同。批准期最长 7 天；不能为未知 CI、未知回归或未授权的部署将字段设为 true。
+
+在独立签署环境、确认离线归档 SHA 和解包目录校验均通过后，按以下定义计算 `filesDigest`（规范 UTF-8 JSON：按文件路径排序的 `[path, sha256, size]` 数组，无多余空白）。只输出公开摘要，不处理密钥：
+
+```bash
+python3 - /secure/verified-source/vantis-manifest.json <<'PY'
+import hashlib, json, sys
+with open(sys.argv[1], encoding='utf-8') as stream:
+    manifest = json.load(stream)
+entries = [[name, item['sha256'], item['size']]
+           for name, item in sorted(manifest['files'].items())]
+canonical = json.dumps(entries, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+print(hashlib.sha256(canonical).hexdigest())
+PY
+```
+
+将该结果填入审批 JSON 的 `filesDigest`，**再**生成 detached 签名；不接受缺失该字段的旧批准。此处示例摘要均为占位符。
 
 ## 离线生成及校验 detached Ed25519 签名（OpenSSL 3）
 
@@ -54,7 +71,7 @@ openssl pkeyutl -verify -rawin -pubin -inkey /secure/release-authorization.pub.p
 ## Issue #14 必需的无秘密 Workbench 证据
 
 1. 当前 ECS 实装的 /opt/vantis/deployment 工具摘要、release source SHA、source-mode、timer 状态，核对旧版是否仍可绕过验签自动更新。
-2. 实际 CI run URL、完整 commit、发布包 SHA256、公钥指纹、审批 JSON 摘要和已安装 .source-commit/release.json 的一致性，不上传密钥/token。
+2. 实际 CI run URL、完整 commit、归档 SHA256、已核验文件清单的 filesDigest、toolingDigest、公钥指纹、审批 JSON 摘要和已安装 .source-commit/release.json 的一致性。增加负例：保留签名审批的旧 commit/archiveSha256 字段却篡改解包后单一文件及其 manifest.files 摘要时，安装与同步必须拒绝；不上传密钥/token。
 3. 只读 diagnose.sh 的 systemd/健康结果、/var/lib/vantis 权限、备份校验、restore-drill、回滚兼容性及重启后 state/outbox；不能用 oneshot inactive/dead 判断失败，也不能用 GREEN 单测当成生产验收。
 4. HTTPS /dimension-football/ 未授权拒绝、正确授权时 reportId 与摘要一致、旧 Gunicorn 和 /weidu-bridge/ 无回归；不修改原站 TLS/Nginx/安全组来伪造结果。
 5. 正式预测继续 BLOCKED：五大联赛冻结前瞻回测、独立盘口源、批准与实际 ECS smoke 全部需要 A1 门禁，不可向网站或 Telegram 放行正式预测。
