@@ -24,3 +24,5 @@
 本次打包分离保持 manifest/version 和状态 schema 契约为 1，但文件清单、archive SHA-256 和 toolingDigest 会随实际文件集合更新。旧的含测试制品应从批准 SHA 重新构建，不能手改清单后沿用旧摘要。必须先显式升级已安装部署工具；仅同步应用源码不会更新服务器上的校验器。此代码改造不代表真实服务器权限已经加固，模型发布仍受 `RELEASE_GATE=BLOCKED` 约束。
 
 - **签名发布门禁（Draft）**：见 [ECS-SIGNED-RELEASE](../docs/ECS-SIGNED-RELEASE.md)。install/release/sync 在代码切换前必须通过 root 固定公钥的 Ed25519 detached 签名批准，绑定完整源 SHA、archive SHA-256、toolingDigest、经逐文件校验的 filesDigest、独立批准、有效期；缺失一律拒绝。只授权代码切换，不批准正式预测；ECS 工具升级仍需 Workbench 证据。
+
+- **Draft 首次安装信任要求**：必须预先由 ECS 管理员独立预置 root 可信 `/opt/vantis/deployment/release-authorization.mjs` 与 `bundle.py` 和可完成签名预检的可信 Node。bootstrap 首先使用 Python 标准库只读检验完整 archive SHA 与单一 manifest，然后验独立签名；在此之前不执行待部署包中的 bundle.py、install-node.sh 或 install.sh。缺项直接 BLOCKED，不允许待签发代码自行安装自己的验签器。详见 [ECS-SIGNED-RELEASE](../docs/ECS-SIGNED-RELEASE.md)。
