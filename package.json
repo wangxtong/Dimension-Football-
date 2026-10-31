@@ -29,6 +29,7 @@
     "audit:markets": "node collector/market-readiness.mjs",
     "audit:model": "node collector/model-readiness.mjs",
     "audit:capacity": "node collector/state-capacity.mjs",
-    "collect:observations": "node collector/hosted.mjs --mode observations"
+    "collect:observations": "node collector/hosted.mjs --mode observations",
+    "audit:control": "node collector/audit-control.mjs"
   }
 }
