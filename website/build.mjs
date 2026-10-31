@@ -1,0 +1,14 @@
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+const [output]=process.argv.slice(2);
+if(!output||process.argv.length!==3)throw Error('Usage: node website/build.mjs OUTPUT_DIRECTORY');
+const assets={};for(const name of ['index.html','style.css','app.mjs'])assets['/'+name]=await readFile(new URL(name,import.meta.url),'utf8');
+const source=await readFile(new URL('worker.mjs',import.meta.url),'utf8');
+const manifest=JSON.parse(await readFile(new URL('.openai/hosting.json',import.meta.url),'utf8'));
+if(manifest.static||!manifest.project_id)throw Error('Worker hosting manifest required');
+await mkdir(resolve(output,'server'),{recursive:true});await mkdir(resolve(output,'.openai'),{recursive:true});
+await writeFile(resolve(output,'server/index.js'),'const EMBEDDED_ASSETS = '+JSON.stringify(assets)+';\n'+source);
+await writeFile(resolve(output,'.openai/hosting.json'),JSON.stringify(manifest,null,2)+'\n');
+const worker=await import('data:text/javascript;base64,'+Buffer.from('const EMBEDDED_ASSETS = '+JSON.stringify(assets)+';\n'+source).toString('base64'));
+if(typeof worker.default?.fetch!=='function')throw Error('Invalid Worker export');
+console.log('Built and validated password-protected Worker');
