@@ -52,7 +52,11 @@ export async function authorizeRelease(manifestPath, { configDir = '/etc/vantis'
   if (approval.version !== 1 || approval.scope !== 'ecs-code-release' ||
       approval.sourceCommit !== commit || approval.archiveSha256 !== manifest.archiveSha256 ||
       approval.toolingDigest !== manifest.toolingDigest) blocked('ARTIFACT_IDENTITY_MISMATCH');
+  // pull_request workflows build ephemeral merge commits; production requires
+  // an independently audited push CI run for the real main commit instead.
   if (!CI_RUN.test(approval.ciRunUrl ?? '') || approval.ciCommit !== commit ||
+      approval.ciEvent !== 'push' || approval.ciBranch !== 'main' ||
+      approval.targetInstanceId !== 'i-j6c4g9s2y6b5irl5gcr9' ||
       approval.ciConclusion !== 'success' || approval.previousVersionRegressionPassed !== true ||
       approval.ecsAuthorizationGranted !== true ||
       typeof approval.approvedBy !== 'string' || !approval.approvedBy.trim() ||
