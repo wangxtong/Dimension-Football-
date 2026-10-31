@@ -67,6 +67,10 @@ source_dir="$work_dir/source"
 mkdir -- "$source_dir"
 git -C "$work_dir/repository" archive --format=tar FETCH_HEAD |
   tar --extract --file - --directory "$source_dir" --no-same-owner --no-same-permissions
+marker="$source_dir/.vantis-verified-commit"
+[[ ! -e "$marker" && ! -L "$marker" ]] || die 'Repository must not supply its own verified-source marker.'
+printf '%s\n' "$remote_commit" > "$marker"
+chmod 0600 "$marker"
 for source_file in package.json collector/run.mjs config/collection.json; do
   [[ -f "$source_dir/$source_file" ]] || die "Missing source file: $source_file"
 done
