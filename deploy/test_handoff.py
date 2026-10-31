@@ -224,7 +224,7 @@ class BootstrapTrustBoundaryTests(unittest.TestCase):
 
     def test_archive_preflight_validates_sha_and_rejects_missing_duplicate_manifest(self):
         bootstrap = Path(__file__).with_name('bootstrap.sh').read_text()
-        guard = bootstrap.split("<<'PYMANIFEST'", 1)[1].split(chr(10) + 'PYMANIFEST', 1)[0]
+        guard = bootstrap.split("<<'PYMANIFEST'", 1)[1].split(chr(10), 1)[1].split(chr(10) + 'PYMANIFEST', 1)[0]
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
             path=root/'release.tar'
@@ -262,7 +262,7 @@ class BootstrapTrustBoundaryTests(unittest.TestCase):
 
     def test_trusted_path_validator_rejects_missing_symlink_and_writable(self):
         script = Path(__file__).with_name('install.sh').read_text()
-        guard = script.split("<<'PYTRUST'", 1)[1].split('\nPYTRUST', 1)[0]
+        guard = script.split("<<'PYTRUST'", 1)[1].split(chr(10), 1)[1].split('\nPYTRUST', 1)[0]
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             existing = root / 'signed-verifier.mjs'
