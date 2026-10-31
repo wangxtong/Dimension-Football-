@@ -35,12 +35,12 @@ PYTRUST
 python3 - "$1" "$2" "$work/preflight-manifest.json" <<'PYMANIFEST' || { printf 'RELEASE_ARCHIVE_PREFLIGHT_FAILED\n' >&2; exit 1; }
 import hashlib, json, sys, tarfile
 from pathlib import Path
-archive_path, expected, out = map(Path, (sys.argv[1], sys.argv[2], sys.argv[3]))
+archive_path, expected, out = Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3])
 if archive_path.stat().st_size > 544 * 1024 * 1024: sys.exit(1)
 h = hashlib.sha256()
 with archive_path.open('rb') as src:
     for chunk in iter(lambda: src.read(1024 * 1024), b''): h.update(chunk)
-if h.hexdigest() != str(expected): sys.exit(1)
+if h.hexdigest() != expected: sys.exit(1)
 with tarfile.open(archive_path, mode='r:') as tar:
     found = [item for item in tar if item.name == 'vantis-manifest.json']
     if len(found) != 1 or not found[0].isfile() or found[0].size > 4 * 1024 * 1024: sys.exit(1)
@@ -48,7 +48,7 @@ with tarfile.open(archive_path, mode='r:') as tar:
     if src is None: sys.exit(1)
     manifest = json.loads(src.read())
 if not isinstance(manifest, dict) or manifest.get('kind') != 'release': sys.exit(1)
-manifest['archiveSha256'] = str(expected)
+manifest['archiveSha256'] = expected
 out.write_text(json.dumps(manifest, sort_keys=True) + '\n')
 PYMANIFEST
 "$preflight_node" "$verifier" "$work/preflight-manifest.json" >/dev/null || { printf 'SIGNED_RELEASE_APPROVAL_REQUIRED_BEFORE_RUNTIME_INSTALL\n' >&2; exit 1; }
