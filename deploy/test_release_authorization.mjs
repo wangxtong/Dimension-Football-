@@ -4,12 +4,18 @@ import { generateKeyPairSync, sign } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, rm, symlink, chmod, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { authorizeRelease } from './release-authorization.mjs';
+import { authorizeRelease, hashReleaseFileManifest } from './release-authorization.mjs';
 
 const commit = 'a'.repeat(40);
 const sha = 'b'.repeat(64);
 const tools = 'c'.repeat(64);
-const manifest = { version: 1, kind: 'release', sourceCommit: commit, archiveSha256: sha, toolingDigest: tools };
+const manifest = {
+  version: 1, kind: 'release', sourceCommit: commit, archiveSha256: sha, toolingDigest: tools,
+  files: {
+    'collector/operations.mjs': { sha256: 'd'.repeat(64), size: 123 },
+    'deploy/release.sh': { sha256: 'e'.repeat(64), size: 456 }
+  }
+};
 const now = Date.parse('2026-10-31T10:00:00Z');
 
 async function fixture(change = () => {}) {
@@ -20,6 +26,7 @@ async function fixture(change = () => {}) {
   await writeFile(join(root, 'release-authorization.pub.pem'), pair.publicKey.export({ type: 'spki', format: 'pem' }));
   const approval = {
     version: 1, scope: 'ecs-code-release', sourceCommit: commit, archiveSha256: sha, toolingDigest: tools,
+    filesDigest: hashReleaseFileManifest(manifest.files),
     ciRunUrl: 'https://github.com/wangxtong/Dimension-Football-/actions/runs/123', ciCommit: commit,
     ciEvent: 'push', ciBranch: 'main', targetInstanceId: 'i-j6c4g9s2y6b5irl5gcr9',
     ciConclusion: 'success', previousVersionRegressionPassed: true, ecsAuthorizationGranted: true,
@@ -42,6 +49,14 @@ async function checkRejected(action, expected) {
     await assert.rejects(authorizeRelease(f.manifestPath, f.options), new RegExp(expected));
   } finally { await rm(f.root, { recursive: true, force: true }); }
 }
+test('digest is insensitive to file listing order but sensitive to file changes', () => {
+  const entries = Object.entries(manifest.files);
+  assert.equal(hashReleaseFileManifest(Object.fromEntries(entries)),
+    hashReleaseFileManifest(Object.fromEntries(entries.reverse())));
+  assert.notEqual(hashReleaseFileManifest(manifest.files),
+    hashReleaseFileManifest({ ...manifest.files,
+      'collector/operations.mjs': { sha256: '0'.repeat(64), size: 123 } }));
+});
 test('valid independently signed pinned artifact authorizes code switch only', async () => {
   const f = await fixture();
   try {
@@ -55,6 +70,20 @@ test('fail closed for absent signature, altered bytes, unapproved digest and exp
   await checkRejected(async f => rm(f.approved + '.sig'), 'TRUST_PATH_MISSING');
   await checkRejected(async f => writeFile(f.approved, '{}'), 'SIGNATURE_INVALID');
   await checkRejected(async f => writeFile(f.manifestPath, JSON.stringify({ ...manifest, archiveSha256: 'd'.repeat(64) })), 'ARTIFACT_IDENTITY_MISMATCH');
+  // A malicious/stale extracted tree can update its own manifest.entries while
+  // retaining the approved sourceCommit/archiveSha256/toolingDigest strings.
+  // The detached signature must authenticate the *full payload file list*.
+  await checkRejected(async f => writeFile(f.manifestPath, JSON.stringify({
+    ...manifest, files: { ...manifest.files,
+      'collector/operations.mjs': { sha256: 'f'.repeat(64), size: 123 } }
+  })), 'ARTIFACT_IDENTITY_MISMATCH');
+  await checkRejected(async f => writeFile(f.manifestPath, JSON.stringify({
+    ...manifest, files: { ...manifest.files, 'collector/malicious.mjs': { sha256: 'f'.repeat(64), size: 13 } }
+  })), 'ARTIFACT_IDENTITY_MISMATCH');
+  await checkRejected(async f => writeFile(f.manifestPath, JSON.stringify({ ...manifest, files: null })), 'SOURCE_FILE_MANIFEST_INVALID');
+  await checkRejected(async f => writeFile(f.manifestPath, JSON.stringify({
+    ...manifest, files: { 'collector/operations.mjs': { sha256: 'invalid', size: 123 } }
+  })), 'SOURCE_FILE_MANIFEST_INVALID');
   await checkRejected(async f => { f.options.now += 3 * 24 * 3600 * 1000; }, 'APPROVAL_EXPIRED_OR_INVALID');
 });
 test('rejects insecure local trust material and symlink approvals', async () => {
