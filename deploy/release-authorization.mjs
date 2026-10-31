@@ -4,7 +4,7 @@
  * Verifies an administrator-pinned Ed25519 key and detached signature over
  * the exact approval JSON bytes. Does not issue approvals or deploy code.
  */
-import { createPublicKey, verify } from 'node:crypto';
+import { createHash, createPublicKey, verify } from 'node:crypto';
 import { lstat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +19,23 @@ function blocked(code) {
   error.code = code;
   throw error;
 }
+// Bind the signed approval to the *entire* extracted payload, not only the
+// archiveSha256 string copied into an editable extraction manifest. The caller
+// separately verifies each actual file against manifest.files using bundle.py.
+// Canonical bytes: JSON UTF-8 of sorted [path, sha256, size] tuples.
+export function hashReleaseFileManifest(files) {
+  if (!files || typeof files !== 'object' || Array.isArray(files)) blocked('SOURCE_FILE_MANIFEST_INVALID');
+  const paths = Object.keys(files).sort();
+  if (!paths.length || paths.length > 20000) blocked('SOURCE_FILE_MANIFEST_INVALID');
+  const entries = paths.map(path => {
+    const file = files[path];
+    if (!path || path.includes('\\0') || !file || typeof file !== 'object' || Array.isArray(file) ||
+        !SHA64.test(file.sha256 ?? '') || !Number.isSafeInteger(file.size) || file.size < 0)
+      blocked('SOURCE_FILE_MANIFEST_INVALID');
+    return [path, file.sha256, file.size];
+  });
+  return createHash('sha256').update(JSON.stringify(entries), 'utf8').digest('hex');
+}
 async function trusted(path, kind, uid) {
   const st = await lstat(path).catch(() => blocked('TRUST_PATH_MISSING'));
   if (st.isSymbolicLink() || st.uid !== uid || (st.mode & 0o022) !== 0 ||
@@ -27,6 +44,7 @@ async function trusted(path, kind, uid) {
 export async function authorizeRelease(manifestPath, { configDir = '/etc/vantis', trustedUid = 0, now = Date.now() } = {}) {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const commit = manifest.sourceCommit;
+  const filesDigest = hashReleaseFileManifest(manifest.files);
   if (!SHA40.test(commit ?? '') || !SHA64.test(manifest.archiveSha256 ?? '') ||
       !SHA64.test(manifest.toolingDigest ?? '') || manifest.kind !== 'release' || manifest.version !== 1)
     blocked('SOURCE_MANIFEST_INVALID');
@@ -42,7 +60,11 @@ export async function authorizeRelease(manifestPath, { configDir = '/etc/vantis'
     readFile(keyPath), readFile(approvalPath), readFile(signaturePath)
   ]);
   let valid = false;
-  try { valid = verify(null, payload, createPublicKey(key), signature); }
+  try {
+    const publicKey = createPublicKey(key);
+    if (publicKey.asymmetricKeyType !== 'ed25519' || signature.length !== 64) blocked('SIGNATURE_INVALID');
+    valid = verify(null, payload, publicKey, signature);
+  }
   catch { blocked('SIGNATURE_INVALID'); }
   if (!valid) blocked('SIGNATURE_INVALID');
 
@@ -51,7 +73,9 @@ export async function authorizeRelease(manifestPath, { configDir = '/etc/vantis'
   catch { blocked('APPROVAL_JSON_INVALID'); }
   if (approval.version !== 1 || approval.scope !== 'ecs-code-release' ||
       approval.sourceCommit !== commit || approval.archiveSha256 !== manifest.archiveSha256 ||
-      approval.toolingDigest !== manifest.toolingDigest) blocked('ARTIFACT_IDENTITY_MISMATCH');
+      approval.toolingDigest !== manifest.toolingDigest ||
+      !SHA64.test(approval.filesDigest ?? '') || approval.filesDigest !== filesDigest)
+    blocked('ARTIFACT_IDENTITY_MISMATCH');
   // pull_request workflows build ephemeral merge commits; production requires
   // an independently audited push CI run for the real main commit instead.
   if (!CI_RUN.test(approval.ciRunUrl ?? '') || approval.ciCommit !== commit ||
