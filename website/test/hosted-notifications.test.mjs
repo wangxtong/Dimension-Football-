@@ -55,7 +55,7 @@ test('production notifier pins the existing destination and first send records A
   assert.equal(sent.init.redirect, 'manual');
   const body = JSON.parse(sent.init.body); assert.equal(body.chat_id, CHAT); assert.ok(body.text.length <= 3500);
   assert.ok(body.text.includes('未校准')); assert.ok(body.text.includes(VERIFIED_DASHBOARD_ORIGIN)); assert.equal(body.parse_mode, 'HTML');
-  assert.equal(body.reply_markup.inline_keyboard.flat().length,5);assert.ok(body.text.includes('暂不放行'));
+  assert.equal(body.reply_markup.inline_keyboard.flat().length,7);assert.ok(body.text.includes('暂不放行'));
   assert.equal(bucket.writes.filter(row => row.options.onlyIf.etagDoesNotMatch === '*').length, 2);
   for (const value of bucket.data.values()) { assert.ok(!value.text.includes(TOKEN)); assert.ok(!value.text.includes(CHAT)); }
   assert.ok(!JSON.stringify(receipt).includes(TOKEN)); assert.ok(!JSON.stringify(receipt).includes(CHAT));

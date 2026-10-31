@@ -1,7 +1,7 @@
 // Explicit browser gate: node --test website/test/e2e.mjs (no public traffic).
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -33,6 +33,7 @@ before(async () => {
   assets = JSON.parse(source.slice(prefix.length, source.indexOf(';\n')));
   assert.ok(assets['/report-schema.mjs'], 'The shared schema must be present in the deployable build');
   assert.ok(assets['/locale-zh.mjs'], 'The Chinese presentation module must be present in the deployable build');
+  assert.ok(assets['/evaluation-evidence.json'], 'The authenticated historical evidence asset must be present in the real build');
   ({ createDashboard } = await import(pathToFileURL(join(output, 'server/index.js'))));
   await promisify(execFile)('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
     '-subj', '/CN=localhost', '-keyout', join(output, 'test-key.pem'), '-out', join(output, 'test-cert.pem')]);
@@ -46,7 +47,7 @@ async function dashboard(t, mode = 'ecs') {
   const errors = [];
   let origin;
   const state = { mode, report: sampleReport(), receipt: sampleReceipt(), status: 200, invalidJson: false, serverNow: NOW, calls: 0,
-    freshness: null, health: null, gate: null, bootstrap: false };
+    freshness: null, health: null, gate: null, bootstrap: false, evaluationStatus: 200 };
   const bundle = () => ({ version: 1, reportId: state.report.publication.reportId, report: state.report, receipt: state.receipt,
     ...(state.freshness ? { freshness: state.freshness } : {}), ...(state.health ? { health: state.health } : {}) });
   const worker = createDashboard(assets, { clock: () => state.serverNow, fetchImpl: async (url, options) => {
@@ -67,7 +68,10 @@ async function dashboard(t, mode = 'ecs') {
       const localEnv = { ...env, DASHBOARD_ORIGIN: origin };
       if (state.bootstrap) localEnv.DASHBOARD_BOOTSTRAP_REPORT = 'gzip:' + gzipSync(JSON.stringify(bundle())).toString('base64');
       let response;
-      if (['legacy', 'bundle'].includes(state.mode) && url.pathname.startsWith('/api/')) {
+      if (url.pathname === '/evaluation-evidence.json' && state.evaluationStatus !== 200) {
+        const gate = await worker.fetch(new Request(origin + '/app.mjs', options), localEnv);
+        response = gate.status !== 200 ? gate : new Response('Historical evidence unavailable', { status: state.evaluationStatus });
+      } else if (['legacy', 'bundle'].includes(state.mode) && url.pathname.startsWith('/api/')) {
         // Inject compatibility/corruption responses after the real built Worker's authentication gate.
         const gate = await worker.fetch(new Request(origin + '/app.mjs', options), localEnv);
         if (gate.status !== 200) response = gate;
@@ -85,11 +89,11 @@ async function dashboard(t, mode = 'ecs') {
   await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort('blockedbyclient'));
   const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
   await page.clock.install({ time: NOW });
-  const login = async () => {
+  const login = async (expectedAnalysis = '2') => {
     await page.goto(origin + '/');
     await page.getByLabel('用户名').fill(auth.username); await page.getByLabel('密码').fill(password);
     await page.getByRole('button', { name: '登录看板 →' }).click();
-    await page.waitForFunction(() => document.querySelector('#count-analysis')?.textContent === '2');
+    await page.waitForFunction(expected => document.querySelector('#count-analysis')?.textContent === expected, String(expectedAnalysis));
   };
   const refresh = async () => {
     await page.getByRole('button', { name: '刷新报告 ↻' }).click();
@@ -290,4 +294,94 @@ test('built website: Telegram links survive login and expose mobile league and d
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.goto(origin+'/?view=https%3A%2F%2Fexample.test#bad');
   assert.equal(new URL(page.url()).origin,origin);
+});
+
+test('commercial dashboard keeps historical comparisons separate from live zero-release observations on desktop and mobile', { timeout: 60000 }, async t => {
+  const { page, context, state, login, origin } = await dashboard(t, 'bundle');
+  if (process.env.DASHBOARD_PREVIEW_BUNDLE) {
+    const actual = JSON.parse(await readFile(process.env.DASHBOARD_PREVIEW_BUNDLE, 'utf8'));
+    state.report = actual.report; state.receipt = actual.receipt; state.freshness = actual.freshness; state.health = actual.health;
+    await page.clock.setFixedTime(new Date(Date.parse(actual.report.generatedAt) + 120000));
+  } else {
+    state.report.publicationKind = 'observations'; state.report.publication.releaseGate = 'BLOCKED';
+    state.report.summary = { fixtures: 3, forecasts: 0, unavailable: 3, strictCandidates: 0 };
+    state.report.fixtures.forEach(row => { row.forecast = { status: 'unavailable', reasons: ['RELEASE_GATE_BLOCKED'] };
+      row.marketCandidate = { status: 'source_insufficient', reasons: ['RELEASE_GATE_BLOCKED'], candidate: null, readiness: null }; });
+    state.freshness = { mode: 'hosted' };
+  }
+  await page.setViewportSize({ width: 1440, height: 1050 }); await login('0');
+  await page.waitForFunction(() => document.querySelector('#history-sample')?.textContent === '63 场');
+  assert.equal(await page.locator('#count-publishable').textContent(), '0');
+  assert.equal(await page.locator('#today-picks-count').textContent(), '0');
+  assert.equal(await page.locator('#count-analysis').textContent(), '0');
+  assert.equal(await page.locator('#history-accuracy').textContent(), '57.1%');
+  assert.equal(await page.locator('#history-brier-delta').textContent(), '-0.0645');
+  assert.equal(await page.locator('#history-prospective').textContent(), '0 场');
+  assert.equal(await page.locator('#backtest-chart .chart-row').count(), 4);
+  assert.match(await page.locator('#chart-summary').textContent(), /0.5489.*0.6134/);
+  assert.match(await page.locator('#picks').textContent(), /3–7.*不为数量凑单/s);
+  assert.match(await page.locator('#picks').textContent(), /严格盘口额外要求/);
+  assert.match(await page.locator('#picks').textContent(), /普通胜平负评估独立于亚洲盘/);
+  assert.match(await page.locator('#pick-blockers').textContent(), /德甲已核验；其余 4 联赛暂无评估样本/);
+  assert.match(await page.locator('.stats article').last().textContent(), /未公开评估.*发布门禁/s);
+  assert.equal(await page.locator('#cards .probabilities').count(), 0);
+  const sections = await page.evaluate(() => ['picks', 'backtest', 'matches', 'status'].map(id => document.getElementById(id).getBoundingClientRect().top));
+  assert.ok(sections.every((top, index) => !index || top > sections[index - 1]));
+  await page.locator('#history-league').selectOption('PL');
+  assert.equal(await page.locator('#history-accuracy').textContent(), '样本不足');
+  assert.equal(await page.locator('#backtest-chart .chart-row').count(), 0);
+  assert.match(await page.locator('#backtest-chart').textContent(), /不补绘图表/);
+  await page.locator('#history-league').selectOption('all');
+  assert.equal(await page.locator('#history-table tr').count(), 25);
+  await page.locator('#history-league').selectOption('BL1');
+  const screenshots = process.env.DASHBOARD_SCREENSHOTS_DIR;
+  if (screenshots) {
+    await mkdir(screenshots, { recursive: true }); await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.screenshot({ path: join(screenshots, 'desktop-overview.png') });
+    await page.screenshot({ path: join(screenshots, 'desktop-full.png'), fullPage: true });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  assert.equal(await page.locator('.table-scroll').evaluate(node => node.scrollWidth > node.clientWidth), true);
+  if (screenshots) {
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.screenshot({ path: join(screenshots, 'mobile-overview.png') });
+    await page.locator('#backtest').evaluate(node => node.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    await page.screenshot({ path: join(screenshots, 'mobile-backtest.png') });
+  }
+  for (const target of ['picks', 'backtest']) {
+    await context.clearCookies(); await page.goto(origin + `/?view=${target}#${target}`);
+    await page.getByLabel('用户名').fill(auth.username); await page.getByLabel('密码').fill(password);
+    await page.getByRole('button', { name: '登录看板 →' }).click();
+    await page.waitForFunction(() => document.querySelector('#history-sample')?.textContent === '63 场');
+    assert.equal(new URL(page.url()).searchParams.get('view'), target);
+    assert.equal(new URL(page.url()).hash, `#${target}`);
+  }
+});
+
+test('a failed historical archive load never hides the live report and retry restores only historical evidence', { timeout: 60000 }, async t => {
+  const { page, state, login, refresh } = await dashboard(t, 'bundle'); state.evaluationStatus = 503;
+  await login(); await page.waitForFunction(() => document.querySelector('#evaluation-state')?.textContent.includes('历史证据未加载'));
+  assert.equal(await page.locator('#count-fixtures').textContent(), '3');
+  assert.equal(await page.locator('#count-analysis').textContent(), '2');
+  assert.equal(await page.locator('#cards .card').count(), 2);
+  state.evaluationStatus = 200; await refresh();
+  await page.waitForFunction(() => document.querySelector('#history-sample')?.textContent === '63 场');
+  state.evaluationStatus = 503; await refresh();
+  await page.waitForFunction(() => document.querySelector('#evaluation-state')?.textContent.includes('保留上次有效档案'));
+  assert.equal(await page.locator('#history-sample').textContent(), '63 场');
+  assert.equal(await page.locator('#count-fixtures').textContent(), '3');
+});
+
+test('an initially unavailable live report displays an explicit unknown state without relabelling historical results as live', { timeout: 60000 }, async t => {
+  const { page, state, login, refresh } = await dashboard(t); state.status = 503;
+  await login('未取得');
+  await page.waitForFunction(() => document.querySelector('#history-sample')?.textContent === '63 场');
+  assert.equal(await page.locator('#count-fixtures').textContent(), '未取得');
+  assert.equal(await page.locator('#count-publishable').textContent(), '0');
+  assert.equal(await page.locator('#collected-at').textContent(), '未取得');
+  assert.match(await page.locator('#cards').textContent(), /最新报告尚未就绪/);
+  state.status = 200; await refresh();
+  assert.equal(await page.locator('#count-fixtures').textContent(), '3');
+  assert.equal(await page.locator('#count-analysis').textContent(), '2');
 });

@@ -30,6 +30,8 @@
     "audit:model": "node collector/model-readiness.mjs",
     "audit:capacity": "node collector/state-capacity.mjs",
     "collect:observations": "node collector/hosted.mjs --mode observations",
-    "audit:control": "node collector/audit-control.mjs"
+    "audit:control": "node collector/audit-control.mjs",
+    "audit:quality": "node collector/evaluation-quality.mjs",
+    "export:evaluation": "node collector/export-evaluation.mjs"
   }
 }

@@ -3,7 +3,9 @@ import { canonicalTimestamp, normalizeSeason } from './identity.mjs';
 const sourceLeagues = { BL1: 'openligadb', PL: 'thesportsdb-free', PD: 'thesportsdb-free', SA: 'thesportsdb-free', FL1: 'thesportsdb-free' };
 const codes = new Set(['community_schedule_unverified', 'free_tier_limited', 'history_cache_hit', 'authorization_required',
   'rate_limited', 'source_cooldown', 'redirect_blocked', 'http_unavailable', 'stale_response', 'response_too_large',
-  'invalid_response', 'invalid_json', 'timeout', 'network_unavailable', 'cancelled', 'budget_exhausted', 'duplicate_fixture_id', 'logical_fixture_conflict']);
+  'invalid_response', 'invalid_json', 'timeout', 'network_unavailable', 'cancelled', 'budget_exhausted', 'duplicate_fixture_id', 'logical_fixture_conflict',
+  'history_cache_unavailable']);
+const stages = new Set(['transport', 'fixtures', 'history', 'history-cache']);
 
 export function sanitizePublicDiagnostics(rows) {
   if (!Array.isArray(rows) || rows.length > 20) throw new Error('INVALID_PUBLIC_DIAGNOSTICS');
@@ -13,7 +15,11 @@ export function sanitizePublicDiagnostics(rows) {
     const clean = { id: row.id, league: row.league, code: row.code, status: row.status, checkedAt: canonicalTimestamp(row.checkedAt),
       purpose: row.purpose === 'history' ? 'history' : 'fixtures', historyRequested: row.historyRequested === true,
       season: normalizeSeason(row.season), cacheHit: row.cacheHit === true, matchedCount: 0 };
-    for (const key of ['receivedCount', 'matchedCount', 'rejectedCount', 'historyCount', 'historyRejectedCount']) {
+    if (row.stage !== undefined) {
+      if (!stages.has(row.stage)) throw new Error('INVALID_PUBLIC_DIAGNOSTICS');
+      clean.stage = row.stage;
+    }
+    for (const key of ['inputCount', 'receivedCount', 'matchedCount', 'rejectedCount', 'historyCount', 'historyRejectedCount']) {
       if (row[key] !== undefined && (!Number.isSafeInteger(row[key]) || row[key] < 0 || row[key] > 10000)) throw new Error('INVALID_PUBLIC_DIAGNOSTICS');
       if (row[key] !== undefined) clean[key] = row[key];
     }

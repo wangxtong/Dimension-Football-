@@ -13,7 +13,7 @@ import { configureEnvironmentProxy } from './network.mjs';
 import { requireGreenForecastDelivery } from './publication-release-gate.mjs';
 
 const LANES = new Set(['fixtures', 'markets', 'delivery', 'results']);
-const HELP = '用法：node collector/orchestrate.mjs --lane fixtures|markets|delivery|results [--state FILE] [--out DIR] [--budget-minutes N]\n默认报告目录 /var/lib/vantis/reports；--help 不访问网络、不写文件。\n';
+const HELP = '用法：node collector/orchestrate.mjs --lane fixtures|markets|delivery|results [--mode publish|private-research] [--state FILE] [--out DIR] [--budget-minutes N]\nprivate-research 仅冻结和结算私有研究，不能执行 delivery，不构成正式发布。默认报告目录 /var/lib/vantis/reports；--help 不访问网络、不写文件。\n';
 const BLOCKERS = new Set(['FIXTURE_CACHE_EXPIRED', 'FIXTURE_CACHE_MISSING', 'ACQUISITION_SNAPSHOT_CHANGED', 'INVALID_ACQUISITION_SNAPSHOT',
   'NO_GENERATED_REPORT', 'COLLECTION_ALREADY_LOCKED', 'INPUT_ARCHIVE_INCOMPLETE', 'CANCELLED', 'BUDGET_EXHAUSTED', 'RELEASE_GATE_BLOCKED']);
 const MANAGED_KEYS = ['FOOTBALL_DATA_API_KEY', 'FOOTBALL_DATA_API_TOKEN', 'API_FOOTBALL_KEY', 'SPORTMONKS_API_TOKEN'];
@@ -25,22 +25,28 @@ const ORCHESTRATION_ERRORS = new Set(['INVALID_ORCHESTRATION_ARGUMENTS', 'INVALI
   'PUBLICATION_NOT_READY', 'PUBLICATION_CONTENT_CHANGED', 'PUBLICATION_SEQUENCE_INCOMPLETE', 'INVALID_PROSPECTIVE_EVALUATION']);
 const deliveryIncomplete = receipt => receipt.channels && Object.values(receipt.channels).some(row => ['failed', 'unknown'].includes(row.status))
   || receipt.channels?.externalWebsite?.status === 'not_configured';
+const privateOutcome = outcome => ({ ...outcome, mode: 'private-research', forecastPublished: false,
+  publicationStatus: 'not_attempted', releaseGate: { decision: 'BLOCKED', productionAuthorization: false },
+  meaning: 'Private pre-match freezes and result scoring are not evidence of public forecast delivery.' });
 
 export function parseOrchestrationArgs(argv) {
   const options = {};
   for (let i = 0; i < argv.length; i++) {
     const argument = argv[i];
     if (argument === '--help') { if (options.help) throw new Error('DUPLICATE_ARGUMENT'); options.help = true; continue; }
-    if (!['--lane', '--state', '--out', '--budget-minutes'].includes(argument)) throw new Error('UNKNOWN_ARGUMENT');
+    if (!['--lane', '--mode', '--state', '--out', '--budget-minutes'].includes(argument)) throw new Error('UNKNOWN_ARGUMENT');
     const key = argument.slice(2), value = argv[++i];
     if (!value || value.startsWith('--') || options[key] !== undefined) throw new Error('INVALID_ARGUMENT');
     options[key] = value;
   }
   if (options.help) return options;
   if (!LANES.has(options.lane)) throw new Error('INVALID_LANE');
+  const mode = options.mode || 'publish';
+  if (!['publish', 'private-research'].includes(mode)) throw new Error('INVALID_ORCHESTRATION_MODE');
+  if (mode === 'private-research' && options.lane === 'delivery') throw new Error('PRIVATE_RESEARCH_DELIVERY_FORBIDDEN');
   const minutes = Number(options['budget-minutes'] ?? 2);
   if (!Number.isFinite(minutes) || minutes * 60000 < 100 || minutes > 20) throw new Error('INVALID_BUDGET');
-  return { ...options, budgetMs: Math.floor(minutes * 60000) };
+  return { ...options, mode, budgetMs: Math.floor(minutes * 60000) };
 }
 
 async function retainedInputs(directory) {
@@ -63,6 +69,7 @@ async function laneReceipt(statePath, lane, outcome, checkedAt) {
   previous.lanes[lane] = { checkedAt, status: outcome.status, code: outcome.code || null,
     reportId: /^[a-f0-9]{64}$/.test(outcome.reportId || '') ? outcome.reportId : null,
     exitCode: outcome.exitCode, ...(outcome.summary ? { summary: outcome.summary } : {}),
+    ...(outcome.mode === 'private-research' ? { mode: outcome.mode, forecastPublished: false, publicationStatus: 'not_attempted' } : {}),
     ...(outcome.releaseGate ? { releaseGate:outcome.releaseGate } : {}) };
   await atomicJson(path, previous);
 }
@@ -116,10 +123,14 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
           { ...common, evidenceMode: 'markets', marketHorizonHours: 24, persistAcquisition: false });
         const reportId = collection.report?.publication?.reportId;
         if (!reportId) throw new Error('NO_GENERATED_REPORT');
-        const receipt = await publish(reportId);
-        outcome = { lane: options.lane, status: collection.exitCode || collection.report.status === 'partial' || collection.report.status === 'failed'
-          || deliveryIncomplete(receipt) ? 'partial' : 'complete', reportId, receipt, collection,
-          ...(deliveryIncomplete(receipt) ? { code: 'DELIVERY_INCOMPLETE' } : {}), exitCode: collection.exitCode || Number(!!deliveryIncomplete(receipt)) };
+        if (options.mode === 'private-research') outcome = { lane: options.lane, status: collection.exitCode || collection.report.status === 'partial' || collection.report.status === 'failed'
+          ? 'partial' : 'complete', reportId, collection, exitCode: collection.exitCode || 0 };
+        else {
+          const receipt = await publish(reportId);
+          outcome = { lane: options.lane, status: collection.exitCode || collection.report.status === 'partial' || collection.report.status === 'failed'
+            || deliveryIncomplete(receipt) ? 'partial' : 'complete', reportId, receipt, collection,
+            ...(deliveryIncomplete(receipt) ? { code: 'DELIVERY_INCOMPLETE' } : {}), exitCode: collection.exitCode || Number(!!deliveryIncomplete(receipt)) };
+        }
       }
     } else if (options.lane === 'fixtures') {
       const fallbackHistory = (await retainedInputs(out)).history;
@@ -128,10 +139,14 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
         evidenceMode: 'none', fallbackHistory, persistAcquisition: true, runCliImpl: dep.runCli });
       const reportId = result.collection?.report?.publication?.reportId;
       if (!reportId) throw new Error('NO_GENERATED_REPORT');
-      const receipt = await publish(reportId);
-      outcome = { lane: options.lane, status: result.exitCode || result.collection.report.status === 'partial' || result.collection.report.status === 'failed'
-        || deliveryIncomplete(receipt) ? 'partial' : 'complete', reportId, receipt, collection: result.collection,
-        ...(deliveryIncomplete(receipt) ? { code: 'DELIVERY_INCOMPLETE' } : {}), exitCode: result.exitCode || Number(!!deliveryIncomplete(receipt)) };
+      if (options.mode === 'private-research') outcome = { lane: options.lane, status: result.exitCode || result.collection.report.status === 'partial' || result.collection.report.status === 'failed'
+        ? 'partial' : 'complete', reportId, collection: result.collection, exitCode: result.exitCode || 0 };
+      else {
+        const receipt = await publish(reportId);
+        outcome = { lane: options.lane, status: result.exitCode || result.collection.report.status === 'partial' || result.collection.report.status === 'failed'
+          || deliveryIncomplete(receipt) ? 'partial' : 'complete', reportId, receipt, collection: result.collection,
+          ...(deliveryIncomplete(receipt) ? { code: 'DELIVERY_INCOMPLETE' } : {}), exitCode: result.exitCode || Number(!!deliveryIncomplete(receipt)) };
+      }
     } else {
       if (fetchImpl === fetch) configureEnvironmentProxy(env);
       const priorInputs = await retainedInputs(out), previous = priorInputs.history, publicResults = await dep.fetchPublicResults({ nowISO: clock(), clock, fetchImpl, signal, remaining,
@@ -158,6 +173,7 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
           horizonHours, toleranceHours: 1, source: identity.source, league: identity.league, modelId: FORECAST_MODEL.id, modelVersion: FORECAST_MODEL.version }) });
       }
       const generatedAt = clock(), evaluation = { version: 1, kind: 'prospective-evaluation', generatedAt, model: FORECAST_MODEL,
+        ...(options.mode === 'private-research' ? { scope: 'private-research-freezes', forecastPublished: false, releaseGate: 'BLOCKED' } : {}),
         groups, diagnostics: publicResults.diagnostics, summary: { recordedResults: recorded, recordedScores: scored, skipped },
         limitations: ['Only retained pre-kickoff predictions can produce prospective scores.',
           'Automatic result refresh currently covers OpenLigaDB BL1; other providers require verified normalized historical inputs.'] };
@@ -165,12 +181,14 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
       const partial = publicResults.diagnostics.some(row => row.status === 'unavailable') || clean.matches.some(row => row.source !== 'openligadb');
       outcome = { lane: options.lane, status: partial ? 'partial' : 'complete', summary: evaluation.summary, evaluation, exitCode: 0 };
     }
+    if (options.mode === 'private-research') outcome = privateOutcome(outcome);
     await laneReceipt(statePath, options.lane, outcome, clock());
   } catch (error) {
     const code = BLOCKERS.has(error.message) || SAFE_ERRORS.has(error.message) || ORCHESTRATION_ERRORS.has(error.message) ? error.message : 'LANE_FAILED';
     outcome = { lane: options.lane, status: BLOCKERS.has(code) ? 'blocked' : 'failed', code, exitCode: 1 };
     if (code === 'RELEASE_GATE_BLOCKED' && error.releaseGate)
       outcome.releaseGate = error.releaseGate;
+    if (options.mode === 'private-research') outcome = privateOutcome(outcome);
     if (release) await laneReceipt(statePath, options.lane, outcome, clock());
   } finally { if (release) await release(); }
   stdout(`${options.lane}: ${outcome.status}${outcome.code ? ` (${outcome.code})` : ''}\n`);

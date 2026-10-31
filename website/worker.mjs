@@ -70,7 +70,7 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     const config=configuration(env);if(!config)return response('登录服务尚未配置，请联系管理员。',503);
     const now=Math.floor(clock()/1000),path=new URL(request.url).pathname,method=request.method;
     const requestedView = new URL(request.url).searchParams.get('view');
-    const view = ['analysis','strict','missing','schedule','status'].includes(requestedView) ? requestedView : '';
+    const view = ['analysis','strict','missing','schedule','status','picks','backtest','overview'].includes(requestedView) ? requestedView : '';
     const landing = view ? '/?view='+view+'#'+view : '/';
     const loginPath = view ? '/login?view='+view : '/login';
     const sameOrigin=request.headers.get('origin')===config.origin;
@@ -134,7 +134,7 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     }
     const file=path==='/'?'/index.html':path;
     if(!Object.hasOwn(assets,file))return response('页面不存在。',404);
-    return response(method==='HEAD'?null:assets[file],200,file.endsWith('.mjs')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8');
+    return response(method==='HEAD'?null:assets[file],200,file.endsWith('.mjs')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':file.endsWith('.json')?'application/json; charset=utf-8':'text/html; charset=utf-8');
   }};
 }
 export default createDashboard(typeof EMBEDDED_ASSETS==='undefined'?{}:EMBEDDED_ASSETS);

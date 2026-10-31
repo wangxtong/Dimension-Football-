@@ -1,54 +1,78 @@
 {
   "kind": "acceptance",
-  "scope": "local-integration-and-production-bootstrap-not-ECS",
+  "scope": "bounded-code-repairs-live-observations-and-historical-dashboard-not-commercial-forecast-release",
   "passed": true,
-  "checkedAt": "2026-10-31T07:55:46.975493Z",
-  "commitSha": "cc44bd79113f7efeda694fc168f9a9048168619c",
+  "commercialReleaseAccepted": false,
+  "releaseGate": "BLOCKED",
+  "checkedAt": "2026-10-31T09:31:48.597440+00:00",
+  "codeCommitSha": "4af652241a0745e1b29781cb7c01da57f993a766",
+  "siteSourceSha": "b484eba8a63f700f91755bc4d9a135a16fce9504",
   "checks": [
     {
-      "name": "Node integration",
-      "passed": 441,
-      "failed": 0
+      "name": "Node integrated regression with original report evidence",
+      "passed": 636,
+      "failed": 0,
+      "skipped": 0
     },
     {
       "name": "Python packaging and handoff",
-      "passed": 23,
+      "passed": 27,
       "failed": 0
     },
     {
-      "name": "Chromium website build",
-      "passed": 8,
+      "name": "Chromium built commercial dashboard",
+      "passed": 13,
       "failed": 0
     },
     {
-      "name": "Chromium crawler",
-      "passed": 3,
-      "failed": 0
-    },
-    {
-      "name": "Production mobile dashboard",
+      "name": "Production authenticated mobile dashboard and seven destinations",
       "httpStatus": 200,
       "pageErrors": 0,
-      "summary": {
-        "forecasts": 9,
-        "unavailable": 4,
-        "strictCandidates": 0
-      },
-      "mode": "bootstrap",
-      "siteVersion": 6
+      "mode": "hosted",
+      "publicationKind": "observations",
+      "siteVersion": 12,
+      "reportId": "09911d52e59e6cbfa4ce0b1cdfacf0aaecacfb866ce718d7024797f44a665f87",
+      "generatedAt": "2026-10-31T09:09:31.897Z",
+      "fixtureCount": 13,
+      "formalPredictions": 0,
+      "evidence": "docs/evidence/production-dashboard-v12.json"
     },
     {
-      "name": "Independent replay of actual v2 data",
-      "historyCount": 370,
-      "probabilityAndTrainingHashMatches": 9,
-      "reportId": "8eae3910f8b55727dc36ceb093d6fb89d4d4d1af8a4024a4fb0340d3b1be46c7"
+      "name": "Hosted collection same-report readback",
+      "runId": 41186918895,
+      "attempt": 3,
+      "stateRevision": 2,
+      "servedVerified": true,
+      "reportId": "09911d52e59e6cbfa4ce0b1cdfacf0aaecacfb866ce718d7024797f44a665f87",
+      "reportHash": "5945eb4265943fab037243599cba7537f43ddbb82da1f10956d2219383904e20"
+    },
+    {
+      "name": "Historical asset source binding",
+      "sha256": "6216912148bd1af0178157c3aedc662fb3bb9cdd11ee1b2e228310c5a3190f7e",
+      "matchesBuild": true,
+      "anonymousStatus": 401,
+      "groups": 25,
+      "uniqueHistoricalMatches": 63,
+      "prospectiveMatches": 0
+    },
+    {
+      "name": "Private research freeze and settlement across runner restart",
+      "scope": "offline-real-code-with-synthetic-inputs",
+      "frozen": 1,
+      "scored": 1,
+      "publicationCalls": 0,
+      "notificationCalls": 0
     }
   ],
   "unverified": [
-    "ECS installation and persistent restart",
-    "Live Sites/ECS same-report readback",
-    "New production Telegram outbox delivery",
+    "Continuous production scheduling, recovery and latency SLO",
+    "Full five-league licensed schedule/history/results coverage",
     "Independent second Asian source with true opening",
-    "Global shared login rate limiting"
+    "Calibrated model and independently validated prospective quality",
+    "Long-term partitioned ledger storage and archive recovery",
+    "Actual ECS running SHA, service restart and rollback",
+    "New Telegram maintenance menu acceptance (not yet sent)",
+    "Independent per-user accounts and shared login rate limiting",
+    "Unbypassable repository permissions and independently verified formal promotion authority"
   ]
 }

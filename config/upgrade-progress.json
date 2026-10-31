@@ -6,77 +6,91 @@
     {
       "id": "sources",
       "owner": "A2",
-      "status": "active",
+      "status": "review",
       "priority": "P1",
-      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
+      "note": "分离赛程、历史和缓存故障，40项定向回归通过；真实五联赛历史及商业权益仍不完整。",
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     },
     {
       "id": "data",
       "owner": "A3",
-      "status": "active",
+      "status": "review",
       "priority": "P1",
-      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
+      "note": "历史档案逐场复算与来源摘要已绑定；前瞻时间可见性和长期容量继续单独验收。",
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     },
     {
       "id": "models",
       "owner": "A4",
-      "status": "active",
+      "status": "review",
       "priority": "P1",
-      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
+      "note": "新增固定分箱校准误差、同周配对区间和跨提前量去重；63唯一历史样本、0真实前瞻，未校准。",
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     },
     {
       "id": "markets",
       "owner": "A5",
-      "status": "active",
+      "status": "review",
       "priority": "P1",
-      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
+      "note": "修复不可能时间污染初盘档案；旧档案待重验；第二独立报价和真实初盘仍不足。",
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     },
     {
       "id": "delivery",
       "owner": "A6",
-      "status": "active",
+      "status": "review",
       "priority": "P0",
-      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
+      "note": "中文状态卡7个实际URL入口；自动预测发布仍受硬门禁阻断。",
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     },
     {
       "id": "operations",
       "owner": "A7",
-      "status": "active",
+      "status": "review",
       "priority": "P1",
-      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
+      "note": "私有研究与发布分离，核账优先，跨runner恢复离线通过；不启用持续研究调度；ECS未验证。",
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     },
     {
       "id": "website",
       "owner": "A8",
-      "status": "active",
+      "status": "verified",
       "priority": "P0",
-      "note": "R1 bounded repair and independent evidence review in a separate agent worktree."
+      "note": "第12版原站点实际部署；历史可视化、7入口和手机浏览器现场通过。",
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     },
     {
       "id": "ecs-access",
       "owner": "A1",
       "status": "blocked",
       "priority": "P1",
-      "blocker": "No connected ECS command identity. Existing Sites + Actions is being activated autonomously; ECS deployment remains unverified."
+      "blocker": "没有可用的 ECS 命令身份；当前网站已接通 Sites+Actions 持久观察流，未证明 ECS 新版运行。"
     },
     {
       "id": "hosted-live",
       "owner": "A1/A6/A8",
-      "status": "active",
+      "status": "verified",
       "priority": "P0",
-      "note": "Observation-only ingestion is being integrated; probability and candidate publication remains blocked."
+      "note": "Actions41186918895 attempt3完成真实观察上传、状态revision2和同ID/摘要回读；持续调度可靠性仍待跨轮证据。",
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     }
   ],
-  "updatedAt": "2026-10-31T08:45:52.700213+00:00",
-  "phase": "r1_preproduction_repairs",
+  "updatedAt": "2026-10-31T09:30:26.109872+00:00",
+  "phase": "r2_live_observations_and_quality_validation",
   "acceptance": "docs/upgrade-acceptance.json",
   "productionWebsite": {
-    "version": 7,
-    "mode": "bootstrap",
-    "reportId": "d9d61ff8969b662a1a82b9ead07dcfa83e200104d2eb4484c8bff84866dc804c",
+    "version": 12,
+    "sourceCommit": "b484eba8a63f700f91755bc4d9a135a16fce9504",
+    "mode": "hosted",
+    "publicationKind": "observations",
+    "reportId": "09911d52e59e6cbfa4ce0b1cdfacf0aaecacfb866ce718d7024797f44a665f87",
+    "generatedAt": "2026-10-31T09:09:31.897Z",
+    "checkedAt": "2026-10-31T09:27:27.738Z",
     "httpStatus": 200,
-    "pageErrors": 0
+    "pageErrors": 0,
+    "historyAssetMatchesBuild": true,
+    "browserLinksVerified": 7
   },
   "releaseGate": "BLOCKED",
-  "publicationScope": "Collection observations only; no forecast promotion or automatic forecast notification."
+  "publicationScope": "真实采集观察与已验证历史档案；正式概率、推荐及自动预测通知仍不放行。"
 }

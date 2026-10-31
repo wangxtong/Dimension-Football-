@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {formatTelegramPublication,beijingTime,TELEGRAM_SITE_ORIGIN,TELEGRAM_TEXT_LIMIT} from '../telegram-presentation.mjs';
 import {sampleReport,sampleReceipt,NOW} from './fixtures.mjs';
+const evidence=JSON.parse(readFileSync(new URL('../evaluation-evidence.json',import.meta.url),'utf8'));
 
 test('status summary is Chinese, Beijing time and always BLOCKED without publishing probabilities',()=>{
   const report=sampleReport(),receipt=sampleReceipt(report),before=JSON.stringify({report,receipt});
@@ -16,10 +18,40 @@ test('status summary is Chinese, Beijing time and always BLOCKED without publish
 test('buttons are working URL links on the existing Site with no unhandled callbacks',()=>{
   const value=formatTelegramPublication({report:sampleReport(),now:NOW});
   const buttons=value.reply_markup.inline_keyboard.flat();
-  assert.deepEqual(buttons.map(b=>new URL(b.url).hash),['#schedule','#analysis','#strict','#missing','#status']);
+  assert.deepEqual(buttons.map(b=>new URL(b.url).hash),['#picks','#backtest','#schedule','#analysis','#strict','#missing','#status']);
+  assert.ok(buttons.every(b=>new URL(b.url).searchParams.get('view')===new URL(b.url).hash.slice(1)));
   assert.ok(buttons.every(b=>new URL(b.url).origin===TELEGRAM_SITE_ORIGIN&&!Object.hasOwn(b,'callback_data')));
   for(const siteURL of ['https://attacker.example',TELEGRAM_SITE_ORIGIN+'/?redirect=evil',TELEGRAM_SITE_ORIGIN+'/#fake'])
     assert.throws(()=>formatTelegramPublication({report:sampleReport(),siteURL,now:NOW}),/ORIGIN_INVALID/);
+});
+test('verified archive displays one historical sample with its same-match baseline and zero prospective scores',()=>{
+  const report=sampleReport(),value=formatTelegramPublication({report,evaluationEvidence:evidence,now:NOW});
+  assert.match(value.text,/今日优选.*0 场正式发布/);
+  assert.match(value.text,/德甲 · 赛前 1 小时｜已评 63 \/ 80 场，跳过 17 场/);
+  assert.match(value.text,/历史方向命中 57\.14%｜同场基准 53\.97%/);
+  assert.match(value.text,/前瞻已评分 0 场/);assert.match(value.text,/未校准的历史快照回顾/);
+  assert.match(value.text,/不是当前比赛概率/);assert.doesNotMatch(value.text,/252 场|249 场|胜率 57|收益|稳赚/);
+  assert.ok(value.text.length<=TELEGRAM_TEXT_LIMIT);
+});
+test('missing, ambiguous or malformed historical evidence never fabricates metrics or authorizes picks',()=>{
+  const changes=[x=>{x.canRelease=true;},x=>{x.releaseGate='GREEN';},x=>{x.binding.inputsHash='bad';},
+    x=>{x.groups.push(structuredClone(x.groups.find(g=>g.league==='BL1'&&g.horizonHours===1&&g.purpose==='reference-horizon')));},
+    x=>{x.groups.find(g=>g.league==='BL1'&&g.horizonHours===1&&g.purpose==='reference-horizon').baseline.accuracy=2;}];
+  for(const change of changes){
+    const invalid=structuredClone(evidence);change(invalid);
+    const value=formatTelegramPublication({report:sampleReport(),evaluationEvidence:invalid,now:NOW});
+    assert.match(value.text,/历史指标暂未载入/);assert.match(value.text,/今日优选.*0 场正式发布/);assert.doesNotMatch(value.text,/%|GREEN/);
+  }
+});
+test('observation cards distinguish withheld model output from missing source data and never select a match',()=>{
+  const report=sampleReport();report.publicationKind='observations';report.forecastPublished=false;
+  report.fixtures.forEach(row=>{row.forecast={status:'unavailable',reasons:['RELEASE_GATE_BLOCKED']};row.marketCandidate={status:'source_insufficient',reasons:['RELEASE_GATE_BLOCKED'],candidate:null};});
+  report.summary.forecasts=0;report.summary.strictCandidates=0;report.summary.unavailable=3;
+  const value=formatTelegramPublication({report,evaluationEvidence:evidence,now:NOW});
+  assert.match(value.text,/普通分析.*正式发布 0 场/);assert.match(value.text,/严格候选.*正式发布 0 场/);
+  assert.match(value.text,/分析明细暂不公开/);assert.match(value.text,/赛程覆盖.*3 场/);
+  assert.doesNotMatch(value.text,/普通分析 3 场待补|普通主队|严格主队|主胜|客胜|可评估 0/);
+  assert.equal(value.reply_markup.inline_keyboard[0][0].text,'⭐ 今日优选');
 });
 test('HTML is escaped before assembly and long astral names never split entities or surrogate pairs',()=>{
   const report=sampleReport();
