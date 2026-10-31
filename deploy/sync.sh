@@ -78,6 +78,8 @@ done
 [[ -d "$source_dir/collector/test" && -d "$source_dir/collector/sources/test" ]] || die 'Tests missing.'
 find "$source_dir" -type d -exec chmod 0755 {} +
 find "$source_dir" -type f -exec chmod 0644 {} +
+# The release script requires this marker to remain root-only.
+chmod 0600 "$marker"
 mapfile -d '' -t test_files < <(find "$source_dir/collector/test" "$source_dir/collector/sources/test" \
   -type f -name '*.test.mjs' -print0)
 (( "${#test_files[@]}" > 0 )) || die 'No tests found.'
