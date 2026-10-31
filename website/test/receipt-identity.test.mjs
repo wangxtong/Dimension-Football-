@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { validateBundle } from '../report-schema.mjs';
+import { readDashboardBundle } from '../report-feed.mjs';
 import { handleHostedRequest, loadHostedBundle, updateHostedReceipt } from '../hosted-publications.mjs';
 import { NOW, ORIGIN, sampleBundle } from './fixtures.mjs';
 import { MemoryBucket, fakeKeys, machineRequest } from './hosted-fixtures.mjs';
@@ -60,4 +61,28 @@ test('hosted receipt write rejects a false website readback without poisoning la
     assert.equal(unchanged.reportId, current.reportId);
     assert.equal(unchanged.reportHash, current.reportHash);
   }
+});
+
+test('ECS and bootstrap cannot launder a self-asserted false report SHA into website readback', async () => {
+  const forged = sampleBundle();
+  const claimedHash = otherHash(digest(forged.report));
+  forged.reportHash = claimedHash;
+  forged.receipt.channels.externalWebsite = {
+    status: 'published', servedVerified: true, reportId: forged.reportId, reportHash: claimedHash,
+  };
+
+  await assert.rejects(readDashboardBundle({
+    DASHBOARD_BOOTSTRAP_REPORT: JSON.stringify(forged),
+  }, { now: NOW }), /REPORT_HASH_MISMATCH/);
+
+  await assert.rejects(readDashboardBundle({
+    REPORTS_ORIGIN: 'https://reports.example', REPORTS_READ_TOKEN: 'a'.repeat(40),
+  }, { now: NOW, fetchImpl: async () => Response.json(forged) }), /REPORT_HASH_MISMATCH/);
+
+  // An old snapshot may omit its outer hash; its channel digest still has
+  // to match the recomputed report hash before visitors see "published".
+  delete forged.reportHash;
+  await assert.rejects(readDashboardBundle({
+    DASHBOARD_BOOTSTRAP_REPORT: JSON.stringify(forged),
+  }, { now: NOW }), /RECEIPT_SCHEMA_INVALID/);
 });
