@@ -131,7 +131,22 @@ auth_git() {
 remote_line=$(auth_git ls-remote --exit-code --refs "$origin" refs/heads/main) \
   || die 'Cannot authenticate private main.'
 read -r remote_commit remote_ref extra <<< "$remote_line"
-[[ "$remote_line" != *
+[[ "$remote_commit" == "$commit" && "$remote_ref" == refs/heads/main && -z "$extra" ]] \
+  || die 'Supplied SHA does not match private main.'
+git init -q "$work_dir/repository"
+chmod 0700 "$work_dir/repository"
+auth_git -C "$work_dir/repository" fetch -q --no-tags --depth=1 "$origin" refs/heads/main \
+  || die 'Private source fetch failed.'
+[[ $(git -C "$work_dir/repository" rev-parse FETCH_HEAD) == "$commit" ]] \
+  || die 'Main changed during checkout; current server remains untouched.'
+source_dir="$work_dir/source"
+mkdir -- "$source_dir"
+git -C "$work_dir/repository" archive --format=tar FETCH_HEAD |
+  tar --extract --file - --directory "$source_dir" --no-same-owner --no-same-permissions
+marker="$source_dir/.vantis-verified-commit"
+[[ ! -e "$marker" && ! -L "$marker" ]] || die 'Repository supplied reserved marker.'
+printf '%s\n' "$commit" > "$marker"
+chmod 0600 "$marker"
 if [[ -n "$deployment_dir" ]]; then
   # The local bundle may supply newer infrastructure than the pinned collector.
   # Only these fixed deployment filenames may be overlaid; collector is untouched.
@@ -218,5 +233,5 @@ printf '%s\n' \
   'Then: systemctl start vantis-collector.service' \
   'Verify: journalctl -u vantis-collector.service -n 100 --no-pager' \
   'Schedule: systemctl list-timers vantis-collector.timer vantis-sync.timer' \
-  'Git main is checked every two minutes; successful test runs trigger atomic code releases.' \
+  'Git main is checked every two minutes; only fully authorized commits may be promoted.' \
   'Sync logs: journalctl -u vantis-sync.service -n 100 --no-pager'
