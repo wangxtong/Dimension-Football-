@@ -4,6 +4,7 @@ import { writeReports } from './report.mjs';
 import { publicSourceHealth } from './sources/manager.mjs';
 import { CRAWLER_CODES } from './sources/crawler.mjs';
 import { PUBLIC_FIXTURE_SOURCES } from './sources/public-fixtures.mjs';
+import { buildForecasts, finalizeForecasts } from './forecast.mjs';
 
 // Persist only diagnostic metadata, never headers, response bodies or thrown messages.
 export function safeDiagnostics(rows = []) {
@@ -49,14 +50,14 @@ export function safeMarketDiagnostics(rows = [], fixtures = []) {
 const LIMITATIONS = [
   '赛程支持 football-data.org、API-Football、Sportmonks；公开证据沿用 Titan007 / Statarea。配置凭据后增加 Sportmonks 模型、The Odds API 市场参考及 iSports 当日亚洲盘。',
   'M88、12bet、SBOBET 在 Titan007 的展示合计只算一个独立网站来源。无第二报价源或初盘轨迹时保持来源不足。',
-  '未把胜平负概率改写成亚洲盘赢盘率；不自动生成大小球或比分，也不承诺命中率。',
+  '赛前胜平负、预期进球和比分参考来自历史比分泊松基线，独立于严格盘口筛选；未做概率校准，不承诺命中率。',
   '本项目不向旧站点写回、不冻结预测、不调用 Telegram、投注或结算接口。',
   '商业赔率参考不自动增加独立报价票；初盘时间和上游独立性未核实前，不进入正式亚洲盘候选。',
 ];
 
 export async function runCollection({
   fixtures, statePath, outDir, collectEvidence, policy = DEFAULT_POLICY, simulated = false,
-  fixtureDiagnostics = [], poolComplete = true, sourceManagement = null, importedEvidence = { quotes: [], signals: [] },
+  fixtureDiagnostics = [], poolComplete = true, sourceManagement = null, importedEvidence = { quotes: [], signals: [] }, history = [],
   clock = () => new Date().toISOString(), monotonic = () => performance.now(), startedTick = monotonic(),
   checkpoint = atomicJson, signal,
 }) {
@@ -66,6 +67,8 @@ export async function runCollection({
   const remaining = () => signal?.aborted ? 0 : Math.max(0, deadline - monotonic());
   try {
     const state = await readState(statePath, simulated), policyHash = digest(policy);
+    // Statistical forecasts do not wait for an optional odds website to respond.
+    const initialForecasts = buildForecasts({ fixtures: pool.fixtures, history, nowISO: startedAt, policy, simulated, remaining });
     // Full-pool basic screening happens before slow network collection.
     for (const fixture of pool.fixtures) {
       const key = fixtureKey(fixture), old = state.entries[key], result = basicScreen(fixture, startedAt, policy);
@@ -127,15 +130,23 @@ export async function runCollection({
       if (simulated && result.status === 'candidate') result.status = 'simulated_candidate';
       entry.result = result;
     }
-    const results = pool.fixtures.map(fixture => ({ fixture, ...state.entries[fixtureKey(fixture)] }));
+    const forecasts = finalizeForecasts(initialForecasts, pool.fixtures, completedAt, policy);
+    const forecastMap = new Map(forecasts.rows.map(row => [row.fixtureId, row]));
+    const results = pool.fixtures.map(fixture => {
+      const entry = state.entries[fixtureKey(fixture)];
+      entry.forecast = forecastMap.get(fixture.id);
+      return { fixture, ...entry };
+    });
     const count = status => results.filter(row => row.result.status === status).length;
     const diagnostics = safeDiagnostics([...fixtureDiagnostics, ...evidence.diagnostics]);
     const hasSourceIssue = diagnostics.some(d => ['failed', 'unavailable', 'partial', 'restricted', 'not_implemented'].includes(d.status));
     const summary = { total: results.length, basicScreened: results.length, duplicates: pool.duplicates, processed, reused, pending: count('pending'),
-      candidates: count('candidate'), simulatedCandidates: count('simulated_candidate'), avoid: count('avoid'), sourceInsufficient: count('source_insufficient') };
+      candidates: count('candidate'), simulatedCandidates: count('simulated_candidate'), avoid: count('avoid'), sourceInsufficient: count('source_insufficient'),
+      forecasts: forecasts.summary.forecasts, forecastUnavailable: forecasts.summary.unavailable };
     const report = { version: 1, task: '维度足球长期公开信息采集', simulated, timezone: 'Asia/Shanghai', startedAt, completedAt,
       poolComplete, status: sourceFailed ? 'failed' : summary.pending || hasSourceIssue || !poolComplete ? 'partial' : 'complete',
       summary, diagnostics, marketDiagnostics, results, limitations: LIMITATIONS, policy,
+      forecasts,
       publicFixtureSources: PUBLIC_FIXTURE_SOURCES.filter(source => pool.fixtures.some(fixture => fixture.source === source.id)),
       crawler: evidence.crawler || null,
       providers: evidence.providers ? { ...evidence.providers, observations: evidence.providers.observations.map(row => ({ ...row,

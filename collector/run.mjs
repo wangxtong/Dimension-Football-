@@ -17,6 +17,7 @@ const HELP = `维度足球长期公开信息采集（Node.js 24+）
 
 用法：npm run collect -- [选项]
   --input FILE             新鲜的真实赛程JSON；数组或 {"fixtures": [...]}；也可设置 FIXTURES_FILE
+  --history FILE           已完赛全场历史JSON；数组或 {"history": [...]}，用于独立赛前预测
   --state FILE             检查点；默认 .collection-state/state.json
   --out DIR                双版本报告目录；默认 reports
   --config FILE            规则配置；默认 config/collection.json
@@ -47,12 +48,12 @@ export function parseArgs(argv) {
     if (['--demo', '--help', '--accept-reviewed-evidence', '--deep-analysis', '--basic', '--source-status', '--provider-status'].includes(argument)) {
       const key = argument.slice(2); if (Object.hasOwn(result, key)) throw new Error('DUPLICATE_ARGUMENT'); result[key] = true; continue;
     }
-    if (!['--input', '--state', '--out', '--config', '--sources-config', '--crawler-config', '--providers-config', '--budget-minutes', '--evidence'].includes(argument)) throw new Error('UNKNOWN_ARGUMENT');
+    if (!['--input', '--history', '--state', '--out', '--config', '--sources-config', '--crawler-config', '--providers-config', '--budget-minutes', '--evidence'].includes(argument)) throw new Error('UNKNOWN_ARGUMENT');
     const key = argument.slice(2), value = argv[++index];
     if (!value || value.startsWith('--') || Object.hasOwn(result, key)) throw new Error('INVALID_ARGUMENT');
     result[key] = value;
   }
-  if (result['accept-reviewed-evidence'] && !result.evidence || result.demo && (result.input || result.evidence || result['deep-analysis'])) throw new Error('CONFLICTING_ARGUMENTS');
+  if (result['accept-reviewed-evidence'] && !result.evidence || result.demo && (result.input || result.history || result.evidence || result['deep-analysis'])) throw new Error('CONFLICTING_ARGUMENTS');
   if (result.basic && result['deep-analysis']) throw new Error('CONFLICTING_ARGUMENTS');
   if (result['source-status'] && Object.keys(result).some(key => !['source-status', 'state', 'sources-config', 'help'].includes(key))) throw new Error('CONFLICTING_ARGUMENTS');
   if (result['provider-status'] && Object.keys(result).some(key => !['provider-status', 'state', 'providers-config', 'help'].includes(key))) throw new Error('CONFLICTING_ARGUMENTS');
@@ -108,7 +109,7 @@ export async function runCli(argv, {
     return fetchImpl(url, { ...init, signal: AbortSignal.any(signals) });
   };
   const abortSignal = signal;
-  let fixtures, fixtureDiagnostics = [], poolComplete = true, simulated = !!options.demo, demo, sourceManagement = null;
+  let fixtures, history = [], fixtureDiagnostics = [], poolComplete = true, simulated = !!options.demo, demo, sourceManagement = null;
   const inputFile = options.input || (!simulated && env.FIXTURES_FILE);
   const deepAnalysis = options['deep-analysis'] || (!options.basic && !simulated && !inputFile
     && typeof env.API_FOOTBALL_KEY === 'string' && env.API_FOOTBALL_KEY.trim()
@@ -117,6 +118,7 @@ export async function runCli(argv, {
   else if (inputFile) {
     const input = await readJson(resolve(cwd, inputFile));
     fixtures = Array.isArray(input) ? input : input?.fixtures;
+    history = !Array.isArray(input) && Object.hasOwn(input || {}, 'history') ? input.history : [];
     if (!Array.isArray(fixtures)) throw new Error('INVALID_FIXTURE_FILE');
     poolComplete = false; // The size of a supplied pool says nothing about global/site coverage.
     fixtureDiagnostics = [{ id: 'owner-fixtures', status: 'available', code: 'INPUT_POOL_ONLY', checkedAt: nowISO, matchedCount: fixtures.length }];
@@ -134,9 +136,14 @@ export async function runCli(argv, {
     poolComplete = result.poolComplete;
     sourceManagement = result.management;
   }
+  if (options.history) {
+    const input = await readJson(resolve(cwd, options.history));
+    history = Array.isArray(input) ? input : input?.history;
+  }
+  if (!Array.isArray(history)) throw new Error('INVALID_HISTORY_FILE');
   const importedEvidence = options.evidence ? reviewedEvidence(await readJson(resolve(cwd, options.evidence)), options['accept-reviewed-evidence']) : { quotes: [], signals: [] };
   const result = await runCollection({ fixtures, statePath, outDir, policy, simulated, fixtureDiagnostics, poolComplete, sourceManagement, clock, startedTick, signal,
-    importedEvidence, collectEvidence: simulated ? async () => structuredClone(demo.evidence)
+    importedEvidence, history, collectEvidence: simulated ? async () => structuredClone(demo.evidence)
       : async ({ fixtures, nowISO, signal: stageSignal }) => collectIntegratedEvidence({ fixtures, nowISO, env,
         providerStatePath: `${statePath}.providers.json`, providerPolicy, fetchImpl: boundedFetch(stageSignal),
         statePath: `${statePath}.crawl.json`, policy: crawlerPolicy, clock, remaining,
@@ -146,7 +153,8 @@ export async function runCli(argv, {
   const allFixturesFailed = !inputFile && !simulated && fixtureDiagnostics.length > 0 && fixtureDiagnostics.every(source => !['available', 'complete'].includes(source.status));
   const exitCode = signal?.aborted || sourceManagement?.interrupted || allFixturesFailed || result.report.status === 'failed' ? 1 : 0;
   const s = result.report.summary;
-  stdout(`${simulated ? '【模拟验证】' : '【真实采集】'}${result.report.status}；输入池${s.total}场，本轮深查${s.processed}场，待续查${s.pending}场，生产候选${s.candidates}场。\n`);
+  stdout(`${simulated ? '【模拟验证】' : '【真实采集】'}${result.report.status}；赛前预测${s.forecasts}场，暂不可预测${s.forecastUnavailable}场，严格盘口候选${s.candidates}场。\n`);
+  stdout(`输入池${s.total}场；本轮盘口深查${s.processed}场；待续查${s.pending}场。\n`);
   stdout(`报告：${result.files.briefPath}\n详细：${result.files.messagePath}\n`);
   if (sourceManagement) stdout(`赛程来源：${sourceManagement.selectedSource || '不可用'}；自动切换：${sourceManagement.fallbackUsed ? '是' : '否'}。\n`);
   if (deepAnalysis) {
@@ -178,6 +186,7 @@ export const SAFE_ERRORS = new Set(['INVALID_POLICY', 'FIXTURE_POOL_INVALID_OR_T
   'INVALID_NOW', 'JSON_FILE_TOO_LARGE', 'COLLECTION_ALREADY_LOCKED', 'STATE_UNREADABLE', 'STATE_INVALID_OR_MODE_MISMATCH',
   'DUPLICATE_ARGUMENT', 'UNKNOWN_ARGUMENT', 'INVALID_ARGUMENT', 'CONFLICTING_ARGUMENTS', 'INVALID_BUDGET', 'INVALID_EVIDENCE_FILE',
   'INVALID_FIXTURE_FILE', 'FIXTURE_API_KEY_OR_INPUT_REQUIRED', 'EXAMPLE_FIXTURES_REQUIRE_DEMO', 'DEEP_ANALYSIS_API_KEY_REQUIRED',
+  'INVALID_HISTORY_FILE', 'CONFLICTING_HISTORY_ID',
   'INVALID_SOURCE_POLICY', 'SOURCE_STATE_UNREADABLE', 'SOURCE_STATE_INVALID', 'REQUIRED_SOURCE_DISABLED',
   'INVALID_CRAWLER_POLICY', 'CRAWLER_STATE_UNREADABLE', 'CRAWLER_STATE_INVALID',
   'INVALID_PROVIDER_POLICY', 'PROVIDER_STATE_UNREADABLE', 'PROVIDER_STATE_INVALID',

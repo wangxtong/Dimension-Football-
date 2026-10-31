@@ -11,7 +11,7 @@
 
 来源依据：[OpenLigaDB 说明](https://www.openligadb.de/)、[接口示例](https://github.com/OpenLigaDB/OpenLigaDB-Samples)、[ODbL 许可](https://www.openligadb.de/lizenz)、[TheSportsDB 免费文档和限制](https://www.thesportsdb.com/docs_api_guide.php)。这不是对五大联赛完整实时覆盖或企业 SLA 的承诺。
 
-两家的联赛分工不重叠，赛事 ID 分别使用 `oldb-`、`tsdb-` 命名空间。只读取官方固定主机和已公开 GET 路径，不接收自定义 URL 或私有密钥。常规一轮共 5 次赛程请求，跨 7 月赛季边界最多 6 次；单请求最多 6 秒、响应最多 2 MB，不自动重试。429 保留 `Retry-After`，401 / 403、重定向、HTML、陈旧 HTTP 响应、错误身份和无效日期不会转为赛程。
+两家的联赛分工不重叠，赛事 ID 分别使用 `oldb-`、`tsdb-` 命名空间。只读取官方固定主机和已公开 GET 路径，不接收自定义 URL 或私有密钥。仅赛程模式一轮 5 次请求，跨 7 月边界最多 6 次；`collect:public` 增加一次上一赛季请求，分别为 6 / 7 次。单请求最多 6 秒、响应最多 2 MB，不自动重试。429 保留 `Retry-After`，401 / 403、重定向、HTML、陈旧 HTTP 响应、错误身份和无效日期不会转为赛程。
 
 TheSportsDB 使用官方定义的 `dateEvent + strTime` UTC 时间，与提供的 `strTimestamp` 再次比较；缺时间、零点占位、延期、未知状态或已有比分均不采用。OpenLigaDB 仅使用显式 UTC 字段；无时区的 `lastUpdateDateTime` 不推断为 UTC。两源的 `sourceUpdatedAt` 保留未知，采集时间不冒充供应商更新时间。
 
@@ -30,14 +30,15 @@ npm run collect:public -- --state .collection-state/public/state.json --out repo
 
 `collect:public` 显式使用 `--basic`，不启用 API-Football 隐式深度分析。已有商业来源只有配置其合法凭据时才会参与原有证据采集。普通 `collect`、每小时调度与主分支上线验收逻辑不变。
 
-GitHub Actions 的“公开信息源试接入”可手动触发；本模块合入主分支或后续更新时也自动跑一轮。单轮最多 2 分钟，不注入私有密钥，无定时重复任务；结果和归属写入 Summary，数据及分析报告保存在 artifact 30 天。该任务的 `success` 只表示采集程序完成，是否有有效赛程、盘口或正式候选需要查看报告。
+GitHub Actions 的“公开赛程预测与报告”可手动触发；相关模块合入主分支或后续更新时也自动跑一轮。单轮最多 2 分钟，不注入私有密钥，无定时重复任务；结果和归属写入 Summary，数据及分析报告保存在 artifact 30 天。该任务的 `success` 只表示采集程序完成，实际预测数、缺项和盘口候选分别查看报告。
 
 输出在 `reports/public/`：
 
 - `public-fixtures.json`：归一化赛程、实际请求状态、覆盖限制和来源说明；始终 `poolComplete=false`。
-- `openligadb-fixtures.json`：单独提供本轮 OpenLigaDB 归一化数据与 ODbL 归属，便于按许可要求处理数据共享；不下载队徽等独立版权素材。
+- `openligadb-fixtures.json`：单独提供本轮 OpenLigaDB 归一化赛程、完赛历史与 ODbL 归属，便于按许可要求处理数据共享；不下载队徽等独立版权素材。
 - `public-sources.md`：公开来源实测结果。
 - `latest.json`、`latest-brief.md`、`latest-message.md`：现有分析输出，包含公开来源归属。无有效赛程时仅生成来源报告并以非零状态退出，不覆盖已有分析报告。
+- `predictions.json`、`predictions.md`、`predictions.html`：独立赛前概率、预期进球、比分参考、逐场缺项与滚动回测；历史来自当前和上一赛季中有唯一全场比分的完赛记录。详见 [预测实现说明](FORECASTING.md)。
 
 ODbL 适用于 OpenLigaDB 数据，使用、公开派生数据库或再分发时需遵守其归属和共享要求；它不授权其他来源的数据。TheSportsDB 使用其官方免费档规则。部署方需保留数据来源、许可链接和覆盖限制。
 
@@ -53,7 +54,7 @@ ODbL 适用于 OpenLigaDB 数据，使用、公开派生数据库或再分发时
 | Titan007 球探 | 爬虫读取 robots 后返回 `robots_denied` | 未请求受禁数据路径，未取得盘口 |
 | Statarea | `crawler_timeout`；随后同源请求进入冷却 | 未取得模型信号 |
 
-共 13 场真实赛程进入分析，13 场均为 `source_insufficient`，正式候选 0 场，原因为 `NO_FRESH_COMPLETE_ASIAN_MARKET`。抓取成功不等于取得双独立亚洲盘或可靠预测。以上只是一次环境与时间点的观察，不能保证源持续可用。
+该次为加入统计预测前的实测：13 场真实赛程进入盘口筛选，13 场均为 `source_insufficient`，严格盘口候选 0 场，原因为 `NO_FRESH_COMPLETE_ASIAN_MARKET`。新增预测后的实测已独立产出 9 场德甲基础预测，其余 4 场缺历史；严格盘口仍是 0 场。抓取成功不等于取得双独立亚洲盘或可靠预测。以上只是一次环境与时间点的观察，不能保证源持续可用。
 
 Football-Data.co.uk 未加入自动任务：其[当前使用说明](https://football-data.co.uk/contact.php)将免费 CSV 限于个人 / 学术用途，轻量自动下载最多每周两次，不适合作为本项目的企业实时采集入口；本次文档访问也出现 429，未继续请求数据文件。
 

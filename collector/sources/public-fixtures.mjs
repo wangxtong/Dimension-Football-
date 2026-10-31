@@ -102,6 +102,7 @@ export function parsePublicFixtures(data, { source, league, season, nowISO, days
       : row.strStatus === 'NS' && row.strPostponed === 'no' && row.intHomeScore === null && row.intAwayScore === null;
     if (!scheduled || kickoff <= Date.parse(nowISO) || kickoff > Date.parse(nowISO) + days * DAY) continue;
     fixtures.push({ id: `${open ? 'oldb' : 'tsdb'}-${matchId}`, league, home: home.trim(), away: away.trim(),
+      homeTeamId: String(homeId), awayTeamId: String(awayId),
       kickoff: new Date(kickoff).toISOString(), status: 'SCHEDULED', source,
       updatedAt: nowISO, fetchedAt: nowISO,
       // OpenLigaDB lastUpdateDateTime has no timezone. Do not invent a UTC offset.
@@ -110,27 +111,57 @@ export function parsePublicFixtures(data, { source, league, season, nowISO, days
   return { fixtures, receivedCount: rows.length, rejectedCount };
 }
 
+export function parseOpenLigaHistory(data, { season, nowISO }) {
+  if (!Array.isArray(data) || data.length > 3000) throw new PublicError('invalid_response');
+  const history = [], seen = new Set(); let rejectedCount = 0;
+  for (const row of data) {
+    if (row?.matchIsFinished !== true) continue;
+    const kickoff = isoMillis(row.matchDateTimeUTC);
+    const scores = Array.isArray(row.matchResults) ? row.matchResults.filter(result => result.resultTypeKind === 'After90Minutes') : [];
+    const score = scores[0];
+    if (row.leagueShortcut !== 'bl1' || row.leagueSeason !== season || !id(row.matchID)
+      || !id(row.team1?.teamId) || !id(row.team2?.teamId) || row.team1.teamId === row.team2.teamId
+      || !name(row.team1?.teamName) || !name(row.team2?.teamName) || row.team1.teamName === row.team2.teamName
+      || !Number.isFinite(kickoff) || !/Z$/.test(row.matchDateTimeUTC) || kickoff + 4 * 3600000 > Date.parse(nowISO)
+      || scores.length !== 1 || ![score?.pointsTeam1, score?.pointsTeam2].every(value => Number.isInteger(value) && value >= 0 && value <= 20)) {
+      rejectedCount++; continue;
+    }
+    if (seen.has(row.matchID)) throw new PublicError('duplicate_fixture_id');
+    seen.add(row.matchID);
+    history.push({ id: `oldb-${row.matchID}`, source: 'openligadb', league: 'BL1', kickoff: new Date(kickoff).toISOString(),
+      home: row.team1.teamName.trim(), away: row.team2.teamName.trim(), homeTeamId: String(row.team1.teamId), awayTeamId: String(row.team2.teamId),
+      homeGoals: score.pointsTeam1, awayGoals: score.pointsTeam2, status: 'FINISHED', period: 'full-time' });
+  }
+  return { history, rejectedCount };
+}
+
 export async function fetchPublicFixtures({ nowISO = new Date().toISOString(), days = 7, fetchImpl = fetch,
-  clock = () => new Date().toISOString(), signal, remaining = () => Infinity, timeoutMs = 6000 } = {}) {
+  clock = () => new Date().toISOString(), signal, remaining = () => Infinity, timeoutMs = 6000, includeHistory = false } = {}) {
   const now = isoMillis(nowISO);
   if (!Number.isFinite(now) || !Number.isInteger(days) || days < 1 || days > 7) throw new Error('INVALID_PUBLIC_FIXTURE_WINDOW');
   const seasonOf = time => { const date = new Date(time); return date.getUTCFullYear() - (date.getUTCMonth() < 6 ? 1 : 0); };
   const seasons = [...new Set([seasonOf(now), seasonOf(now + days * DAY)])];
   const requests = [
     ...seasons.map(season => ({ source: 'openligadb', league: 'BL1', season, url: `https://api.openligadb.de/getmatchdata/bl1/${season}` })),
+    ...(includeHistory ? [{ source: 'openligadb', league: 'BL1', season: seasons[0] - 1, historyOnly: true,
+      url: `https://api.openligadb.de/getmatchdata/bl1/${seasons[0] - 1}` }] : []),
     ...Object.entries(SPORTS_LEAGUES).map(([league, [key]]) => ({ source: 'thesportsdb-free', league,
       url: `https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id=${key}` })),
   ];
-  const fixtures = [], diagnostics = [];
+  const fixtures = [], diagnostics = [], history = [];
   for (const request of requests) {
     const common = { id: request.source, league: request.league, endpoint: request.url, checkedAt: clock() };
     try {
       const response = await getPublicJSON(request.url, { fetchImpl, signal, clock, remaining, timeoutMs });
-      const parsed = parsePublicFixtures(response.data, { ...request, nowISO, days });
+      const parsed = request.historyOnly ? { fixtures: [], receivedCount: response.data.length, rejectedCount: 0 }
+        : parsePublicFixtures(response.data, { ...request, nowISO, days });
+      const past = includeHistory && request.source === 'openligadb' ? parseOpenLigaHistory(response.data, { season: request.season, nowISO }) : { history: [], rejectedCount: 0 };
       fixtures.push(...parsed.fixtures);
+      history.push(...past.history);
       diagnostics.push({ ...common, status: 'partial', code: request.source === 'openligadb' ? 'community_schedule_unverified' : 'free_tier_limited',
         httpStatus: response.httpStatus, responseAt: response.responseAt, matchedCount: parsed.fixtures.length,
-        receivedCount: parsed.receivedCount, rejectedCount: parsed.rejectedCount });
+        receivedCount: parsed.receivedCount, rejectedCount: parsed.rejectedCount, historyCount: past.history.length,
+        historyRejectedCount: past.rejectedCount, purpose: request.historyOnly ? 'history' : 'fixtures' });
     } catch (error) {
       diagnostics.push({ ...common, status: 'unavailable', code: error instanceof PublicError ? error.code : 'invalid_response',
         httpStatus: error instanceof PublicError ? error.httpStatus : null, retryAfterMs: error instanceof PublicError ? error.retryMs : null,
@@ -140,9 +171,10 @@ export async function fetchPublicFixtures({ nowISO = new Date().toISOString(), d
   }
   return { version: 1, kind: 'public-fixture-sample', checkedAt: nowISO, simulated: false, poolComplete: false,
     window: { from: nowISO, to: new Date(now + days * DAY).toISOString() },
-    sources: PUBLIC_FIXTURE_SOURCES, diagnostics, fixtures,
+    sources: PUBLIC_FIXTURE_SOURCES, diagnostics, fixtures, history,
     limitations: ['公开社区赛程与免费档仅用于有限覆盖试接入，不代表五大联赛完整或实时数据。',
       'OpenLigaDB 数据按 ODbL 1.0 保留归属；TheSportsDB 公共 Key 123 仅使用官方免费端点。',
       '采集时间不冒充供应商更新时间；开赛时间与赛事状态仍需独立核验。',
-      '本文件不包含盘口或预测；取得赛程不等于取得有效预测证据。'] };
+      '历史比分仅支持同源、同联赛、球队 ID 匹配的基础预测；缺少历史的联赛保留缺项。',
+      '本文件不包含盘口；基础模型输出与严格亚洲盘候选分别计算。'] };
 }

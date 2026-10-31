@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { atomicJson } from './storage.mjs';
+import { predictionDocument, renderPredictionsMarkdown, renderPredictionsHtml } from './forecast-report.mjs';
 
 const statuses = { pending: '待续查', candidate: '候选，待人工复核', simulated_candidate: '模拟候选', avoid: '回避', source_insufficient: '来源不足' };
 const reasons = {
@@ -44,14 +45,15 @@ export function renderBrief(report) {
     + `📅 赛程拉取日期：${beijingTime(report.startedAt).slice(0, 10)}（北京时间）  \n`
     + `🔄 本轮：${beijingTime(report.startedAt)} → ${beijingTime(report.completedAt)}  \n`
     + `📋 输入池 ${s.total} 场，基础筛选 ${s.basicScreened} 场，深入核验 ${s.processed} 场，复用 ${s.reused} 场，待续查 ${s.pending} 场。  \n`
-    + `🎯 生产候选 ${s.candidates} 场${report.simulated ? `；模拟候选 ${s.simulatedCandidates} 场` : ''}；回避 ${s.avoid} 场；来源不足 ${s.sourceInsufficient} 场。\n\n`
+    + `📊 赛前预测 ${s.forecasts || 0} 场；暂不可预测 ${s.forecastUnavailable ?? s.total} 场。[查看逐场概率](predictions.md) · [打开预测页面](predictions.html)。  \n`
+    + `🎯 严格盘口候选 ${s.candidates} 场${report.simulated ? `；模拟候选 ${s.simulatedCandidates} 场` : ''}；盘口回避 ${s.avoid} 场；盘口来源不足 ${s.sourceInsufficient} 场。\n\n`
     + `🛡️ ${report.poolComplete ? '覆盖统计针对本轮实际取得的输入池。' : '赛程来源不完整，站点或全球赛事总覆盖率未知。'} 报价在报告生成时重新核验，候选不等于可直接执行的推荐。\n\n`
     + (report.limitations.map(item => `- ${item}`).join('\n')) + '\n'
     + (report.publicFixtureSources?.length ? '\n公开赛程归属（社区 / 免费档，覆盖不完整）：\n\n'
       + report.publicFixtureSources.map(source => `- [${source.name}](${source.url})；[${source.license}](${source.licenseUrl})。`).join('\n') + '\n' : '');
 }
 export function renderMessage(report) {
-  const lines = [renderBrief(report), '# 📨逐场消息版', '', '| 比赛 | 开赛时间（北京时间） | 状态 | 原因 | 盘口采集诊断 |', '| --- | --- | --- | --- | --- |'];
+  const lines = [renderBrief(report), renderPredictionsMarkdown(report), '# 📨逐场盘口筛选', '', '| 比赛 | 开赛时间（北京时间） | 状态 | 原因 | 盘口采集诊断 |', '| --- | --- | --- | --- | --- |'];
   for (const row of report.results) lines.push(`| ${cell(row.fixture.home)} vs ${cell(row.fixture.away)} | ${beijingTime(row.fixture.kickoff)} | ${statuses[row.result.status] || '未知'} | ${row.result.reasons.map(code => reasons[code] || cell(code)).join('；')} | ${marketDetail(row.marketDiagnostics)} |`);
   lines.push('', '## 🔗来源诊断', '', '| 来源 | 状态 | 诊断码 | 解析盘口数 / 匹配数 | 赛程快照覆盖（北京时间） |', '| --- | --- | --- | --- | --- |');
   for (const source of report.diagnostics) lines.push(`| ${cell(source.id)}${source.league ? ` / ${cell(source.league)}` : ''} | ${cell(source.status)} | ${cell(source.code)}${source.httpStatus ? ` (HTTP ${source.httpStatus})` : ''} | ${source.parsedCount ?? '未知'} / ${source.matchedCount ?? 0} | ${source.scheduleCoverageFrom && source.scheduleCoverageTo ? `${beijingTime(source.scheduleCoverageFrom)} → ${beijingTime(source.scheduleCoverageTo)}` : '未提供'} |`);
@@ -116,5 +118,9 @@ export async function writeReports(report, directory) {
   await atomicJson(resolve(directory, 'latest.json'), report);
   await writeFile(resolve(directory, 'latest-brief.md'), brief, 'utf8');
   await writeFile(resolve(directory, 'latest-message.md'), message, 'utf8');
-  return { jsonPath, briefPath: resolve(directory, 'latest-brief.md'), messagePath: resolve(directory, 'latest-message.md') };
+  await atomicJson(resolve(directory, 'predictions.json'), predictionDocument(report));
+  await writeFile(resolve(directory, 'predictions.md'), renderPredictionsMarkdown(report), 'utf8');
+  await writeFile(resolve(directory, 'predictions.html'), renderPredictionsHtml(report), 'utf8');
+  return { jsonPath, briefPath: resolve(directory, 'latest-brief.md'), messagePath: resolve(directory, 'latest-message.md'),
+    predictionsPath: resolve(directory, 'predictions.json'), predictionsHtmlPath: resolve(directory, 'predictions.html') };
 }

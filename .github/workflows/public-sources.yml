@@ -1,4 +1,4 @@
-name: 公开信息源试接入
+name: 公开赛程预测与报告
 
 on:
   workflow_dispatch:
@@ -7,6 +7,10 @@ on:
     paths:
       - 'collector/public.mjs'
       - 'collector/sources/public-fixtures.mjs'
+      - 'collector/forecast.mjs'
+      - 'collector/forecast-report.mjs'
+      - 'collector/pipeline.mjs'
+      - 'collector/report.mjs'
       - '.github/workflows/public-sources.yml'
 
 permissions:
@@ -28,13 +32,13 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: 公开赛程与证据试采集（不注入私有密钥，最多 2 分钟）
+      - name: 采集赛程与历史并生成预测（最多 2 分钟）
         run: npm run collect:public -- --budget-minutes 2
       - name: 写入来源与结果摘要
         if: always()
         shell: bash
         run: |
-          for report in reports/public/public-sources.md reports/public/latest-brief.md; do
+          for report in reports/public/latest-brief.md reports/public/predictions.md reports/public/public-sources.md; do
             if [[ -f "$report" ]]; then
               cat "$report" >> "$GITHUB_STEP_SUMMARY"
             fi
