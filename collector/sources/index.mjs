@@ -2,11 +2,13 @@ import {fetchMarketSourceAudit} from './market-sources.mjs';
 import {fetchPredictionSignals} from './signals.mjs';
 import {withPublicCrawler} from './crawler.mjs';
 import {collectProviderEvidence} from './providers.mjs';
+import {fetchHkjcEvidence} from './hkjc.mjs';
 
 export {fetchFootballFixtures, fixtureLeagues} from './fixtures.mjs';
 export {fetchApiFootballFixtures, apiFootballLeagues} from './api-football.mjs';
 
 export const sourceCapabilities = Object.freeze({
+  hkjc: '香港赛马会官方公开 HDC 全场两方盘口；第一方现售快照，独立于 Titan007 转发渠道。保留官方池 updateAt 与当前响应时点，不生成初盘。',
   titan007: '读取球探公开 M88、12Bet、SBOBET 的赛前全场亚洲盘。三家公司共享球探采集渠道，独立来源组均为 titan007；不含皇冠。',
   statarea: '读取公开页面的五大联赛赛前 1X2 模型概率，仅覆盖已发布的当日至未来 3 天页面；不是亚洲盘赢盘概率。',
   tiantian: '仅监测天天盈球公开免费赛前列表；具体预测格式未核验，不生成预测信号。',
@@ -72,12 +74,13 @@ export async function collectIntegratedEvidence({ fixtures, nowISO, env, provide
     collectCrawledEvidence({ fixtures, nowISO, ...crawlerOptions }),
     collectProviderEvidence({ fixtures, nowISO, env, statePath: providerStatePath, policy: providerPolicy,
       fetchImpl: crawlerOptions.fetchImpl, signal: crawlerOptions.signal, clock: crawlerOptions.clock, remaining: crawlerOptions.remaining }),
+    fetchHkjcEvidence({ fixtures, nowISO, fetchImpl: crawlerOptions.fetchImpl, signal: crawlerOptions.signal, clock: crawlerOptions.clock, remaining: crawlerOptions.remaining }),
   ]);
   if (results.every(r => r.status === 'rejected')) throw new Error('EVIDENCE_UNAVAILABLE');
   const data = results.map((r, index) => r.status === 'fulfilled' ? r.value
-    : { quotes: [], signals: [], diagnostics: [{ id: index ? 'commercial-providers' : 'public-crawler', status: 'failed',
+    : { quotes: [], signals: [], diagnostics: [{ id: ['public-crawler', 'commercial-providers', 'hkjc'][index], status: 'failed',
       code: ['PROVIDER_STATE_INVALID', 'PROVIDER_STATE_UNREADABLE', 'CRAWLER_STATE_INVALID', 'CRAWLER_STATE_UNREADABLE', 'COLLECTION_ALREADY_LOCKED'].includes(r.reason?.message)
         ? r.reason.message : 'COLLECTION_FAILED', checkedAt: nowISO }] });
   return { quotes: data.flatMap(r => r.quotes), signals: data.flatMap(r => r.signals), diagnostics: data.flatMap(r => r.diagnostics),
-    fixtureDiagnostics: data[0].fixtureDiagnostics || [], crawler: data[0].crawler || null, providers: data[1].providers || null };
+    fixtureDiagnostics: [...(data[0].fixtureDiagnostics || []), ...(data[2].fixtureDiagnostics || [])], crawler: data[0].crawler || null, providers: data[1].providers || null };
 }

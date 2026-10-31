@@ -140,7 +140,7 @@ test('odds collection failure still writes usable forecast files without creatin
   assert.equal(result.report.status, 'failed'); assert.equal(result.report.summary.forecasts, 1);
   assert.equal(result.report.summary.candidates, 0);
   const published = JSON.parse(await readFile(result.files.predictionsPath, 'utf8'));
-  assert.equal(published.summary.forecasts, 1); assert.equal(published.publication.externalDelivery, 'not_configured');
+  assert.equal(published.summary.forecasts, 1); assert.equal(published.publication.externalDelivery, 'see-receipt');
   assert.ok((await readFile(result.files.predictionsHtmlPath, 'utf8')).includes('Home Club'));
   assert.ok((await readFile(result.files.briefPath, 'utf8')).includes('赛前预测 1 场'));
 });

@@ -14,7 +14,7 @@ export async function beginPublication(report, directory) {
       githubArtifact: { status: 'not_attempted' }, externalWebsite: { status: 'not_configured' }, notifications: { status: 'not_configured' } },
     files: [], events: [] };
   await atomicJson(resolve(directory, RECEIPT), receipt);
-  report.publication = { reportId, receipt: RECEIPT, target: 'repository-report-files', externalDelivery: 'not_configured',
+  report.publication = { reportId, receipt: RECEIPT, target: 'repository-report-files', externalDelivery: 'see-receipt',
     note: 'Delivery outcomes are recorded in publication.json after each completed operation.' };
   return receipt;
 }
@@ -37,13 +37,14 @@ export async function verifyPublication(directory, receipt) {
   if (document.publication?.reportId !== receipt.reportId) throw new Error('PUBLICATION_REPORT_MISMATCH');
 }
 
-async function update(directory, channel, operation) {
+export async function updatePublicationChannel(directory, channel, operation) {
+  if (!['githubSummary', 'githubArtifact', 'externalWebsite', 'notifications'].includes(channel)) throw new Error('INVALID_PUBLICATION_CHANNEL');
   const release = await acquireLock(resolve(directory, RECEIPT));
   try {
     const receipt = await readJson(resolve(directory, RECEIPT));
     try {
       await verifyPublication(directory, receipt);
-      if (receipt.channels[channel].status === 'published') return receipt;
+      if (['published', 'accepted', 'unknown'].includes(receipt.channels[channel].status)) return receipt;
       receipt.channels[channel] = await operation(receipt);
     } catch (error) {
       receipt.channels[channel] = { status: 'failed', checkedAt: clock(), code: ['PUBLICATION_CONTENT_CHANGED', 'PUBLICATION_REPORT_MISMATCH', 'PUBLICATION_NOT_READY'].includes(error.message) ? error.message : 'DELIVERY_FAILED' };
@@ -61,7 +62,7 @@ async function update(directory, channel, operation) {
 
 export function publicationMarkdown(receipt) {
   const names = { files: '报告文件', githubSummary: 'GitHub Summary', githubArtifact: 'GitHub 报告附件', externalWebsite: '外部网站', notifications: '消息通知' };
-  const statuses = { published: '已完成', failed: '失败', not_attempted: '未执行', not_configured: '未配置', skipped: '已跳过', generating: '正在生成' };
+  const statuses = { published: '已完成', accepted: '平台已接收（非已读回执）', unknown: '发送结果未知，暂停重发', failed: '失败', not_attempted: '未执行', not_configured: '未配置', skipped: '已跳过', generating: '正在生成' };
   return `## 实际发布回执\n\n报告 ID：\`${receipt.reportId}\`\n\n| 交付渠道 | 状态 | 回执时间 / 链接 |\n| --- | --- | --- |\n`
     + Object.entries(receipt.channels).map(([key, row]) => `| ${names[key]} | ${statuses[row.status] || '未知'} | ${row.url ? `[查看产物](${row.url})` : row.checkedAt || '—'} |`).join('\n')
     + '\n\n状态按实际完成操作记录。附件中的回执是上传前快照，最终回执见本轮 publication-receipt 附件。\n';
@@ -69,7 +70,7 @@ export function publicationMarkdown(receipt) {
 
 export async function publishSummary(directory, summaryPath) {
   if (!summaryPath) throw new Error('SUMMARY_DESTINATION_REQUIRED');
-  return update(directory, 'githubSummary', async receipt => {
+  return updatePublicationChannel(directory, 'githubSummary', async receipt => {
     const marker = `<!-- dimension-report:${receipt.reportId} -->`;
     let existing = ''; try { existing = await readFile(summaryPath, 'utf8'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
     const confirmed = { status: 'published', checkedAt: clock() };
@@ -85,7 +86,7 @@ export async function publishSummary(directory, summaryPath) {
 }
 
 export async function recordArtifact(directory, { outcome, id, url, digest: artifactDigest, repository, runId }) {
-  return update(directory, 'githubArtifact', async () => {
+  return updatePublicationChannel(directory, 'githubArtifact', async () => {
     if (outcome !== 'success') return { status: outcome === 'skipped' ? 'skipped' : 'failed', checkedAt: clock(), code: 'UPLOAD_NOT_SUCCESSFUL' };
     if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository || '') || !/^\d+$/.test(String(runId)) || !/^\d+$/.test(String(id))
       || url !== `https://github.com/${repository}/actions/runs/${runId}/artifacts/${id}`

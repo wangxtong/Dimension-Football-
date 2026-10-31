@@ -30,7 +30,7 @@ const marketDiagnosticCodes = new Set(['fixture_ineligible', 'fixture_identity_u
   'quote_expired', 'quote_validation_failed', 'matched', 'access_denied', 'authorization_required', 'rate_limited', 'http_unavailable',
   ...CRAWLER_CODES, 'stale_snapshot', 'empty_snapshot', 'snapshot_too_large', 'timeout', 'network_unavailable', 'invalid_schedule',
   'invalid_snapshot', 'maintenance']);
-const marketCompanies = { m88: ['M88', 17], '12bet': ['12Bet', 24], sbobet: ['SBOBET', 31] };
+const marketCompanies = { m88: ['M88', 17], '12bet': ['12Bet', 24], sbobet: ['SBOBET', 31], hkjc: ['HKJC', null] };
 
 // Keep per-fixture failure facts before the adapter discards unusable prices.
 // Provider bodies, URLs, arbitrary error text and credentials are never retained.
@@ -41,7 +41,7 @@ export function safeMarketDiagnostics(rows = [], fixtures = []) {
     const [bookmaker, companyId] = marketCompanies[row.id], code = row.code || row.note;
     return {
       ...safeDiagnostics([{ ...row, code: marketDiagnosticCodes.has(code) ? code : 'SOURCE_STATUS_UNKNOWN' }])[0],
-      fixtureId: row.fixtureId, sourceId: 'titan007', bookmaker, companyId,
+      fixtureId: row.fixtureId, sourceId: row.id === 'hkjc' ? 'hkjc' : 'titan007', bookmaker, companyId,
       ...Object.fromEntries(['leagueCandidateCount', 'teamCandidateCount', 'scheduleCandidateCount', 'marketRowCount']
         .filter(key => Number.isSafeInteger(row[key]) && row[key] >= 0 && row[key] <= 3000).map(key => [key, row[key]])),
     };
@@ -50,9 +50,9 @@ export function safeMarketDiagnostics(rows = [], fixtures = []) {
 
 const LIMITATIONS = [
   '赛程支持 football-data.org、API-Football、Sportmonks；公开证据沿用 Titan007 / Statarea。配置凭据后增加 Sportmonks 模型、The Odds API 市场参考及 iSports 当日亚洲盘。',
-  'M88、12bet、SBOBET 在 Titan007 的展示合计只算一个独立网站来源。无第二报价源或初盘轨迹时保持来源不足。',
+  'M88、12bet、SBOBET 在 Titan007 的展示合计只算一个独立来源；HKJC 官方 HDC 为另一组。逐场仍需两组同方向同盘口报价及真实初盘。',
   '赛前胜平负、预期进球和比分参考来自历史比分泊松基线，独立于严格盘口筛选；未做概率校准，不承诺命中率。',
-  '本项目不向旧站点写回、不冻结预测、不调用 Telegram、投注或结算接口。',
+  '报告通过独立发布步骤更新网站数据；Telegram 仅配置凭据后发送通知，不调用投注或结算接口。',
   '商业赔率参考不自动增加独立报价票；初盘时间和上游独立性未核实前，不进入正式亚洲盘候选。',
 ];
 

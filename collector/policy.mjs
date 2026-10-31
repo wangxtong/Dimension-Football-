@@ -10,6 +10,7 @@ export const DEFAULT_POLICY = Object.freeze({
 
 // Independence comes from this registry, never a provider-supplied vote count.
 export const SOURCES = Object.freeze({
+  hkjc: { group: 'hkjc-first-party', hosts: ['bet.hkjc.com'], freshness: 'publisher-live-snapshot' },
   sportmonks: { group: 'sportmonks-model', hosts: ['api.sportmonks.com'] },
   titan007: { group: 'titan007', hosts: ['live.titan007.com', 'livestatic.titan007.com'] },
   oddsgpt: { group: 'oddsgpt', hosts: ['oddsgpt.com', 'www.oddsgpt.com'] },
@@ -119,22 +120,30 @@ function validEvidence(row, fixture, now, lifetime) {
 
 export function validQuote(row, fixture, now, p = DEFAULT_POLICY) {
   const updated = isoMillis(row?.sourceUpdatedAt);
+  const asOf = isoMillis(row?.sourceAsOf);
+  const firstPartyLive = row?.sourceId === 'hkjc' && row.bookmaker === 'HKJC' && row.verificationMethod === 'automatic'
+    && row.evidenceUrl === 'https://bet.hkjc.com/en/football/hdc' && row.freshnessBasis === 'publisher-live-snapshot'
+    && row.providerPoolUpdatedAt === row.sourceUpdatedAt && Number.isFinite(asOf) && updated <= asOf
+    && asOf <= isoMillis(row.observedAt) && now - asOf <= p.maxQuoteAgeMs
+    && Number.isInteger(row.cacheMaxAgeSeconds) && row.cacheMaxAgeSeconds >= 0 && row.cacheMaxAgeSeconds <= 60;
   return validEvidence(row, fixture, now, p.maxQuoteAgeMs) && row.market === 'asian-handicap' && row.period === 'full-time'
     && ['home', 'away'].includes(row.selection) && typeof row.bookmaker === 'string' && row.bookmaker.length > 0 && row.bookmaker.length <= 80 && !/[\u0000-\u001f]/u.test(row.bookmaker)
     && !/crown|皇冠|crow\*/i.test(row.bookmaker) && row.inPlay === false && row.closed === false
     && Number.isFinite(row.handicap) && Number.isInteger(row.handicap * 4) && Math.abs(row.handicap) <= 10
     && Number.isFinite(row.decimalOdds) && row.decimalOdds > 1 && row.decimalOdds <= 21
-    && Number.isFinite(updated) && updated <= now && now - updated <= p.maxQuoteAgeMs;
+    && Number.isFinite(updated) && updated <= now && (row.sourceId === 'hkjc' ? firstPartyLive : now - updated <= p.maxQuoteAgeMs);
 }
 
 export function hasPair(quote, quotes) {
   return quotes.some(other => other !== quote && other.sourceId === quote.sourceId && other.bookmaker === quote.bookmaker
     && other.selection !== quote.selection && other.handicap === -quote.handicap
+    && other.sourceAsOf === quote.sourceAsOf
     && other.observedAt === quote.observedAt && other.sourceUpdatedAt === quote.sourceUpdatedAt);
 }
 
 export function safeQuote(quote) {
-  return Object.fromEntries(['sourceId', 'bookmaker', 'selection', 'handicap', 'decimalOdds', 'observedAt', 'sourceUpdatedAt', 'validUntil', 'evidenceUrl', 'verificationMethod'].map(key => [key, quote[key]]));
+  return Object.fromEntries(['sourceId', 'bookmaker', 'selection', 'handicap', 'decimalOdds', 'observedAt', 'sourceUpdatedAt', 'validUntil', 'evidenceUrl', 'verificationMethod',
+    'sourceAsOf', 'providerPoolUpdatedAt', 'freshnessBasis', 'cacheMaxAgeSeconds'].filter(key => Object.hasOwn(quote, key)).map(key => [key, quote[key]]));
 }
 
 export function validOpening(quote, fixture, nowISO) {

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "website": {
+    "enabled": true,
+    "url": "https://dimension-football-live-wangxtong.secretmelon37.chatgpt.site",
+    "repository": "wangxtong/Dimension-Football-",
+    "branch": "published-reports"
+  },
+  "telegram": {
+    "enabled": true,
+    "tokenVariable": "TELEGRAM_BOT_TOKEN",
+    "chatIdVariable": "TELEGRAM_CHAT_ID"
+  }
+}
