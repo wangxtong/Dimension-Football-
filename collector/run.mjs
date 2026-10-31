@@ -30,6 +30,7 @@ const HELP = `维度足球长期公开信息采集（Node.js 24+）
   --accept-reviewed-evidence 明确确认这些证据已由所有者核验；来源/身份/时间仍逐项检查
   --demo                   无网络模拟，使用独立检查点，生产候选始终为0
   --deep-analysis          用 API_FOOTBALL_KEY 对全部赛事逐项取证并输出独立HTML/JSON分析
+  --basic                  仅运行常规采集，关闭 API-Football 单独配置时的自动深度分析
   --help                   显示帮助
 
 不指定赛程文件时，优先使用 FOOTBALL_DATA_API_KEY（别名 FOOTBALL_DATA_API_TOKEN）；
@@ -43,7 +44,7 @@ export function parseArgs(argv) {
   const result = {};
   for (let index = 0; index < argv.length; index++) {
     const argument = argv[index];
-    if (['--demo', '--help', '--accept-reviewed-evidence', '--deep-analysis', '--source-status', '--provider-status'].includes(argument)) {
+    if (['--demo', '--help', '--accept-reviewed-evidence', '--deep-analysis', '--basic', '--source-status', '--provider-status'].includes(argument)) {
       const key = argument.slice(2); if (Object.hasOwn(result, key)) throw new Error('DUPLICATE_ARGUMENT'); result[key] = true; continue;
     }
     if (!['--input', '--state', '--out', '--config', '--sources-config', '--crawler-config', '--providers-config', '--budget-minutes', '--evidence'].includes(argument)) throw new Error('UNKNOWN_ARGUMENT');
@@ -52,6 +53,7 @@ export function parseArgs(argv) {
     result[key] = value;
   }
   if (result['accept-reviewed-evidence'] && !result.evidence || result.demo && (result.input || result.evidence || result['deep-analysis'])) throw new Error('CONFLICTING_ARGUMENTS');
+  if (result.basic && result['deep-analysis']) throw new Error('CONFLICTING_ARGUMENTS');
   if (result['source-status'] && Object.keys(result).some(key => !['source-status', 'state', 'sources-config', 'help'].includes(key))) throw new Error('CONFLICTING_ARGUMENTS');
   if (result['provider-status'] && Object.keys(result).some(key => !['provider-status', 'state', 'providers-config', 'help'].includes(key))) throw new Error('CONFLICTING_ARGUMENTS');
   if (result['budget-minutes'] !== undefined) {
@@ -108,7 +110,7 @@ export async function runCli(argv, {
   const abortSignal = signal;
   let fixtures, fixtureDiagnostics = [], poolComplete = true, simulated = !!options.demo, demo, sourceManagement = null;
   const inputFile = options.input || (!simulated && env.FIXTURES_FILE);
-  const deepAnalysis = options['deep-analysis'] || (!simulated && !inputFile
+  const deepAnalysis = options['deep-analysis'] || (!options.basic && !simulated && !inputFile
     && typeof env.API_FOOTBALL_KEY === 'string' && env.API_FOOTBALL_KEY.trim()
     && ![env.FOOTBALL_DATA_API_KEY, env.FOOTBALL_DATA_API_TOKEN, env.SPORTMONKS_API_TOKEN].some(value => typeof value === 'string' && value.trim()));
   if (simulated) { demo = demoInput(nowISO); fixtures = demo.fixtures; }

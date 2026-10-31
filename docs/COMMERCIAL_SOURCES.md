@@ -35,7 +35,11 @@ node --env-file=.env.local collector/run.mjs --state .collection-state/state.jso
 node --env-file=.env.local collector/run.mjs --input /path/to/fixtures.json --out reports
 ```
 
-GitHub Actions 已接收三个同名 Secrets，且 demo 不注入生产凭据。现有服务器配置不会被安装脚本覆盖；升级已有机器时自行向环境文件追加所需变量。纳米等合同型产品应取得具体字段文档、授权样本、访问主机、更新与历史范围，再进入适配验证。
+GitHub Actions 已配置对三个同名 Secrets 的引用；是否实际存在、授权是否有效，需要应用验收确认。demo 不注入生产凭据。现有服务器配置不会被安装脚本覆盖；升级已有机器时自行向环境文件追加所需变量。纳米等合同型产品应取得具体字段文档、授权样本、访问主机、更新与历史范围，再进入适配验证。
+
+主分支采集代码或配置更新后，Actions 自动执行一次 `npm run sources:activate`。有已启用赛程源的凭据或 `FIXTURES_FILE` 时，执行最多 5 分钟的常规采集（`--basic` 关闭隐式深度分析）；缺少赛程配置时只生成 `configuration_required` 报告，不发起采集。设置了文件路径并不代表文件有效，采集时仍会校验。结果写入 `reports/activation.json`、`reports/activation.md`、Actions Summary 和 artifact。
+
+验收逐源区分 `not_configured`、`not_attempted`、`no_matching_data`、`data_received`、授权错误和冷却状态。工作流成功仅表示验收程序完成，不能当成所有供应商已经接通；`data_received` 也不代表正式预测候选。每小时持续采集仍由仓库变量 `VANTIS_COLLECTION_ENABLED=true` 启用，或手动运行“维度足球长期采集”。GitHub 上的验收不代表 ECS 已部署，服务器需另行核对版本与运行报告。
 
 `config/providers.json` 控制分析材料采集，`--providers-config FILE` 可指定配置；`config/sources.json` 单独控制赛程备用。关闭某源分析材料不会自动关闭其赛程备用，两处可按用途分别配置。
 

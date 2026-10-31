@@ -65,7 +65,19 @@ test('argument validation rejects contradictory input, accidental evidence accep
     ['--input'], ['--demo', '--demo'], ['--unknown']]) assert.throws(() => parseArgs(argv));
   assert.equal(parseArgs(['--budget-minutes', '20']).budgetMs, 1_200_000);
   assert.equal(parseArgs(['--deep-analysis'])['deep-analysis'], true);
+  assert.throws(() => parseArgs(['--basic', '--deep-analysis']), { message: 'CONFLICTING_ARGUMENTS' });
   assert.throws(() => parseArgs(['--demo', '--deep-analysis']), { message: 'CONFLICTING_ARGUMENTS' });
+});
+
+test('basic collection suppresses automatic deep analysis with only an API-Football key', async t => {
+  const cwd = await workspace(t);
+  const result = await runCli(['--basic'], { cwd, env: { API_FOOTBALL_KEY: 'basic-mode-key' },
+    clock: () => NOW, stdout: () => {}, fetchImpl: async () => new Response(JSON.stringify({
+      get: 'fixtures', errors: [], results: 0, paging: { current: 1, total: 1 }, response: [],
+    }), { headers: { Date: new Date(NOW).toUTCString() } }) });
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.fullAnalysis, undefined);
+  assert.ok(!(await readdir(join(cwd, 'reports'))).includes('full-analysis'));
 });
 
 test('deep analysis requires the specifically authorized provider key before any network request', async t => {
