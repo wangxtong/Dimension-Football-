@@ -15,7 +15,7 @@ npm run collect -- --demo
 
 `--demo` 完全离线，使用虚构比赛；报告醒目标记“模拟”，正式候选与模拟结果分开，默认检查点存入 `.collection-state-demo/state.json`。不要把模拟报告作为实际比赛建议。
 
-正式采集需要配置一家赛程服务：football-data.org 的 `FOOTBALL_DATA_API_KEY`（也接受 `FOOTBALL_DATA_API_TOKEN`），或 API-Football / API-Sports 直连服务的 `API_FOOTBALL_KEY`。两家均配置时优先使用 football-data.org；同一家 `KEY` 优先于 `TOKEN`，失败不会自动换服务。随后执行：
+正式采集至少配置一家赛程服务：football-data.org 的 `FOOTBALL_DATA_API_KEY`（也接受 `FOOTBALL_DATA_API_TOKEN`），或 API-Football / API-Sports 直连服务的 `API_FOOTBALL_KEY`。两家均配置时默认优先使用 football-data.org，失败或覆盖不完整时自动尝试 API-Football；同一家 `KEY` 优先于 `TOKEN`。只配置一家时没有备用服务。随后执行：
 
 ```sh
 npm run collect -- --state .collection-state/state.json --out reports --budget-minutes 20
@@ -30,6 +30,20 @@ npm run collect -- --input /path/to/fixtures.json --state .collection-state/stat
 `FIXTURES_FILE` 环境变量与 `--input` 对应。默认正式入口缺少 API key、又没有赛程文件时会明确失败，不会用演示数据补齐。真实赛程文件的字段与人工证据导入方式见[迁移与部署说明](docs/CLOUD_TASK_MIGRATION.md)。
 
 环境变量不会从 `.env` 自动加载。本地可将一种凭据保存在 Git 忽略的 `.env.local` 中，再运行 `node --env-file=.env.local collector/run.mjs`。ECS / 轻量服务器可用同一命令，将 `--env-file`、`--state`、`--out` 指向发布目录以外的固定路径，并由系统调度器每小时执行；云效的部署变量不会自动成为后续定时任务的环境变量。
+
+## 信息源自动更新与故障切换
+
+每轮采集检查官方赛程响应的结构、身份、时间戳与五大联赛覆盖。主源完整时不消耗备用配额；主源不可用或不完整时最多尝试另一家一次，保留覆盖更完整的一整份赛程，不拼接不同服务的赛事 ID。有效的空赛程表示该窗口没有比赛，属于成功。
+
+`config/sources.json` 设置来源顺序、连续失败阈值和冷却时间。普通故障连续两轮后指数退避；401/403、限流及配额耗尽采用单独冷却，并读取有界的 `Retry-After`。冷却期间跳过请求，到期后的下一轮自动探测恢复。深度分析固定使用 API-Football 身份；盘口和辅助预测当前没有已验证的同类备用接口，不进行替换。详情、回退边界及新来源接入条件见 [信息源维护说明](docs/SOURCE_MANAGEMENT.md)。
+
+健康状态保存在检查点旁的 `state.json.sources.json`；报告增加本轮尝试、失败原因、切换记录和公开来源状态。可离线查看，不需要凭据：
+
+```sh
+npm run sources:status -- --state .collection-state/state.json
+```
+
+这是随现有采集轮次执行的自动维护机制；默认调度仍为每小时，冷却时间不是新的独立定时器。
 
 ## 部署到 GitHub Actions
 
@@ -70,7 +84,7 @@ tar --exclude='.env' --exclude='.env.*' --exclude='node_modules' --exclude='*.lo
 
 因此，只有内置自动来源时通常会得到 `source_insufficient`，而不会强行拼凑成符合双来源要求的候选。站点能访问、博彩公司的数量、相同内容的多个页面都不会自动变成独立预测共识。已确认的原任务规则见 [config/cloud-task.md](config/cloud-task.md)。
 
-API-Football 每轮向五个联赛各请求一次 `next=99`，再按精确未来时间窗口过滤；只保留 `NS`，不采用时间未定的 `TBD`。达到 99 场上限且不能证明窗口已覆盖时标记数据不完整。每小时运行约需 120 次 API 请求/天，运行前请核对套餐额度和赛季权限。其 [Free 套餐](https://www.api-football.com/pricing) 目前只有 100 次/天且有赛季限制。这里仅接入赛程，不把该服务的其他功能当成已实现能力。
+API-Football 每轮向五个联赛各请求一次 `next=99`，再按精确未来时间窗口过滤；只保留 `NS`，不采用时间未定的 `TBD`。达到 99 场上限且不能证明窗口已覆盖时标记数据不完整。每小时运行约需 120 次赛程 API 请求/天，运行前请核对套餐额度和赛季权限。其 [Free 套餐](https://www.api-football.com/pricing) 目前只有 100 次/天且有赛季限制。故障切换每轮最多再使用备用服务的 5 次赛程请求，深度分析请求另计；切换到 API-Football 不会额外自动开启深度分析。
 
 跨服务的球队名称须命中现有精确别名；尚未识别的名称可能导致盘口或辅助信号无法匹配，此时保留来源不足，不使用模糊匹配补齐。
 
@@ -98,6 +112,7 @@ API-Football 单服务的 ECS 在同步该版本运行源码后，每轮自动�
 .github/workflows/collection.yml  手动及每小时调度
 collector/                        数据源、筛选、进度、报告与测试
 config/collection.json            运行预算、时效与筛选阈值
+config/sources.json               官方赛程源优先级与失败冷却
 config/cloud-task.md              从可读取记录整理的原任务规则
 docs/CLOUD_TASK_MIGRATION.md       输入契约、迁移步骤和已知限制
 ```

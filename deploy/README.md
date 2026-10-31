@@ -59,6 +59,7 @@ sudo bash /opt/vantis/deployment/release.sh /path/to/source
 | `/etc/vantis/collector.env` | 仓库外凭据；root 所有，vantis 组只读，权限 0640 |
 | `/etc/vantis/node-path` | 固定的 Node.js 可执行文件路径 |
 | `/var/lib/vantis/state.json` | 持久检查点，vantis 用户可写 |
+| `/var/lib/vantis/state.json.sources.json` | 官方赛程来源健康状态、失败冷却及最近切换记录；备份时与检查点一同保留 |
 | `/var/lib/vantis/reports/` | 持久报告，vantis 用户可写 |
 | `/var/lib/vantis-sync/` | root 所有的同步临时目录，不包含凭据 |
 | systemd journal | 运行日志，使用上面的 journalctl 命令查看 |

@@ -47,6 +47,16 @@ export function renderMessage(report) {
   for (const row of report.results) lines.push(`| ${cell(row.fixture.home)} vs ${cell(row.fixture.away)} | ${beijingTime(row.fixture.kickoff)} | ${statuses[row.result.status] || '未知'} | ${row.result.reasons.map(code => reasons[code] || cell(code)).join('；')} | ${marketDetail(row.marketDiagnostics)} |`);
   lines.push('', '## 🔗来源诊断', '', '| 来源 | 状态 | 诊断码 | 解析盘口数 / 匹配数 | 赛程快照覆盖（北京时间） |', '| --- | --- | --- | --- | --- |');
   for (const source of report.diagnostics) lines.push(`| ${cell(source.id)}${source.league ? ` / ${cell(source.league)}` : ''} | ${cell(source.status)} | ${cell(source.code)}${source.httpStatus ? ` (HTTP ${source.httpStatus})` : ''} | ${source.parsedCount ?? '未知'} / ${source.matchedCount ?? 0} | ${source.scheduleCoverageFrom && source.scheduleCoverageTo ? `${beijingTime(source.scheduleCoverageFrom)} → ${beijingTime(source.scheduleCoverageTo)}` : '未提供'} |`);
+  if (report.sourceManagement) {
+    const m = report.sourceManagement;
+    lines.push('', '## 信息源自动维护', '',
+      `本轮赛程源：${cell(m.selectedSource || '不可用')}；模式：${cell(m.mode)}；备用切换：${m.fallbackUsed ? '是' : '否'}。`, '',
+      '| 本轮尝试 | 状态 | 原因 | 完整联赛数 | 下次允许探测（北京时间） |', '| --- | --- | --- | --- | --- |');
+    for (const attempt of m.attempts) lines.push(`| ${cell(attempt.id)} | ${cell(attempt.status)} | ${cell(attempt.code)} | ${attempt.healthyLeagues ?? '未请求'} | ${attempt.nextProbeAt ? beijingTime(attempt.nextProbeAt) : '下轮可查'} |`);
+    lines.push('', '冷却到期后由下一轮采集复查；健康历史不是当前数据可用证明。', '',
+      '| 公开证据源 | 本轮状态 | 能力 | 自动备用 |', '| --- | --- | --- | --- |');
+    for (const source of m.publicSources || []) lines.push(`| ${cell(source.id)} | ${cell(source.status)} | ${cell(source.capability)} | 尚无已验证的同类备用源 |`);
+  }
   lines.push('', '## 🎯候选证据', '');
   const candidates = report.results.filter(row => ['candidate', 'simulated_candidate'].includes(row.result.status));
   if (!candidates.length) lines.push('本轮没有通过完整证据门槛的候选。');

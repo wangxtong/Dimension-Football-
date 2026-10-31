@@ -26,9 +26,11 @@ npm run collect -- --input /srv/dimension-football/fixtures.json --state /srv/di
 | --- | --- |
 | `FOOTBALL_DATA_API_KEY` | football-data.org 官方 API token；仅通过请求头传入官方 API 主机 |
 | `FOOTBALL_DATA_API_TOKEN` | 上一项的别名；同一家 `KEY` 优先于 `TOKEN` |
-| `API_FOOTBALL_KEY` | API-Football / API-Sports 直连 token；仅当未配置 football-data.org 凭据时使用，不支持将 RapidAPI token 混用 |
+| `API_FOOTBALL_KEY` | API-Football / API-Sports 直连 token；默认用作备用赛程源，深度分析固定采用该源；不支持混用 RapidAPI token |
 | `FIXTURES_FILE` / `--input FILE` | 改用本地真实赛程文件；数据维护方负责按时更新 |
 | `--config FILE` | 读取运行策略 JSON；默认 `config/collection.json` |
+| `--sources-config FILE` | 来源优先级与冷却配置；默认 `config/sources.json` |
+| `--source-status` | 离线查看指定检查点旁的来源健康状态；不采集、不读密钥、不写状态 |
 | `--state FILE` | 检查点路径；生产默认 `.collection-state/state.json`，模拟默认 `.collection-state-demo/state.json` |
 | `--out DIR` | 报告输出目录；默认 `reports` |
 | `--budget-minutes N` | 本轮预算，最多 20 分钟 |
@@ -37,9 +39,9 @@ npm run collect -- --input /srv/dimension-football/fixtures.json --state /srv/di
 
 不要在代码、报告、赛程或检查点中保存密钥。工作流将密钥限制在生产执行步骤的环境中，不打印环境变量或请求头。
 
-赛程选择顺序为 `--input`、`FIXTURES_FILE`、`FOOTBALL_DATA_API_KEY`、`FOOTBALL_DATA_API_TOKEN`、`API_FOOTBALL_KEY`；`--demo` 始终离线且忽略环境中的凭据。所选 API 失败不会自动向另一家发送请求。更换提供方会改变比赛 ID 和来源，检查点不会把旧服务的证据直接复用到新身份。
+赛程选择先看 `--input`、`FIXTURES_FILE`，无文件时按 `config/sources.json` 的已配置来源顺序采集；同一家 `KEY` 优先于 `TOKEN`。主源失败或覆盖不完整时尝试一次备用，保留联赛完整性更好的一整份输入池；完整性相同保留优先源。深度模式固定 API-Football；`--demo` 始终离线且忽略凭据。更换提供方会改变比赛 ID 和来源，检查点不会把旧服务的证据直接复用到新身份。参见[信息源维护说明](SOURCE_MANAGEMENT.md)。
 
-服务器环境文件示例（只填写一种凭据的真实值，文件置于仓库外并限制为运行用户可读）：
+服务器环境文件示例（至少配置一家；自动备用需要两家凭据，文件置于仓库外并限制为运行用户可读）：
 
 ```dotenv
 FOOTBALL_DATA_API_TOKEN=YOUR_FOOTBALL_DATA_TOKEN
@@ -127,4 +129,4 @@ node collector/recover-lock.mjs --state /srv/dimension-football/state/state.json
 
 恢复命令只清除本机已不存在的进程留下的锁；仍在运行、来自其他主机或格式损坏的锁会明确拒绝。完成后可恢复调度并从检查点继续。
 
-不要把整个工作目录打包进 artifact 或 cache。此工作流只缓存专用的 `state.json`（不缓存运行锁），只上传报告目录，密钥不进入这些文件。
+不要把整个工作目录打包进 artifact 或 cache。此工作流只缓存专用的 `state.json` 和 `state.json.sources.json`（不缓存运行锁），只上传报告目录，密钥不进入这些文件。新增健康状态后缓存前缀升级为 `collection-v2`，首次运行重新建立缓存；ECS 的原有持久检查点不受此前缀变化影响。

@@ -1,4 +1,5 @@
 import { isoMillis } from '../policy.mjs';
+import { retryAfterMs } from './health.mjs';
 
 // API-Sports direct subscription, not the separate RapidAPI gateway.
 // https://www.api-football.com/documentation_v3#tag/Fixtures/operation/get-fixtures
@@ -97,12 +98,13 @@ async function fetchLeague({ league, apiKey, now, checkedAt, window, fetchImpl }
     note: 'authorization_required', fetchedAt: null, responseAt: null, httpStatus: null,
     matchedCount: 0, receivedCount: null } };
   const controller = new AbortController();
-  let timer, httpStatus = null, responseAt = null;
+  let timer, httpStatus = null, responseAt = null, retryMs = null;
   try {
     const operation = (async () => {
       const response = await fetchImpl(url.href, { method: 'GET', redirect: 'manual', signal: controller.signal,
         headers: { 'x-apisports-key': apiKey, Accept: 'application/json', 'User-Agent': 'DimensionFootball-Collector/1.0' } });
       httpStatus = Number.isInteger(response?.status) ? response.status : null;
+      retryMs = retryAfterMs(response.headers?.get('retry-after'), now);
       if (!response?.ok) throw new SourceError(httpStatus === 401 ? 'authorization_required'
         : httpStatus === 403 ? 'access_denied' : httpStatus === 429 ? 'rate_limited' : 'http_unavailable');
       const responseTime = Date.parse(response.headers?.get('date'));
@@ -121,7 +123,7 @@ async function fetchLeague({ league, apiKey, now, checkedAt, window, fetchImpl }
   } catch (error) {
     return { fixtures: [], diagnostic: { ...common, status: 'unavailable',
       note: SAFE_CODES.has(error?.code) ? error.code : 'network_unavailable',
-      fetchedAt: checkedAt, responseAt, httpStatus, matchedCount: 0, receivedCount: null } };
+      fetchedAt: checkedAt, responseAt, httpStatus, matchedCount: 0, receivedCount: null, retryAfterMs: retryMs } };
   } finally { clearTimeout(timer); controller.abort(); }
 }
 

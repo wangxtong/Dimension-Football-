@@ -1,6 +1,7 @@
 // Official API: https://docs.football-data.org/general/v4/competition.html
 // v4 dateTo is exclusive: https://docs.football-data.org/general/v4/index.html
 // Authentication is supplied only as X-Auth-Token to the official API host.
+import { FAILURE_CODES, retryAfterMs } from './health.mjs';
 export const fixtureLeagues = Object.freeze(['PL', 'PD', 'SA', 'BL1', 'FL1']);
 const DAY = 86400000;
 const MAX_FIXTURES = 3000;
@@ -120,7 +121,7 @@ async function fetchLeague({league, apiKey, now, checkedAt, window, fetchImpl}) 
     reason: '缺少 FOOTBALL_DATA_API_KEY；需要 football-data.org 授权令牌。',
   }};
   const controller = new AbortController();
-  let timer, httpStatus = null, responseAt = null;
+  let timer, httpStatus = null, responseAt = null, retryMs = null;
   try {
     const operation = (async () => {
       const response = await fetchImpl(url.href, {
@@ -128,6 +129,7 @@ async function fetchLeague({league, apiKey, now, checkedAt, window, fetchImpl}) 
         headers: {'X-Auth-Token': apiKey, Accept: 'application/json', 'User-Agent': 'DimensionFootball-Collector/1.0'},
       });
       httpStatus = Number.isInteger(response?.status) ? response.status : null;
+      retryMs = retryAfterMs(response.headers?.get('retry-after'), now);
       if (!response?.ok) throw new FixtureSourceError(
         httpStatus === 401 ? 'authorization_required' : httpStatus === 403 ? 'access_denied'
           : httpStatus === 429 ? 'rate_limited' : 'http_unavailable', httpStatus);
@@ -152,9 +154,9 @@ async function fetchLeague({league, apiKey, now, checkedAt, window, fetchImpl}) 
     }};
   } catch (error) {
     return {fixtures: [], diagnostic: {
-      ...common, status: 'unavailable', note: error?.code || 'network_unavailable',
+      ...common, status: 'unavailable', note: FAILURE_CODES.has(error?.code) ? error.code : 'network_unavailable',
       fetchedAt: checkedAt, responseAt, httpStatus: error?.httpStatus ?? httpStatus,
-      matchedCount: 0, receivedCount: null,
+      matchedCount: 0, receivedCount: null, retryAfterMs: retryMs,
     }};
   } finally {
     clearTimeout(timer);

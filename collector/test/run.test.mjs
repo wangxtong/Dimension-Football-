@@ -112,3 +112,60 @@ test('an explicit fixture file overrides both API credentials without network re
   assert.equal(result.exitCode, 0);
   assert.equal(result.report.poolComplete, false);
 });
+
+test('CLI automatically switches schedules, persists cooldown and exposes a fully offline health command', async t => {
+  const cwd = await workspace(t), env = { FOOTBALL_DATA_API_KEY: 'fd-private-key', API_FOOTBALL_KEY: 'af-private-key' };
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const host = new URL(url).host; calls.push(host);
+    assert.equal(init.redirect, 'manual');
+    if (host === 'api.football-data.org') return new Response('{}', { status: 401 });
+    assert.equal(host, 'v3.football.api-sports.io');
+    return new Response(JSON.stringify({ get: 'fixtures', errors: [], results: 0,
+      paging: { current: 1, total: 1 }, response: [] }), { headers: { Date: new Date(NOW).toUTCString() } });
+  };
+  for (let run = 0; run < 2; run++) {
+    calls.length = 0;
+    const result = await runCli([], { cwd, env, clock: () => NOW, stdout: () => {}, fetchImpl });
+    assert.equal(result.exitCode, 0); assert.equal(result.report.poolComplete, true);
+    assert.equal(result.report.sourceManagement.selectedSource, 'api-football');
+    assert.equal(result.report.sourceManagement.fallbackUsed, true);
+    assert.equal(calls.length, run === 0 ? 10 : 5);
+    assert.equal(result.fullAnalysis, undefined, 'fallback does not silently enable extra paid analysis requests');
+    const report = JSON.parse(await readFile(result.files.jsonPath, 'utf8'));
+    assert.equal(report.sourceManagement.attempts[0].code, run === 0 ? 'authorization_required' : 'cooldown');
+    const message = await readFile(result.files.messagePath, 'utf8');
+    assert.ok(message.includes('信息源自动维护') && message.includes('api-football'));
+    for (const secret of Object.values(env)) assert.ok(!JSON.stringify(report).includes(secret) && !message.includes(secret));
+  }
+  const output = [];
+  const status = await runCli(['--source-status'], { cwd, env: {}, clock: () => NOW,
+    stdout: text => output.push(text), fetchImpl: () => assert.fail('status must be offline') });
+  assert.equal(status.exitCode, 0);
+  const saved = JSON.parse(output.join(''));
+  assert.equal(saved.lastSelectedSource, 'api-football');
+  assert.equal(saved.sources[0].circuit, 'open');
+  assert.equal(saved.sources[1].status, 'healthy');
+});
+
+test('source-status on a new installation makes no network or state writes', async t => {
+  const cwd = await workspace(t);
+  const result = await runCli(['--source-status'], { cwd, env: {}, stdout: () => {},
+    fetchImpl: () => assert.fail('network forbidden') });
+  assert.ok(result.sourceManagement.sources.every(source => source.status === 'unknown'));
+  assert.deepEqual(await readdir(cwd), []);
+  assert.throws(() => parseArgs(['--source-status', '--demo']), { message: 'CONFLICTING_ARGUMENTS' });
+});
+
+test('CLI cancellation stops source failover with nonzero exit and no provider failure history', async t => {
+  const cwd = await workspace(t), controller = new AbortController();
+  let calls = 0;
+  const result = await runCli([], { cwd, env: { FOOTBALL_DATA_API_KEY: 'fd-key', API_FOOTBALL_KEY: 'af-key' },
+    clock: () => NOW, stdout: () => {}, signal: controller.signal, fetchImpl: async () => {
+      calls++; controller.abort(); throw new Error('cancelled by operator');
+    } });
+  assert.equal(calls, 5); assert.equal(result.exitCode, 1);
+  assert.equal(result.report.sourceManagement.interrupted, 'cancelled');
+  const state = JSON.parse(await readFile(join(cwd, '.collection-state/state.json.sources.json'), 'utf8'));
+  assert.deepEqual(state.sources, {});
+});

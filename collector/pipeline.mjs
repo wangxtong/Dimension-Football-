@@ -1,6 +1,7 @@
 import { digest, fixtureKey, preparePool, basicScreen, evaluateFixture, retainedEvidence, isoMillis, DEFAULT_POLICY } from './policy.mjs';
 import { acquireLock, readState, atomicJson } from './storage.mjs';
 import { writeReports } from './report.mjs';
+import { publicSourceHealth } from './sources/manager.mjs';
 
 // Persist only diagnostic metadata, never headers, response bodies or thrown messages.
 export function safeDiagnostics(rows = []) {
@@ -52,7 +53,7 @@ const LIMITATIONS = [
 
 export async function runCollection({
   fixtures, statePath, outDir, collectEvidence, policy = DEFAULT_POLICY, simulated = false,
-  fixtureDiagnostics = [], poolComplete = true, importedEvidence = { quotes: [], signals: [] },
+  fixtureDiagnostics = [], poolComplete = true, sourceManagement = null, importedEvidence = { quotes: [], signals: [] },
   clock = () => new Date().toISOString(), monotonic = () => performance.now(), startedTick = monotonic(),
   checkpoint = atomicJson, signal,
 }) {
@@ -132,6 +133,7 @@ export async function runCollection({
     const report = { version: 1, task: '维度足球长期公开信息采集', simulated, timezone: 'Asia/Shanghai', startedAt, completedAt,
       poolComplete, status: sourceFailed ? 'failed' : summary.pending || hasSourceIssue || !poolComplete ? 'partial' : 'complete',
       summary, diagnostics, marketDiagnostics, results, limitations: LIMITATIONS, policy,
+      sourceManagement: sourceManagement ? { ...sourceManagement, publicSources: publicSourceHealth(evidence.diagnostics) } : null,
       candidates: simulated ? [] : results.filter(row => row.result.status === 'candidate') };
     state.runs = [...state.runs.slice(-49), { startedAt, completedAt, status: report.status, summary }];
     await checkpoint(statePath, state);
