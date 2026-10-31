@@ -19,21 +19,22 @@ release_verifier=/opt/vantis/deployment/release-authorization.mjs
 # Never let a candidate artifact authenticate itself on first installation.
 # This verifier must be staged and audited independently by the ECS operator.
 trusted_bundle=/opt/vantis/deployment/bundle.py
-python3 - "$release_verifier" "$trusted_bundle" "$node_bin" <<'PYTRUST' || die 'ROOT_TRUSTED_VERIFIER_REQUIRED'
+python3 -I - "$release_verifier" "$trusted_bundle" "$node_bin" <<'PYTRUST' || die 'ROOT_TRUSTED_VERIFIER_REQUIRED'
 import os, stat, sys
 from pathlib import Path
-p=Path(sys.argv[1])
-for entry in (*reversed(p.parents), p):
-    try: info=os.lstat(entry)
-    except OSError: sys.exit(1)
-    if info.st_uid != 0 or info.st_mode & 0o022 or stat.S_ISLNK(info.st_mode): sys.exit(1)
-    if entry == p:
-        if not stat.S_ISREG(info.st_mode): sys.exit(1)
-    elif not stat.S_ISDIR(info.st_mode): sys.exit(1)
+for path in map(Path, sys.argv[1:]):
+    if not path.is_absolute(): sys.exit(1)
+    for entry in (*reversed(path.parents), path):
+        try: info = os.lstat(entry)
+        except OSError: sys.exit(1)
+        if info.st_uid != 0 or info.st_mode & 0o022 or stat.S_ISLNK(info.st_mode): sys.exit(1)
+        if entry == path:
+            if not stat.S_ISREG(info.st_mode): sys.exit(1)
+        elif not stat.S_ISDIR(info.st_mode): sys.exit(1)
 PYTRUST
-"$node_bin" --input-type=module -e 'import * as h from "node:http";const [a,b]=process.versions.node.split(".").map(Number);if(a!==24||b<14||typeof h.setGlobalProxyFromEnv!=="function"||!AbortSignal.any)process.exit(1)' || die 'NODE_24_14_CAPABILITY_REQUIRED'
-python3 "$trusted_bundle" verify-directory "$source_dir" >/dev/null || die 'TRUSTED_SOURCE_VERIFICATION_FAILED'
-"$node_bin" "$release_verifier" "$source_dir/vantis-manifest.json" >/dev/null || die 'SIGNED_RELEASE_APPROVAL_REQUIRED'
+env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent "$node_bin" --input-type=module -e 'import * as h from "node:http";const [a,b]=process.versions.node.split(".").map(Number);if(a!==24||b<14||typeof h.setGlobalProxyFromEnv!=="function"||!AbortSignal.any)process.exit(1)' || die 'NODE_24_14_CAPABILITY_REQUIRED'
+python3 -I "$trusted_bundle" verify-directory "$source_dir" >/dev/null || die 'TRUSTED_SOURCE_VERIFICATION_FAILED'
+env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent "$node_bin" "$release_verifier" "$source_dir/vantis-manifest.json" >/dev/null || die 'SIGNED_RELEASE_APPROVAL_REQUIRED'
 if ! getent passwd vantis >/dev/null; then useradd --system --user-group --home-dir /var/lib/vantis --no-create-home --shell /usr/sbin/nologin vantis; fi
 if ! getent passwd vantis-check >/dev/null; then useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin vantis-check; fi
 [[ $(id -u vantis) -ne 0 ]] || die 'SERVICE_USER_MUST_NOT_BE_ROOT'
