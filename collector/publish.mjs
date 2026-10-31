@@ -4,6 +4,7 @@ import { readJson } from './storage.mjs';
 import { configureEnvironmentProxy } from './network.mjs';
 import { publishWebsite, publishWebsiteReceipt, publishTelegram, publishGitHubArchive, publishAll } from './delivery.mjs';
 import { fileURLToPath } from 'node:url';
+import { requireGreenForecastDelivery } from './publication-release-gate.mjs';
 
 export { publishAll } from './delivery.mjs';
 
@@ -12,6 +13,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 try {
   if (!directory || !['summary', 'artifact', 'website', 'website-receipt', 'telegram', 'archive', 'all'].includes(mode) || process.argv.length !== 4) throw new Error('INVALID_ARGUMENT');
   const out = resolve(directory);
+  if (['website','website-receipt','telegram','all'].includes(mode))
+    await requireGreenForecastDelivery(out);
   if (['website', 'website-receipt', 'telegram', 'archive', 'all'].includes(mode)) {
     configureEnvironmentProxy(process.env);
     const config = await readJson(new URL('../config/delivery.json', import.meta.url));
