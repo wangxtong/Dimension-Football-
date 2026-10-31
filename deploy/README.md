@@ -15,7 +15,7 @@
 - `diagnose.sh`：Workbench 可执行只读诊断，不测试网络、不读取秘密。
 - `ensure-report-secrets.py`：安装时原子补齐缺失的机器 token，保留合法旧值，不输出秘密。
 - `nginx-namespace.py`：默认计划；`--apply` 仅向已有匹配 HTTPS server 插入 `/dimension-football/`，备份、验证并加载；失败恢复，不覆盖原站或 bridge。
-- `backup.sh` / `restore-drill.sh`：统一锁下备份与临时目录恢复演练，不自动覆盖生产。
+- `backup.sh` / `restore-drill.sh`：统一锁下备份与临时目录恢复演练，不自动覆盖生产。恢复检查必须逐项验证成对的预测报告/发布回执、真实 reportId、已发布状态及完整文件哈希清单；缺失证据返回非零和 BLOCKED，不能把可解包误称可恢复交付。
 - `recover-state-locks.sh`：停用调度后安全移除确认死亡进程的旧 JSON 锁。
 - `rollback.sh RELEASE_ID`：检查状态兼容后切换已保留版本，不回滚秘密或盲目恢复旧状态。
 
