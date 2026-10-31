@@ -212,7 +212,7 @@ class BootstrapTrustBoundaryTests(unittest.TestCase):
     def test_authorization_precedes_any_runtime_download_or_install(self):
         bootstrap = Path(__file__).with_name('bootstrap.sh').read_text()
         auth = bootstrap.index('"$preflight_node" "$verifier" "$work/preflight-manifest.json"')
-        self.assertLess(auth, bootstrap.index('python3 "$trusted_bundle" extract'))
+        self.assertLess(auth, bootstrap.index('python3 -I "$trusted_bundle" extract'))
         self.assertLess(auth, bootstrap.index('bash "$work/source/deploy/install-node.sh"'))
         self.assertLess(auth, bootstrap.index('bash "$work/source/deploy/install.sh"'))
         self.assertIn('verifier=/opt/vantis/deployment/release-authorization.mjs', bootstrap)
