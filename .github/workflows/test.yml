@@ -64,7 +64,9 @@ jobs:
           cp deploy/bootstrap.sh deploy/bundle.py "$RUNNER_TEMP/dimension-ecs/"
           cd "$RUNNER_TEMP/dimension-ecs"
           sha256sum dimension-ecs-release.tar > SHA256SUMS
+      # A pull_request run builds a disposable merge preview, never an ECS signing candidate.
       - uses: actions/upload-artifact@v7
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: dimension-ecs-${{ github.sha }}
           path: ${{ runner.temp }}/dimension-ecs/
