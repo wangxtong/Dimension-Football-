@@ -194,7 +194,7 @@ class ReportServiceRestartSafetyTests(unittest.TestCase):
             fake = Path(directory) / 'systemctl'
             fake.write_text('#!/bin/sh\nexit 3\n')
             fake.chmod(0o755)
-            script = ("die(){ printf 'INSTALL_FAILED:%s\\n' \\"$1\\" >&2; exit 1; }\n"
+            script = ("die(){ echo INSTALL_FAILED:\$1 >&2; exit 1; }\\n"
                       + restart[0] + "\nprintf 'INSTALL_COMPLETED\\n'\n")
             environment = dict(os.environ, PATH=directory + os.pathsep + os.environ.get('PATH', ''))
             failed = subprocess.run(['bash', '-c', script], capture_output=True,
