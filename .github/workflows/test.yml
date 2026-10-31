@@ -19,6 +19,7 @@ jobs:
       - run: npm test
       - run: npm run collect:demo
       - run: python -m unittest scripts/test_package.py
+      - run: bash -n deploy/*.sh
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10
