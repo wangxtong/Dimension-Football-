@@ -4,7 +4,7 @@ import { pbkdf2Sync } from 'node:crypto';
 import { createDashboard } from '../worker.mjs';
 const ORIGIN='https://dashboard.example',PASSWORD='test-only-password',SALT='a1'.repeat(16);
 const AUTH={username:'test-viewer',iterations:100000,salt:SALT,hash:pbkdf2Sync(PASSWORD,Buffer.from(SALT,'hex'),100000,32,'sha256').toString('hex')};
-const env={DASHBOARD_AUTH:JSON.stringify(AUTH),DASHBOARD_SESSION_SECRET:'a2'.repeat(32),DASHBOARD_ORIGIN:ORIGIN};
+const env={DASHBOARD_AUTH:JSON.stringify(AUTH),DASHBOARD_SESSION_SECRET:'a2'.repeat(32),DASHBOARD_ORIGIN:ORIGIN,REPORTS_GITHUB_TOKEN:'unit-test-example-private-repo-read-access'};
 const assets={'/index.html':'<h1>protected-report</h1>','/app.mjs':'/* protected-js */','/style.css':'body{}'};
 const request=(path,options={})=>new Request(ORIGIN+path,options);
 const post=(password=PASSWORD,extra={})=>request('/login',{method:'POST',headers:{Origin:ORIGIN,'Content-Type':'application/x-www-form-urlencoded',...extra},body:new URLSearchParams({username:AUTH.username,password})});
@@ -18,14 +18,14 @@ test('anonymous visitors get the custom login; direct assets and reports are pro
   assert.equal(calls,0);assert.match(login.headers.get('cache-control'),/no-store/);assert.match(login.headers.get('content-security-policy'),/frame-ancestors 'none'/);
 });
 test('correct credentials issue a secure cookie and authorize the dashboard and fixed data proxy',async()=>{
-  const calls=[];const app=createDashboard(assets,{fetchImpl:async(url,options)=>{calls.push({url,options});return Response.json({report:'live'});}});
+  const calls=[];const app=createDashboard(assets,{fetchImpl:async(url,options)=>{calls.push({url,options});const body=JSON.stringify({report:'live'});return Response.json({type:'file',name:'predictions.json',encoding:'base64',size:Buffer.byteLength(body),content:Buffer.from(body).toString('base64')});}});
   const login=await app.fetch(post(),env);assert.equal(login.status,303);const session=cookie(login);
   assert.match(login.headers.get('set-cookie'),/^__Host-dimension_session=.*; Path=\/; Secure; HttpOnly; SameSite=Lax; Max-Age=43200$/);
   assert.ok(!session.includes(PASSWORD));assert.ok(!session.includes(env.DASHBOARD_SESSION_SECRET));
   const page=await app.fetch(request('/',{headers:{Cookie:session}}),env);assert.equal(page.status,200);assert.equal(await page.text(),assets['/index.html']);
   const data=await app.fetch(request('/api/predictions.json?target=https://evil.example',{headers:{Cookie:session}}),env);
-  assert.equal(data.status,200);assert.deepEqual(await data.json(),{report:'live'});assert.equal(calls[0].url,'https://raw.githubusercontent.com/wangxtong/Dimension-Football-/published-reports/predictions.json');
-  assert.equal(calls[0].options.redirect,'manual');assert.deepEqual(calls[0].options.headers,{Accept:'application/json'});
+  assert.equal(data.status,200);assert.deepEqual(await data.json(),{report:'live'});assert.equal(calls[0].url,'https://api.github.com/repos/wangxtong/Dimension-Football-/contents/predictions.json?ref=published-reports');
+  assert.equal(calls[0].options.redirect,'manual');assert.deepEqual(calls[0].options.headers,{Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',Authorization:'Bearer '+env.REPORTS_GITHUB_TOKEN});
   assert.equal((await app.fetch(request('/worker.mjs',{headers:{Cookie:session}}),env)).status,404);
 });
 test('wrong passwords, cross-origin forms, duplicate fields and oversized forms fail closed',async()=>{
