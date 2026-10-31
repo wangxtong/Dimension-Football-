@@ -93,7 +93,7 @@ npm run crawl:check -- --source all
 
 ## 阿里云 ECS / 轻量服务器与 Git 自动部署
 
-仓库也提供无需云效组织的 ECS 原生同步方式：以 root 运行 `deploy/bootstrap.sh <完整提交SHA>`，安装官方 Node.js 24、验证该提交的全部测试并安装服务。`vantis-sync.timer` 每两分钟检查固定仓库的 `main` 分支，新提交测试通过后原子发布；`vantis-collector.timer` 每小时执行采集。凭据在服务器的 `/etc/vantis/collector.env` 中配置，源码中不包含真实值。具体路径与日志命令见 [部署文件说明](deploy/README.md)。
+仓库也提供无需云效组织的 ECS 原生同步方式：以 root 运行 `deploy/bootstrap.sh <完整提交SHA>`，安装官方 Node.js 24、验证该提交的全部测试并安装服务。`vantis-sync.timer` 每两分钟读取 Private 仓库的固定 `main` 分支；仅当有与完整 SHA 绑定的根目录外审批，且 BACKTEST_ALL_GREEN_ONLY、RELEASE_GATE 全绿并重新通过离线测试后才可能原子发布；`vantis-collector.timer` 每小时执行采集。凭据在服务器的 `/etc/vantis/collector.env` 中配置，源码中不包含真实值。具体路径与日志命令见 [部署文件说明](deploy/README.md)。
 
 Linux 服务器的首次安装、每小时 systemd 调度、固定密钥和检查点目录见 [部署文件说明](deploy/README.md)。云效 Flow 使用 GitHub 仓库的 `main` 分支，开启代码提交触发，并按 [阿里云代码源触发文档](https://help.aliyun.com/zh/yunxiao/user-guide/code-source-trigger) 将该流水线的 Webhook 添加到 GitHub 仓库。
 
