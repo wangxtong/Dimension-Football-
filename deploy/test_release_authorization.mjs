@@ -21,6 +21,7 @@ async function fixture(change = () => {}) {
   const approval = {
     version: 1, scope: 'ecs-code-release', sourceCommit: commit, archiveSha256: sha, toolingDigest: tools,
     ciRunUrl: 'https://github.com/wangxtong/Dimension-Football-/actions/runs/123', ciCommit: commit,
+    ciEvent: 'push', ciBranch: 'main', targetInstanceId: 'i-j6c4g9s2y6b5irl5gcr9',
     ciConclusion: 'success', previousVersionRegressionPassed: true, ecsAuthorizationGranted: true,
     approvedBy: 'maintainer-a', reviewedBy: 'reviewer-b', approvedAt: '2026-10-31T09:00:00Z',
     expiresAt: '2026-11-01T09:00:00Z'
@@ -67,6 +68,9 @@ test('even signed files cannot omit independent approval or green CI attestation
   for (const change of [
     a => { a.reviewedBy = a.approvedBy; },
     a => { a.ciConclusion = 'failure'; },
+    a => { a.ciEvent = 'pull_request'; },
+    a => { a.ciBranch = 'feature/pr-head'; },
+    a => { a.targetInstanceId = 'unapproved-server'; },
     a => { a.previousVersionRegressionPassed = false; },
     a => { a.ecsAuthorizationGranted = false; }
   ]) {
