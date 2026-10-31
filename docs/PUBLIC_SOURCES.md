@@ -30,7 +30,7 @@ npm run collect:public -- --state .collection-state/public/state.json --out repo
 
 `collect:public` 显式使用 `--basic`，不启用 API-Football 隐式深度分析。已有商业来源只有配置其合法凭据时才会参与原有证据采集。普通 `collect`、每小时调度与主分支上线验收逻辑不变。
 
-GitHub Actions 的“公开赛程预测与报告”可手动触发；相关模块合入主分支或后续更新时也自动跑一轮。单轮最多 2 分钟，不注入私有密钥，无定时重复任务；结果和归属写入 Summary，数据及分析报告保存在 artifact 30 天。该任务的 `success` 只表示采集程序完成，实际预测数、缺项和盘口候选分别查看报告。
+GitHub Actions 的“公开赛程预测与报告”可手动触发；相关模块合入主分支或后续更新时也自动跑一轮。单轮最多 2 分钟，无新增定时重复任务；公开赛程请求不携带私钥。配置商业来源 Secrets 后，仅将对应密钥传给其既有官方适配器；未配置时跳过。结果和归属写入 Summary，数据及分析报告保存在 artifact 30 天；最终发布状态单独保存在 publication-receipt 附件。该任务的 `success` 只表示采集程序完成，实际预测数、缺项和盘口候选分别查看报告。
 
 输出在 `reports/public/`：
 

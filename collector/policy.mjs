@@ -117,7 +117,7 @@ function validEvidence(row, fixture, now, lifetime) {
     && now - observed <= lifetime && observed < isoMillis(fixture.kickoff) && expires > now);
 }
 
-function validQuote(row, fixture, now, p) {
+export function validQuote(row, fixture, now, p = DEFAULT_POLICY) {
   const updated = isoMillis(row?.sourceUpdatedAt);
   return validEvidence(row, fixture, now, p.maxQuoteAgeMs) && row.market === 'asian-handicap' && row.period === 'full-time'
     && ['home', 'away'].includes(row.selection) && typeof row.bookmaker === 'string' && row.bookmaker.length > 0 && row.bookmaker.length <= 80 && !/[\u0000-\u001f]/u.test(row.bookmaker)
@@ -127,21 +127,37 @@ function validQuote(row, fixture, now, p) {
     && Number.isFinite(updated) && updated <= now && now - updated <= p.maxQuoteAgeMs;
 }
 
-function hasPair(quote, quotes) {
+export function hasPair(quote, quotes) {
   return quotes.some(other => other !== quote && other.sourceId === quote.sourceId && other.bookmaker === quote.bookmaker
     && other.selection !== quote.selection && other.handicap === -quote.handicap
     && other.observedAt === quote.observedAt && other.sourceUpdatedAt === quote.sourceUpdatedAt);
 }
 
-function safeQuote(quote) {
+export function safeQuote(quote) {
   return Object.fromEntries(['sourceId', 'bookmaker', 'selection', 'handicap', 'decimalOdds', 'observedAt', 'sourceUpdatedAt', 'validUntil', 'evidenceUrl', 'verificationMethod'].map(key => [key, quote[key]]));
+}
+
+export function validOpening(quote, fixture, nowISO) {
+  const o = quote.opening, source = SOURCES[quote.sourceId], at = isoMillis(o?.observedAt), captured = isoMillis(o?.recordedAt);
+  return Boolean(o && source && o.basis === 'provider-opening' && o.sourceId === quote.sourceId && o.bookmaker === quote.bookmaker
+    && o.selection === quote.selection && o.fixtureId === fixture.id && publicUrl(o.evidenceUrl, source)
+    && Number.isFinite(at) && at < isoMillis(quote.observedAt) && at <= isoMillis(quote.sourceUpdatedAt)
+    && at < isoMillis(fixture.kickoff) && captured >= at && captured <= isoMillis(nowISO)
+    && Number.isFinite(o.handicap) && Number.isInteger(o.handicap * 4) && Math.abs(o.handicap) <= 10
+    && Number.isFinite(o.decimalOdds) && o.decimalOdds > 1 && o.decimalOdds <= 21);
+}
+
+export function safeOpening(opening) {
+  return Object.fromEntries(['basis', 'sourceId', 'bookmaker', 'selection', 'fixtureId', 'handicap', 'decimalOdds',
+    'observedAt', 'recordedAt', 'evidenceUrl'].map(key => [key, opening[key]]));
 }
 
 export function retainedEvidence(fixture, { quotes = [], signals = [] }, nowISO, p = DEFAULT_POLICY) {
   const now = isoMillis(nowISO);
   return {
     observedAt: nowISO,
-    quotes: quotes.filter(row => validQuote(row, fixture, now, p)).map(safeQuote),
+    quotes: quotes.filter(row => validQuote(row, fixture, now, p)).map(row => ({ ...safeQuote(row),
+      ...(validOpening(row, fixture, nowISO) ? { opening: safeOpening(row.opening) } : {}) })),
     signals: signals.filter(row => validEvidence(row, fixture, now, p.maxSignalAgeMs)
       && ['1x2', 'asian-handicap'].includes(row.market) && ['home', 'draw', 'away'].includes(row.selection)
       && Number.isFinite(row.probability) && row.probability >= 0 && row.probability <= 1
@@ -175,13 +191,12 @@ export function evaluateFixture(fixture, { quotes = [], signals = [] } = {}, now
     if (!forecastRows.some(signal => signal.selection === quote.selection
       && (signal.market !== 'asian-handicap' || signal.handicap === quote.handicap))) { reasons.add('INDEPENDENT_FORECAST_MISSING'); continue; }
     const opening = quote.opening, openingAt = isoMillis(opening?.observedAt);
-    if (!opening || !Number.isFinite(opening.handicap) || !Number.isInteger(opening.handicap * 4) || opening.handicap !== quote.handicap
+    if (!validOpening(quote, fixture, nowISO) || !Number.isFinite(opening.handicap) || !Number.isInteger(opening.handicap * 4) || opening.handicap !== quote.handicap
       || !Number.isFinite(opening.decimalOdds) || opening.decimalOdds <= 1 || opening.decimalOdds > 21 || !(openingAt < isoMillis(quote.observedAt))
       || Math.abs(opening.decimalOdds - quote.decimalOdds) > policy.maxPriceMovement) { reasons.add('OPENING_TRAJECTORY_MISSING_OR_CHANGED'); continue; }
     if (!best || quote.decimalOdds > best.decimalOdds) best = {
       selection: quote.selection, handicap: quote.handicap, decimalOdds: quote.decimalOdds,
-      quotes: matching.map(safeQuote), opening: { sourceId: quote.sourceId, bookmaker: quote.bookmaker,
-        ...Object.fromEntries(['handicap', 'decimalOdds', 'observedAt'].map(key => [key, opening[key]])) },
+      quotes: matching.map(safeQuote), opening: safeOpening(opening),
       forecastSources: [...new Set(forecastRows.map(signal => signal.sourceId))],
       quoteGroups: [...groups], requiresReview: true,
       // A 1X2 forecast is auxiliary; never relabel it as Asian-cover probability.

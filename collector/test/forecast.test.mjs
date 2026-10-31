@@ -46,6 +46,26 @@ test('real-shaped history creates a traceable baseline forecast without any odds
   assert.match(p.trainingHash, /^[a-f0-9]{64}$/);
   assert.ok(Object.values(p.probabilities).every(value => value > 0 && value < 1));
   assert.ok(!Object.hasOwn(p, 'asianWinProbability'));
+  assert.equal(p.completeness.passed, p.completeness.total);
+  assert.equal(p.completeness.globalCoverage, 'unknown');
+  assert.ok(p.strength.homeAttack > 0);
+  assert.ok(p.validation.evaluated >= 30);
+  assert.equal(Date.parse(p.freshness.validUntil) - Date.parse(NOW), 3600000);
+});
+
+test('sufficient current samples but insufficient retrospective validation are not displayed as forecasts', () => {
+  const result = predict(history().slice(-55)).rows[0];
+  assert.equal(result.status, 'unavailable');
+  assert.ok(result.reasons.includes('BACKTEST_INSUFFICIENT'));
+  assert.ok(!Object.hasOwn(result, 'probabilities'));
+});
+
+test('ordinary forecasts expire after one hour even before kickoff', async t => {
+  const cwd = await workspace(t); let now = NOW;
+  const result = await runCollection({ fixtures: [fixture()], history: history(), statePath: join(cwd, 'state.json'), outDir: cwd,
+    clock: () => now, collectEvidence: async () => { now = at(0, 1); return { quotes: [], signals: [], diagnostics: [] }; } });
+  assert.equal(result.report.summary.forecasts, 0);
+  assert.deepEqual(result.report.results[0].forecast.reasons, ['FORECAST_EXPIRED']);
 });
 
 test('future results, same-fixture results and recently started games never affect a prediction', () => {

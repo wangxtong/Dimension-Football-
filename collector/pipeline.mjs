@@ -5,6 +5,7 @@ import { publicSourceHealth } from './sources/manager.mjs';
 import { CRAWLER_CODES } from './sources/crawler.mjs';
 import { PUBLIC_FIXTURE_SOURCES } from './sources/public-fixtures.mjs';
 import { buildForecasts, finalizeForecasts } from './forecast.mjs';
+import { reconcileMarketEvidence, marketReadiness } from './market-evidence.mjs';
 
 // Persist only diagnostic metadata, never headers, response bodies or thrown messages.
 export function safeDiagnostics(rows = []) {
@@ -72,9 +73,10 @@ export async function runCollection({
     // Full-pool basic screening happens before slow network collection.
     for (const fixture of pool.fixtures) {
       const key = fixtureKey(fixture), old = state.entries[key], result = basicScreen(fixture, startedAt, policy);
-      if (result) state.entries[key] = { fixture, result, checkedAt: startedAt, nextReviewAt: null, evidenceHash: null };
+      const archive = { openingRecords: old?.openingRecords || [], marketHistory: old?.marketHistory || [] };
+      if (result) state.entries[key] = { fixture, result, checkedAt: startedAt, nextReviewAt: null, evidenceHash: null, ...archive };
       else if (!old || state.policyHash !== policyHash) {
-        state.entries[key] = { fixture, result: { status: 'pending', reasons: [] }, checkedAt: null, nextReviewAt: null, evidenceHash: null };
+        state.entries[key] = { fixture, result: { status: 'pending', reasons: [] }, checkedAt: null, nextReviewAt: null, evidenceHash: null, ...archive };
       } else old.fixture = fixture;
     }
     state.policyHash = policyHash;
@@ -95,6 +97,12 @@ export async function runCollection({
     }
     evidence.quotes.push(...importedEvidence.quotes);
     evidence.signals.push(...importedEvidence.signals);
+    for (const fixture of eligible) {
+      const entry = state.entries[fixtureKey(fixture)];
+      const merged = reconcileMarketEvidence(fixture, evidence.quotes.filter(q => q?.fixtureId === fixture.id), entry.openingRecords, clock(), policy);
+      entry.openingRecords = merged.records;
+      evidence.quotes = [...evidence.quotes.filter(q => q?.fixtureId !== fixture.id), ...merged.quotes];
+    }
     const marketDiagnostics = safeMarketDiagnostics(evidence.fixtureDiagnostics, eligible), marketDiagnosticIndex = new Map();
     for (const row of marketDiagnostics) {
       const values = marketDiagnosticIndex.get(row.fixtureId) || []; values.push(row); marketDiagnosticIndex.set(row.fixtureId, values);
@@ -135,6 +143,10 @@ export async function runCollection({
     const results = pool.fixtures.map(fixture => {
       const entry = state.entries[fixtureKey(fixture)];
       entry.forecast = forecastMap.get(fixture.id);
+      entry.marketReadiness = marketReadiness(fixture, quoteIndex.get(fixture.id) || [], completedAt, policy);
+      const { quotes: snapshotQuotes, ...readiness } = entry.marketReadiness;
+      const snapshot = { ...readiness, quoteHash: digest(snapshotQuotes), meaning: 'collection-observation-not-provider-opening' };
+      entry.marketHistory = [...(entry.marketHistory || []).slice(-23), snapshot];
       return { fixture, ...entry };
     });
     const count = status => results.filter(row => row.result.status === status).length;

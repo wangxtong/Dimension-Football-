@@ -22,7 +22,8 @@ function syntheticInput(count = 1) {
   const quotes = [], signals = [];
   for (const fixture of fixtures) {
     const fixtureSnapshot = Object.fromEntries(['id', 'league', 'home', 'away', 'kickoff', 'source'].map(key => [key, fixture[key]]));
-    quotes.push(...structuredClone(demo.evidence.quotes).map(row => ({ ...row, fixtureId: fixture.id, fixtureSnapshot })));
+    quotes.push(...structuredClone(demo.evidence.quotes).map(row => ({ ...row, fixtureId: fixture.id, fixtureSnapshot,
+      ...(row.opening ? { opening: { ...row.opening, fixtureId: fixture.id } } : {}) })));
     signals.push(...structuredClone(demo.evidence.signals).map(row => ({ ...row, fixtureId: fixture.id, fixtureSnapshot })));
   }
   return { fixtures, evidence: { quotes, signals, diagnostics: [] } };
@@ -62,6 +63,20 @@ test('an unchanged evidence checkpoint is reused on the next run', async t => {
   assert.equal((await readState(paths.statePath, false)).runs.length, 2);
 });
 
+test('true openings are checkpointed and reused only alongside fresh quotes of the same fixture', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  await runCollection(invocation(paths, input));
+  const next = { ...input, evidence: { ...input.evidence, quotes: input.evidence.quotes.map(q => ({ ...q, opening: undefined })) } };
+  const result = await runCollection(invocation(paths, next));
+  assert.equal(result.report.summary.candidates, 1);
+  assert.equal(result.report.results[0].openingRecords.length, 2);
+  assert.equal(result.report.results[0].marketReadiness.verifiedOpeningCount, 2);
+  assert.ok(result.report.results[0].lastEvidence.quotes.some(q => q.opening?.basis === 'provider-opening'));
+  const missing = await runCollection(invocation(paths, { ...input, evidence: { quotes: [], signals: [], diagnostics: [] } }));
+  assert.equal(missing.report.summary.candidates, 0);
+  assert.equal(missing.report.results[0].marketReadiness.pairedQuoteCount, 0);
+});
+
 test('refreshing fixture updatedAt does not starve previously pending fixtures on a small budget', async t => {
   const paths = await workspace(t), input = syntheticInput(3);
   const policy = { ...DEFAULT_POLICY, budgetMs: 100 };
@@ -88,13 +103,14 @@ test('refreshing fixture updatedAt does not starve previously pending fixtures o
 
 test('a candidate that expires before report completion is removed from the published report', async t => {
   const paths = await workspace(t), input = syntheticInput();
-  let clockCalls = 0, hadCandidateCheckpoint = false;
+  let now = NOW, hadCandidateCheckpoint = false;
   const expired = new Date(Date.parse(NOW) + 300_001).toISOString();
   const result = await runCollection(invocation(paths, input, {
-    clock: () => ++clockCalls >= 4 ? expired : NOW,
+    clock: () => now,
     checkpoint: async (path, state) => {
       hadCandidateCheckpoint ||= Object.values(state.entries).some(entry => entry.result.status === 'candidate');
       await atomicJson(path, state);
+      if (hadCandidateCheckpoint) now = expired;
     },
   }));
   assert.equal(hadCandidateCheckpoint, true);

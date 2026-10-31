@@ -11,7 +11,9 @@ export function demoInput(nowISO) {
     ...common, sourceId, bookmaker: index ? 'SBOBET' : 'M88', selection,
     handicap: selection === 'home' ? -.25 : .25, decimalOdds: selection === 'home' ? 1.9 : 1.92,
     evidenceUrl: index ? 'https://www.oddstorm.com/' : 'https://live.titan007.com/index2in1.aspx?id=17',
-    ...(selection === 'home' ? { opening: { handicap: -.25, decimalOdds: 1.85, observedAt: at(-3_600_000) } } : {}),
+    ...(selection === 'home' ? { opening: { handicap: -.25, decimalOdds: 1.85, observedAt: at(-3_600_000), recordedAt: nowISO,
+      basis: 'provider-opening', sourceId, bookmaker: index ? 'SBOBET' : 'M88', selection, fixtureId: fixture.id,
+      evidenceUrl: index ? 'https://www.oddstorm.com/' : 'https://live.titan007.com/index2in1.aspx?id=17' } } : {}),
   })));
   const signals = [{ ...common, sourceId: 'statarea', market: '1x2', selection: 'home', probability: .6,
     evidenceUrl: 'https://www.statarea.com/predictions', validUntil: at(3_600_000) }];
