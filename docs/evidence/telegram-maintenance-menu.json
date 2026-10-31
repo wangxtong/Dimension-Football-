@@ -1,0 +1,12 @@
+{
+  "kind": "manual-maintenance-menu",
+  "scope": "status-only-not-forecast-publication",
+  "status": "accepted",
+  "checkedAt": "2026-10-31T09:37:55.705411+00:00",
+  "destinationFingerprint": "c061d82bf8f5ff23",
+  "payloadSha256": "653d01781af246bf2605666a0f40b1a405c756765c018ff7f2402230eee0fbe1",
+  "messageId": 118,
+  "buttonCount": 7,
+  "meaning": "platform-accepted-not-user-read",
+  "botUsername": "LYZKYPbot"
+}

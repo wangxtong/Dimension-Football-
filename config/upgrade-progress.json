@@ -38,9 +38,9 @@
     {
       "id": "delivery",
       "owner": "A6",
-      "status": "review",
+      "status": "verified",
       "priority": "P0",
-      "note": "中文状态卡7个实际URL入口；自动预测发布仍受硬门禁阻断。",
+      "note": "中文表情维护菜单7入口，原授权群Telegram已接受消息118；只是维护状态，不是正式预测自动发布。",
       "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     },
     {
@@ -71,11 +71,11 @@
       "owner": "A1/A6/A8",
       "status": "verified",
       "priority": "P0",
-      "note": "Actions41186918895 attempt3完成真实观察上传、状态revision2和同ID/摘要回读；持续调度可靠性仍待跨轮证据。",
+      "note": "两轮真实Actions观察流已验证；新runner恢复revision2并保存至4，同ID/摘要网站回读；长期调度SLO仍待积累。",
       "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
     }
   ],
-  "updatedAt": "2026-10-31T09:30:26.109872+00:00",
+  "updatedAt": "2026-10-31T09:39:15.533147+00:00",
   "phase": "r2_live_observations_and_quality_validation",
   "acceptance": "docs/upgrade-acceptance.json",
   "productionWebsite": {
@@ -83,14 +83,28 @@
     "sourceCommit": "b484eba8a63f700f91755bc4d9a135a16fce9504",
     "mode": "hosted",
     "publicationKind": "observations",
-    "reportId": "09911d52e59e6cbfa4ce0b1cdfacf0aaecacfb866ce718d7024797f44a665f87",
-    "generatedAt": "2026-10-31T09:09:31.897Z",
-    "checkedAt": "2026-10-31T09:27:27.738Z",
+    "reportId": "8ca5e8a6c599a2c8046417e7d342b251c6a40a65cde426dcacba73767e7e44a8",
+    "generatedAt": "2026-10-31T09:35:53.860Z",
+    "checkedAt": "2026-10-31T09:37:02.868Z",
     "httpStatus": 200,
     "pageErrors": 0,
     "historyAssetMatchesBuild": true,
     "browserLinksVerified": 7
   },
   "releaseGate": "BLOCKED",
-  "publicationScope": "真实采集观察与已验证历史档案；正式概率、推荐及自动预测通知仍不放行。"
+  "publicationScope": "真实采集观察与已验证历史档案；正式概率、推荐及自动预测通知仍不放行。",
+  "productionObservation": {
+    "runId": 41189337901,
+    "previousRevision": 2,
+    "revision": 4,
+    "servedVerified": true,
+    "scope": "Two real runs; not a sustained scheduling SLO"
+  },
+  "telegramMaintenance": {
+    "status": "accepted",
+    "messageId": 118,
+    "buttonCount": 7,
+    "automaticForecastsEnabled": false,
+    "evidence": "docs/evidence/telegram-maintenance-menu.json"
+  }
 }

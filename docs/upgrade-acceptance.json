@@ -4,7 +4,7 @@
   "passed": true,
   "commercialReleaseAccepted": false,
   "releaseGate": "BLOCKED",
-  "checkedAt": "2026-10-31T09:31:48.597440+00:00",
+  "checkedAt": "2026-10-31T09:39:15.533147+00:00",
   "codeCommitSha": "4af652241a0745e1b29781cb7c01da57f993a766",
   "siteSourceSha": "b484eba8a63f700f91755bc4d9a135a16fce9504",
   "checks": [
@@ -31,20 +31,21 @@
       "mode": "hosted",
       "publicationKind": "observations",
       "siteVersion": 12,
-      "reportId": "09911d52e59e6cbfa4ce0b1cdfacf0aaecacfb866ce718d7024797f44a665f87",
-      "generatedAt": "2026-10-31T09:09:31.897Z",
+      "reportId": "8ca5e8a6c599a2c8046417e7d342b251c6a40a65cde426dcacba73767e7e44a8",
+      "generatedAt": "2026-10-31T09:35:53.860Z",
       "fixtureCount": 13,
       "formalPredictions": 0,
-      "evidence": "docs/evidence/production-dashboard-v12.json"
+      "evidence": "docs/evidence/production-dashboard-v12-second-run.json"
     },
     {
       "name": "Hosted collection same-report readback",
-      "runId": 41186918895,
-      "attempt": 3,
-      "stateRevision": 2,
+      "runId": 41189337901,
+      "attempt": 1,
+      "stateRevision": 4,
       "servedVerified": true,
-      "reportId": "09911d52e59e6cbfa4ce0b1cdfacf0aaecacfb866ce718d7024797f44a665f87",
-      "reportHash": "5945eb4265943fab037243599cba7537f43ddbb82da1f10956d2219383904e20"
+      "reportId": "8ca5e8a6c599a2c8046417e7d342b251c6a40a65cde426dcacba73767e7e44a8",
+      "reportHash": "cf7775e9e2f76eed49ca1559f0dae853c8c6cdc0164e575ef7da5372227e5a0b",
+      "previousStateRevision": 2
     },
     {
       "name": "Historical asset source binding",
@@ -62,6 +63,16 @@
       "scored": 1,
       "publicationCalls": 0,
       "notificationCalls": 0
+    },
+    {
+      "name": "Authorized Telegram maintenance menu",
+      "scope": "status-only-not-forecast-publication",
+      "status": "accepted",
+      "messageId": 118,
+      "buttonCount": 7,
+      "checkedAt": "2026-10-31T09:37:55.705411+00:00",
+      "meaning": "platform-accepted-not-user-read",
+      "evidence": "docs/evidence/telegram-maintenance-menu.json"
     }
   ],
   "unverified": [
@@ -71,8 +82,10 @@
     "Calibrated model and independently validated prospective quality",
     "Long-term partitioned ledger storage and archive recovery",
     "Actual ECS running SHA, service restart and rollback",
-    "New Telegram maintenance menu acceptance (not yet sent)",
     "Independent per-user accounts and shared login rate limiting",
-    "Unbypassable repository permissions and independently verified formal promotion authority"
-  ]
+    "Unbypassable repository permissions and independently verified formal promotion authority",
+    "Automatic forecast notification release and production outbox (still blocked)"
+  ],
+  "mergedCommitSha": "65c605b63818f20edfb48b9cda3f5380425ed1a4",
+  "remoteCiRunId": 41189337902
 }
