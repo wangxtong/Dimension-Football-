@@ -71,14 +71,21 @@ test('Telegram 400 diagnoses missing chat and bot identity without storing secre
   assert.equal(calls.filter(c=>c.url.endsWith('/getMe'))[0].method,'GET');
   assert.ok(!JSON.stringify(receipt).includes(env.TELEGRAM_BOT_TOKEN));assert.ok(!JSON.stringify(receipt).includes(env.TELEGRAM_CHAT_ID));
 });
-test('delivery CLI fails the workflow on unsuccessful notification while persisting its receipt',async t=>{
-  const r=await run(t),preload=join(r.dir,'mock-fetch.mjs');
-  await writeFile(preload,`globalThis.fetch=async(url)=>url.endsWith('/getMe')?Response.json({ok:true,result:{is_bot:true,username:'test_delivery_bot'}}):Response.json({ok:false,description:'Bad Request: chat not found'},{status:400});`);
-  const childEnv={...process.env,...env};for(const k of ['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','http_proxy','https_proxy','all_proxy','NODE_OPTIONS'])delete childEnv[k];
-  await assert.rejects(promisify(execFile)(process.execPath,['--import',preload,fileURLToPath(new URL('../publish.mjs',import.meta.url)),'telegram',r.dir],{env:childEnv}),error=>{
-    assert.equal(error.code,1);assert.ok(error.stdout.includes('"status":"failed"'));assert.ok(!error.stdout.includes(env.TELEGRAM_BOT_TOKEN));return true;
-  });
-  assert.equal((await r.receipt()).channels.notifications.status,'failed');
+test('delivery CLI refuses an external push even with Telegram/GitHub credentials',async t=>{
+  const r=await run(t);
+  const childEnv={...process.env,...env};
+  for (const key of ['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','http_proxy','https_proxy','all_proxy','NODE_OPTIONS']) delete childEnv[key];
+  for (const mode of ['telegram','website','website-receipt']) {
+    await assert.rejects(promisify(execFile)(process.execPath,[fileURLToPath(new URL('../publish.mjs',import.meta.url)),mode,r.dir],{env:childEnv}),error=>{
+      assert.equal(error.code,1);
+      assert.ok(error.stdout.includes('BACKTEST_ALL_GREEN_ONLY_NOT_VERIFIED'));
+      assert.ok(!error.stdout.includes(env.TELEGRAM_BOT_TOKEN));
+      return true;
+    });
+  }
+  const receipt=await r.receipt();
+  assert.equal(receipt.channels.notifications.status,'skipped');
+  assert.equal(receipt.channels.externalWebsite.status,'skipped');
 });
 function githubMock({corrupt=false}={}) {
   const files={},calls=[];let exists=false;
