@@ -2,6 +2,14 @@
 
 网站地址：https://dimension-football-live-wangxtong.secretmelon37.chatgpt.site 。看板使用独立的用户名/密码登录，不要求访客拥有 ChatGPT 账号。源码位于 `website/`，服务端由 Sites Worker 承载；修改源码后需重新构建并部署。报告刷新不需要重新部署网站。
 
+## 发布门禁：无完整回测时只保留内部报告
+
+本 PR 将公开数据工作流改为 **fail-closed**：保留有限公开赛程采集、GitHub Actions 报告附件、Summary 和最终 `publication-receipt`，但在 `BACKTEST_ALL_GREEN_ONLY` 尚未由可信完整回测确认 GREEN 前，不向外部网站数据分支写入新的预测，也不推送 Telegram。跳过状态写入回执，代码不会依靠可随意设置的仓库变量假装 GREEN。
+
+这是一项保守的临时硬阻断，不代表已完成历史训练、商业 API 授权或生产验证。未来只有新 PR 在逐项确认五大联赛冻结前瞻回测、概率校准、独立盘口及真正初盘、严格回归、真实 CI、生产授权和发布门禁后，才能恢复外部自动推送；不得简单删除阻断步骤或只增加 `if: vars.RELEASE_GATE == 'GREEN'`。
+
+**现有已发布的网站数据不会在本 PR 中自动删除。** 这只能阻止未来由该 Actions 工作流产生的新的自动交付；其他直接调用 `collector/publish.mjs` 的运行者、手工工具或旧 Telegram 工作流必须分别纳入权限控制和运维审计。PR 未合并前，对当前 `main` 运行没有阻断效果。
+
 ## 自动更新与回执
 
 `.github/workflows/public-sources.yml` 每小时第 17 分钟（UTC）运行，也支持手动触发及相关代码合并触发；GitHub 调度可能延迟。每轮最多采集 2 分钟。原 `collection.yml` 不重复推送这个网站。
