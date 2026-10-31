@@ -22,3 +22,5 @@
 发布后核对 `operations/release.json`、`operations/health.json`、真实网站报告及 outbox 回执。成功 oneshot 显示 inactive/dead 正常；生产验收不能只看服务是否持续 active。
 
 本次打包分离保持 manifest/version 和状态 schema 契约为 1，但文件清单、archive SHA-256 和 toolingDigest 会随实际文件集合更新。旧的含测试制品应从批准 SHA 重新构建，不能手改清单后沿用旧摘要。必须先显式升级已安装部署工具；仅同步应用源码不会更新服务器上的校验器。此代码改造不代表真实服务器权限已经加固，模型发布仍受 `RELEASE_GATE=BLOCKED` 约束。
+
+- **签名发布门禁（Draft）**：见 [ECS-SIGNED-RELEASE](../docs/ECS-SIGNED-RELEASE.md)。install/release/sync 在代码切换前必须通过 root 固定公钥的 Ed25519 detached 签名批准，绑定完整源 SHA、archive SHA-256、toolingDigest、独立批准、有效期；缺失一律拒绝。只授权代码切换，不批准正式预测；ECS 工具升级仍需 Workbench 证据。
