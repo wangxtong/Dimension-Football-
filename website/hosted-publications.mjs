@@ -302,6 +302,7 @@ export async function handleHostedRequest(request, env, { fetchImpl = fetch, now
     if (!await bucketPutCAS(env, STATE, value, current?.etag ?? null)) throw problem('STATE_REVISION_CONFLICT', 409);
     return response({ revision: value.revision });
   } catch (error) {
+    console.warn(JSON.stringify({event:'hosted-request-rejected',path,code:typeof error.code==='string' && /^[A-Z][A-Z0-9_]{1,80}$/.test(error.code) ? error.code : 'HOSTED_REQUEST_FAILED'}));
     const schema = ['REPORT_SCHEMA_INVALID', 'RECEIPT_SCHEMA_INVALID', 'SNAPSHOT_SCHEMA_INVALID'].includes(error.message);
     return response({ error: error.code || (schema ? error.message : 'HOSTED_REQUEST_FAILED') }, error.status || (schema ? 400 : 503));
   }

@@ -107,7 +107,7 @@ async function sendTelegram({ token, chatId, presentation, fetchImpl, base }) {
   try {
     return await Promise.race([(async () => {
       // Telegram's fixed Bot API embeds the token in its HTTPS path. Never return/log it.
-      const response = await fetchImpl(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', redirect: 'error', signal: controller.signal,
+      const response = await fetchImpl(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', redirect: 'manual', signal: controller.signal,
         headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, ...presentation }) });
       const data = await telegramJSON(response);
       if (response.ok && data.ok === true && Number.isSafeInteger(data.result?.message_id) && data.result.message_id > 0

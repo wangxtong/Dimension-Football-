@@ -15,6 +15,8 @@ export function token(claims = {}, header = {}) {
 export function fakeKeys() {
   const calls = [];
   const fetchImpl = async (url, init) => {
+    // Match Workers' constructor rejection, which Node's native fetch does not have.
+    if (init.redirect === 'error') throw new TypeError('Invalid redirect value');
     calls.push({ url, init });
     return Response.json({ keys: [publicJwk] });
   };

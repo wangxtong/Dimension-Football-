@@ -14,7 +14,7 @@ test('real offline RSA signatures authorize only the fixed Actions identity and 
   }
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, 'https://token.actions.githubusercontent.com/.well-known/jwks');
-  assert.equal(calls[0].init.redirect, 'error');
+  assert.equal(calls[0].init.redirect, 'manual');
   await verifyActionsIdentity(machineRequest('/internal/state', { bearer: token({ iat: NOW / 1000 + 300, nbf: NOW / 1000 + 300, exp: NOW / 1000 + 600 }) }), env, { fetchImpl, now: NOW + 301000 });
   assert.equal(calls.length, 2);
 });
@@ -60,4 +60,18 @@ test('a synchronous JWKS transport failure is retryable rather than permanently 
   await assert.rejects(verifyActionsIdentity(request, env, options), { code: 'ACTIONS_KEYS_UNAVAILABLE' });
   assert.equal((await verifyActionsIdentity(request, env, options)).repository_id, '1438127927');
   assert.equal(calls, 2);
+});
+
+test('Workers-compatible JWKS retrieval rejects redirects without following their location', async () => {
+  let calls = 0;
+  const fetchImpl = async (url, init) => {
+    if (init.redirect === 'error') throw new TypeError('Invalid redirect value');
+    assert.equal(init.redirect, 'manual');
+    assert.equal(url, 'https://token.actions.githubusercontent.com/.well-known/jwks');
+    calls++;
+    return new Response(null, { status: 302, headers: { location: 'https://untrusted.example/keys' } });
+  };
+  await assert.rejects(verifyActionsIdentity(machineRequest('/internal/state'), { DASHBOARD_ORIGIN: ORIGIN }, { now: NOW, fetchImpl }),
+    { code: 'ACTIONS_KEYS_UNAVAILABLE', status: 503 });
+  assert.equal(calls, 1);
 });
