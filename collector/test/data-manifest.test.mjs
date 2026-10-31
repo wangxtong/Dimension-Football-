@@ -58,3 +58,32 @@ test('replay inputs strip arbitrary raw fields and cannot store credential confi
   assert.ok(!JSON.stringify(createReplayBundle(input)).includes('discard-me'));
   assert.throws(() => createReplayBundle({ ...options(), policy: { ...DEFAULT_POLICY, apiKey: 'discard-me' } }), /INVALID_REPLAY_POLICY/);
 });
+
+test('A3 fail-closed replay rejects fixtures first acquired or changed after the cutoff', () => {
+  const later = '2026-10-31T05:00:00.000Z';
+  for (const field of ['updatedAt', 'fetchedAt', 'observedAt', 'sourceUpdatedAt']) {
+    const input = options(); input.fixtures[0][field] = later;
+    const bundle = createReplayBundle(input);
+    // A stored archive may be intact while its as-of-cutoff claim is false.
+    assert.doesNotThrow(() => verifyReplayBundle(bundle));
+    assert.throws(() => replayForecasts(bundle, { buildForecasts, codeVersion: input.codeVersion }),
+      { message: 'REPLAY_INPUT_AFTER_CUTOFF' }, field);
+  }
+});
+
+test('A3 fail-closed replay rejects result evidence acquired after the cutoff without rejecting known-at-cutoff data', () => {
+  const baseHistory = { id: 'oldb-history-9', sourceFixtureId: '9', source: 'openligadb', league: 'BL1',
+    home: 'Club 1', away: 'Club 2', homeTeamId: '1', awayTeamId: '2', kickoff: '2026-05-01T14:30:00Z',
+    status: 'FINISHED', period: 'full-time', homeGoals: 2, awayGoals: 1 };
+  const later = '2026-10-31T05:00:00.000Z';
+  for (const field of ['observedAt', 'resultObservedAt', 'fetchedAt', 'sourceUpdatedAt']) {
+    const input = { ...options(), history: [{ ...baseHistory, [field]: later }] };
+    const bundle = createReplayBundle(input);
+    assert.throws(() => replayForecasts(bundle, { buildForecasts, codeVersion: input.codeVersion }),
+      { message: 'REPLAY_INPUT_AFTER_CUTOFF' }, field);
+  }
+  const input = { ...options(), history: [{ ...baseHistory, observedAt: NOW,
+    resultObservedAt: NOW, fetchedAt: NOW, sourceUpdatedAt: NOW }] };
+  assert.doesNotThrow(() => replayForecasts(createReplayBundle(input), {
+    buildForecasts, codeVersion: input.codeVersion }));
+});
