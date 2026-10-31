@@ -8,6 +8,8 @@ GitHub 和 Sites 已连接的能力继续由总控执行。唯一需要服务器
 
 **A7 签名保护为 Draft，尚无 ECS 安装证据。** 正式安装前按 [ECS-SIGNED-RELEASE](ECS-SIGNED-RELEASE.md) 完成独立 CI/SHA 核对、源目录逐文件校验与 filesDigest 绑定、旧版回归、离线 Ed25519 签名，并由授权管理员在 Workbench 根目录固定公钥及精确 commit 的签名 JSON/二进制签名。缺失即 BLOCKED。核对服务器已装 release.sh/sync.sh 的工具版本：旧版可能仍直接跟随 main 更新，须先由管理员暂停其自动切换、受控升级。签名只授权代码切换，不批准正式预测或 TG 消息。不得用 GitHub 权限替代 ECS 身份。
 
+**首次安装额外前置（当前只是代码候选）**：在使用 `bootstrap.sh --install-node` 之前，已授权 ECS 管理员须独立审核并在服务器 root 保护目录预置 `/opt/vantis/deployment/release-authorization.mjs`、`/opt/vantis/deployment/bundle.py` 及可运行签名校验的可信 Node；缺任意项则 bootstrap 提前拒绝，绝不能执行未批准来源自带的 bundle.py / install-node.sh 进行自举。需记录三个工具的非秘密摘要、root 权限及来源证明至 Issue #14。流程和首次信任边界见 [ECS-SIGNED-RELEASE](ECS-SIGNED-RELEASE.md)。此处不授权安装、不表示 ECS 已完成预置。
+
 ## 获取准确部署包
 
 在本仓库 Actions 的“采集项目验证”成功运行中，下载 `dimension-ecs-<完整提交SHA>` 附件。附件只有已测试提交的源快照、文件摘要及 bootstrap 工具，不含秘密。将附件解压后的文件上传到 Workbench 所在服务器的一个独立目录。使用本次验收给出的 SHA256，而不是不明下载链接中的校验值。
