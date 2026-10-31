@@ -10,14 +10,18 @@ import { prepareForecastHistory, BACKTEST_HORIZONS, FORECAST_MODEL } from './for
 import { appendResultAndScore, evaluatePredictionLedger } from './prediction-ledger.mjs';
 import { isoMillis } from './policy.mjs';
 import { configureEnvironmentProxy } from './network.mjs';
+import { requireGreenForecastDelivery } from './publication-release-gate.mjs';
 
 const LANES = new Set(['fixtures', 'markets', 'delivery', 'results']);
 const HELP = '用法：node collector/orchestrate.mjs --lane fixtures|markets|delivery|results [--state FILE] [--out DIR] [--budget-minutes N]\n默认报告目录 /var/lib/vantis/reports；--help 不访问网络、不写文件。\n';
 const BLOCKERS = new Set(['FIXTURE_CACHE_EXPIRED', 'FIXTURE_CACHE_MISSING', 'ACQUISITION_SNAPSHOT_CHANGED', 'INVALID_ACQUISITION_SNAPSHOT',
-  'NO_GENERATED_REPORT', 'COLLECTION_ALREADY_LOCKED', 'INPUT_ARCHIVE_INCOMPLETE', 'CANCELLED', 'BUDGET_EXHAUSTED']);
+  'NO_GENERATED_REPORT', 'COLLECTION_ALREADY_LOCKED', 'INPUT_ARCHIVE_INCOMPLETE', 'CANCELLED', 'BUDGET_EXHAUSTED', 'RELEASE_GATE_BLOCKED']);
 const MANAGED_KEYS = ['FOOTBALL_DATA_API_KEY', 'FOOTBALL_DATA_API_TOKEN', 'API_FOOTBALL_KEY', 'SPORTMONKS_API_TOKEN'];
-const dynamicPublisher = async (directory, options) => (await import('./delivery.mjs')).publishAll(directory,
-  { ...options, config: await readJson(resolve(import.meta.dirname, '../config/delivery.json')) });
+const dynamicPublisher = async (directory, options) => {
+  await requireGreenForecastDelivery(directory);
+  return (await import('./delivery.mjs')).publishAll(directory,
+    { ...options, config: await readJson(resolve(import.meta.dirname, '../config/delivery.json')) });
+};
 const ORCHESTRATION_ERRORS = new Set(['INVALID_ORCHESTRATION_ARGUMENTS', 'INVALID_LANE', 'ORCHESTRATION_STATE_INVALID',
   'INVALID_RUN_MANIFEST', 'INVALID_REPLAY_INPUTS', 'RUN_INPUT_HASH_MISMATCH', 'RUN_REPORT_ID_MISMATCH', 'RUN_CODE_VERSION_MISMATCH',
   'IMMUTABLE_LEDGER_CONFLICT', 'LEDGER_INTEGRITY_FAILURE', 'IMMUTABLE_REPLAY_CONFLICT', 'PUBLICATION_REPORT_MISMATCH',
