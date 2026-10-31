@@ -94,11 +94,34 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     if(!signedIn)return path==='/'||path==='/index.html'?redirect('/login'):response('请先登录。',401);
     const feeds={'/api/predictions.json':'predictions.json','/api/publication.json':'publication.json','/api/openligadb-fixtures.json':'openligadb-fixtures.json'};
     if(Object.hasOwn(feeds,path)){
+      // Private GitHub data must be fetched by this server-side Worker only.
+      // The token is never forwarded from a browser request or returned to clients.
+      const token=env.REPORTS_GITHUB_TOKEN;
+      if(typeof token!=='string'||token.length<20||token.length>1024||/[^\x21-\x7e]/.test(token))
+        return response(JSON.stringify({error:'REPORT_TOKEN_NOT_CONFIGURED'}),503,'application/json; charset=utf-8');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
       try{
-        const upstream=await fetchImpl('https://raw.githubusercontent.com/wangxtong/Dimension-Football-/published-reports/'+feeds[path],{redirect:'manual',signal:controller.signal,headers:{Accept:'application/json'}});
-        if(!upstream.ok||!upstream.headers.get('content-type')?.match(/json|text\/plain/)){const status=upstream.status;await upstream.body?.cancel();return response(JSON.stringify({error:'REPORT_UPSTREAM_UNAVAILABLE',upstreamStatus:status}),502,'application/json; charset=utf-8');}
-        const text=await boundedBody(upstream,4000000);JSON.parse(text);
+        const url='https://api.github.com/repos/wangxtong/Dimension-Football-/contents/'+feeds[path]+'?ref=published-reports';
+        const upstream=await fetchImpl(url,{redirect:'manual',signal:controller.signal,headers:{
+          Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',
+          Authorization:'Bearer '+token,
+        }});
+        if(!upstream.ok||!upstream.headers.get('content-type')?.includes('application/json')){
+          await upstream.body?.cancel();
+          return response(JSON.stringify({error:'REPORT_UPSTREAM_UNAVAILABLE'}),502,'application/json; charset=utf-8');
+        }
+        // Contents API returns a base64 file object, not a public raw URL.
+        const record=JSON.parse(await boundedBody(upstream,5600000));
+        if(record?.type!=='file'||record.name!==feeds[path]||record.encoding!=='base64'
+          ||!Number.isSafeInteger(record.size)||record.size<0||record.size>4000000
+          ||typeof record.content!=='string')throw Error('INVALID_REPORT_FILE');
+        const b64=record.content.replace(/[\r\n]/g,'');
+        if(b64.length>5400000||!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(b64))
+          throw Error('INVALID_REPORT_ENCODING');
+        const raw=Uint8Array.from(atob(b64),value=>value.charCodeAt(0));
+        if(raw.length!==record.size)throw Error('INVALID_REPORT_SIZE');
+        const text=new TextDecoder('utf-8',{fatal:true}).decode(raw);
+        JSON.parse(text);
         return response(method==='HEAD'?null:text,200,'application/json; charset=utf-8');
       }catch(error){return response(JSON.stringify({error:'REPORT_FETCH_FAILED',kind:['TypeError','SyntaxError','TimeoutError','AbortError'].includes(error?.name)?error.name:'Error'}),502,'application/json; charset=utf-8');}
       finally{clearTimeout(timer);}
