@@ -8,7 +8,7 @@
 
 这是一项保守的临时硬阻断，不代表已完成历史训练、商业 API 授权或生产验证。未来只有新 PR 在逐项确认五大联赛冻结前瞻回测、概率校准、独立盘口及真正初盘、严格回归、真实 CI、生产授权和发布门禁后，才能恢复外部自动推送；不得简单删除阻断步骤或只增加 `if: vars.RELEASE_GATE == 'GREEN'`。
 
-**现有已发布的网站数据不会在本 PR 中自动删除。** 这只能阻止未来由该 Actions 工作流产生的新的自动交付；其他直接调用 `collector/publish.mjs` 的运行者、手工工具或旧 Telegram 工作流必须分别纳入权限控制和运维审计。PR 未合并前，对当前 `main` 运行没有阻断效果。
+**现有已发布的网站数据不会在本 PR 中自动删除。** 这只能阻止未来由该 Actions 工作流产生的新的自动交付；外部发布 CLI `collector/publish.mjs website|website-receipt|telegram` 也会拒绝直接推送；但其他直接调用 `collector/delivery.mjs` 库函数的自定义程序、手工服务或旧 Telegram 工作流仍需单独审计。PR 未合并前，对当前 `main` 运行没有阻断效果。
 
 ## 自动更新与回执
 
