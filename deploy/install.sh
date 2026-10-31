@@ -86,7 +86,7 @@ bash /opt/vantis/deployment/release.sh "$source_dir"
 systemctl enable --now vantis-health.timer vantis-collector.timer
 systemctl enable vantis-report.service
 # Missing report credentials fail closed; health reports the exact inactive/failed service.
-systemctl restart vantis-report.service || true
+systemctl restart vantis-report.service || die 'REPORT_SERVICE_RESTART_FAILED'
 IFS= read -r mode < /etc/vantis/source-mode
 if [[ "$mode" == deploy-key ]]; then systemctl enable --now vantis-sync.timer; else systemctl disable --now vantis-sync.timer; fi
 printf 'INSTALL_COMPLETED; verify operations/health.json and authenticated Site report readback before acceptance.\n'
