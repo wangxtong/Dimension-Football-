@@ -12,7 +12,9 @@ try {
     configureEnvironmentProxy(process.env);
     const config = await readJson(new URL('../config/delivery.json', import.meta.url));
     const result = await ({ website:publishWebsite, 'website-receipt':publishWebsiteReceipt, telegram:publishTelegram }[mode])(out,{config,env:process.env});
-    console.log(JSON.stringify({ reportId:result.reportId, channel:mode, status:result.status || result.channels[mode === 'telegram' ? 'notifications' : 'externalWebsite'].status }));
+    const delivery = result.status ? result : result.channels[mode === 'telegram' ? 'notifications' : 'externalWebsite'];
+    console.log(JSON.stringify({ reportId:result.reportId, channel:mode, status:delivery.status, ...(delivery.code ? {code:delivery.code} : {}) }));
+    if (['failed','unknown'].includes(delivery.status)) process.exitCode = 1;
   } else {
   const receipt = mode === 'summary' ? await publishSummary(out, process.env.GITHUB_STEP_SUMMARY)
     : await recordArtifact(out, { outcome: process.env.UPLOAD_OUTCOME, id: process.env.ARTIFACT_ID, url: process.env.ARTIFACT_URL,

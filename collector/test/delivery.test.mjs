@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runCollection } from '../pipeline.mjs';
@@ -43,6 +46,26 @@ test('API rejection, wrong chat acknowledgement and old reports cannot claim sen
   }
   const r=await run(t,{clock:()=>new Date(Date.now()-7200000).toISOString()});
   await publishTelegram(r.dir,{config,env,fetchImpl:async()=>assert.fail('expired report sent')});assert.equal((await r.receipt()).channels.notifications.code,'REPORT_EXPIRED');
+});
+test('Telegram 400 diagnoses missing chat and bot identity without storing secret response text or retrying send',async t=>{
+  const r=await run(t),calls=[];
+  const fetchImpl=async(url,init)=>{calls.push({url,method:init.method});return url.endsWith('/getMe')
+    ? Response.json({ok:true,result:{is_bot:true,username:'test_delivery_bot'}})
+    : Response.json({ok:false,description:`Bad Request: chat not found ${env.TELEGRAM_BOT_TOKEN} ${env.TELEGRAM_CHAT_ID}`},{status:400});};
+  const receipt=await publishTelegram(r.dir,{config,env,fetchImpl}),channel=receipt.channels.notifications;
+  assert.equal(channel.status,'failed');assert.equal(channel.code,'TELEGRAM_CHAT_NOT_FOUND');assert.equal(channel.botUsername,'test_delivery_bot');
+  assert.match(channel.destinationFingerprint,/^[a-f0-9]{16}$/);assert.equal(calls.filter(c=>c.url.endsWith('/sendMessage')).length,1);
+  assert.equal(calls.filter(c=>c.url.endsWith('/getMe'))[0].method,'GET');
+  assert.ok(!JSON.stringify(receipt).includes(env.TELEGRAM_BOT_TOKEN));assert.ok(!JSON.stringify(receipt).includes(env.TELEGRAM_CHAT_ID));
+});
+test('delivery CLI fails the workflow on confirmed Telegram rejection while persisting its receipt',async t=>{
+  const r=await run(t),preload=join(r.dir,'mock-fetch.mjs');
+  await writeFile(preload,`globalThis.fetch=async(url)=>url.endsWith('/getMe')?Response.json({ok:true,result:{is_bot:true,username:'test_delivery_bot'}}):Response.json({ok:false,description:'Bad Request: chat not found'},{status:400});`);
+  const childEnv={...process.env,...env};for(const k of ['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','http_proxy','https_proxy','all_proxy','NODE_OPTIONS'])delete childEnv[k];
+  await assert.rejects(promisify(execFile)(process.execPath,['--import',preload,fileURLToPath(new URL('../publish.mjs',import.meta.url)),'telegram',r.dir],{env:childEnv}),error=>{
+    assert.equal(error.code,1);assert.ok(error.stdout.includes('TELEGRAM_CHAT_NOT_FOUND'));assert.ok(!error.stdout.includes(env.TELEGRAM_BOT_TOKEN));return true;
+  });
+  assert.equal((await r.receipt()).channels.notifications.code,'TELEGRAM_CHAT_NOT_FOUND');
 });
 function githubMock({corrupt=false}={}) {
   const files={},calls=[];let exists=false;

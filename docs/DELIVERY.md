@@ -23,6 +23,8 @@
 
 任何一项缺失即 `not_configured`，不访问 Telegram。模拟报告不发送，超过 1 小时的报告不发送。文本仅含本轮分类数量、生成时间和网站链接。返回消息 ID 且目标 Chat ID 匹配才记 `accepted`，它表示 Telegram 接收，不表示收件人已读。回执只存目标 ID 的哈希指纹。网络异常或回执不确定记 `unknown`，同一报告不自动重发；人工核对后再处理。新的采集报告有独立 ID，可独立发送。
 
+发送失败或结果未知时，通知步骤返回非零状态；后续网站回执同步与附件保存仍按 `always()` 执行。HTTP 拒绝回执将缺失群地址、禁言、机器人不在群中、群迁移、无效令牌和限流映射为固定错误码。HTTP 400/403 时追加一次只读 `getMe` 核对公开机器人用户名，不重发消息，不保存原始错误正文、令牌或 Chat ID。目标指纹可用于核对 Secrets 是否填写了预期群地址。
+
 ## 新增香港赛马会独立公开报价
 
 `collector/sources/hkjc.mjs` 从 [官方 HDC 页面](https://bet.hkjc.com/en/football/hdc) 使用的公开只读操作获取数据，不需要账户、Cookie 或 API Key。请求固定为 `https://info.cld.hkjc.com/graphql/base-get/`，GraphQL 操作保存在 `hkjc-query.graphql`；GET 也必须带 `Content-Type: application/json`。每轮一次请求、最多 8 秒、响应上限 2 MB，不翻页冒充完整覆盖。

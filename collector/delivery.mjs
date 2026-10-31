@@ -80,6 +80,29 @@ export function telegramText(report, siteUrl) {
   return `维度足球 · 赛前分析更新\n生成时间：${report.generatedAt}\n普通预测 ${report.summary.forecasts} 场｜严格盘口候选 ${report.summary.strictCandidates} 场｜暂不可评估 ${report.summary.unavailable} 场\n`
     + '普通预测为未校准统计基线；盘口候选仍需人工复核。\n' + `查看报告：${siteUrl}`;
 }
+async function telegramRejection(response, { token, fingerprint, fetchImpl }) {
+  let data = null; try { data = await boundedJson(response,32000); } catch { /* Never persist untrusted response text. */ }
+  const description = typeof data?.description === 'string' ? data.description.toLowerCase() : '';
+  const code = description.includes('chat not found') ? 'TELEGRAM_CHAT_NOT_FOUND'
+    : description.includes('not enough rights') || description.includes('have no rights') || description.includes('chat_write_forbidden') ? 'TELEGRAM_CHAT_WRITE_FORBIDDEN'
+    : description.includes('kicked') || description.includes('not a member') ? 'TELEGRAM_BOT_NOT_IN_CHAT'
+    : description.includes('blocked by the user') ? 'TELEGRAM_BOT_BLOCKED'
+    : description.includes('migrated to a supergroup') ? 'TELEGRAM_CHAT_MIGRATED'
+    : response.status === 401 ? 'TELEGRAM_TOKEN_REJECTED'
+    : response.status === 429 ? 'TELEGRAM_RATE_LIMITED' : 'TELEGRAM_API_REJECTED';
+  const result = { status:'failed', checkedAt:stamp(), channel:'telegram', code, httpStatus:response.status, destinationFingerprint:fingerprint };
+  // A readonly identity check distinguishes a wrong recipient from a different
+  // valid bot token. It never retries sendMessage or stores token/chat IDs.
+  if (response.status === 400 || response.status === 403) {
+    try {
+      const identity = await fetchImpl(`https://api.telegram.org/bot${token}/getMe`, { method:'GET', redirect:'error', signal:AbortSignal.timeout(5000) });
+      if (!identity.ok) { await identity.body?.cancel(); return result; }
+      const info = await boundedJson(identity,16000);
+      if (info.ok === true && info.result?.is_bot === true && /^[A-Za-z0-9_]{5,32}$/.test(info.result.username || '')) result.botUsername = info.result.username;
+    } catch { /* Preserve the confirmed send rejection even if diagnostics fail. */ }
+  }
+  return result;
+}
 export async function publishTelegram(directory, { config, env = {}, fetchImpl = fetch }) {
   deliveryConfig(config);
   return updatePublicationChannel(directory, 'notifications', async receipt => {
@@ -94,7 +117,7 @@ export async function publishTelegram(directory, { config, env = {}, fetchImpl =
       // The token is sent only to the fixed Telegram API origin and is never logged.
       const response = await fetchImpl(`https://api.telegram.org/bot${token}/sendMessage`, { method:'POST', redirect:'error', signal:AbortSignal.timeout(10000),
         headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ chat_id:chatId, text:telegramText(report,config.website.url), link_preview_options:{is_disabled:true} }) });
-      if (!response.ok) { await response.body?.cancel(); return { status:'failed', checkedAt:stamp(), channel:'telegram', code:'TELEGRAM_API_REJECTED', httpStatus:response.status }; }
+      if (!response.ok) return telegramRejection(response,{token,fingerprint,fetchImpl});
       const data = await boundedJson(response,32000);
       if (!response.ok || data.ok !== true) return { status:'failed', checkedAt:stamp(), channel:'telegram', code:'TELEGRAM_API_REJECTED', httpStatus:response.status };
       if (!Number.isSafeInteger(data.result?.message_id) || String(data.result?.chat?.id) !== String(chatId)) return { status:'unknown', checkedAt:stamp(), channel:'telegram', code:'TELEGRAM_RECEIPT_UNVERIFIED' };
