@@ -18,6 +18,7 @@ nginx=module('nginx_namespace','nginx-namespace.py')
 secrets=module('report_secrets','ensure-report-secrets.py')
 persistent=module('persistent_config','persistent-config.py')
 restore=module('restore_verify','restore-verify.py')
+bundle=module('bundle','bundle.py')
 ORIGINAL='''# Existing production app and bridge. Braces in comments: { }
 server {
     listen 80;
@@ -239,6 +240,25 @@ class RestoreEvidenceTests(unittest.TestCase):
                 (folder/'publication.json').write_text(json.dumps(broken))
                 with self.subTest(code=code),self.assertRaisesRegex(ValueError,code):
                     restore.verify_restore(root)
+
+    def test_shell_restore_drill_accepts_complete_backup_but_rejects_missing_receipt(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)/'state';root.mkdir()
+            folder,_=self.fixture(root)
+            script=Path(__file__).with_name('restore-drill.sh')
+            archive=Path(d)/'complete.tar'
+            complete=bundle.backup(root,archive)
+            good=subprocess.run(['bash',str(script),str(archive),complete['sha256']],
+                                capture_output=True,text=True,timeout=30)
+            self.assertEqual(good.returncode,0,good.stdout+good.stderr)
+            self.assertTrue(json.loads(good.stdout)['publicationEvidenceVerified'])
+            (folder/'publication.json').unlink()
+            partial=Path(d)/'partial.tar'
+            damaged=bundle.backup(root,partial)
+            bad=subprocess.run(['bash',str(script),str(partial),damaged['sha256']],
+                               capture_output=True,text=True,timeout=30)
+            self.assertNotEqual(bad.returncode,0,bad.stdout+bad.stderr)
+            self.assertEqual(json.loads(bad.stdout)['code'],'RESTORED_REPORT_RECEIPT_INCOMPLETE')
 
     def test_cli_returns_nonzero_json_blocked_without_leaking_report(self):
         with tempfile.TemporaryDirectory() as d:
