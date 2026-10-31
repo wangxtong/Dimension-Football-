@@ -33,7 +33,7 @@ npm run collect -- --input fixtures.json --history history.json
 - 带时间的 `collection-*.json`：包含该轮预测、回测和训练数据哈希，保留历史审计依据。
 - `openligadb-fixtures.json`：公开源模式下单独输出相应赛程、历史与 ODbL 归属。
 
-GitHub“公开赛程预测与报告”将逐场概率和缺项写入 Summary，全部文件保存在 artifact 30 天。这里的发布是报告文件及 Actions 产物；现有网站、Telegram 等外部交付尚未配置，不能据此声称消息已发送。默认没有新增周期任务。
+GitHub“公开赛程预测与报告”将逐场概率和缺项写入 Summary，全部文件保存在 artifact 30 天。现已增加网站数据发布、每小时第 17 分钟采集及 Telegram 凭据入口；实际是否完成逐渠道记录，见 [网站和通知](DELIVERY.md)。
 
 ## 模型与边界
 
@@ -83,7 +83,7 @@ npm run collect:public -- --evidence /absolute/path/reviewed-evidence.json --acc
 
 该显式参数仅表示所有者完成核验，不替代供应商授权或证明两个转售渠道独立。未传参数的导入材料不能产生候选；不允许自行填写独立票数改变来源分组。
 
-2026-10-31 接入检查：当前云环境无商业盘口凭据。已配置的自动公开通道只有 Titan007 一个盘口来源组，无法据此宣称第二独立来源已接通；实际能否取得完整行情还受本轮诊断约束。现有 [iSports 主盘口文档](https://www.isportsapi.com/docs.html?id=24) 提供初盘数值但未给出可用的真实开盘时间字段；[The Odds API 历史接口](https://the-odds-api.com/historical-odds-data/) 返回按时间取近的历史快照，不能当作真正开盘。后续仍需取得授权的独立源、可验证的上游关系与真实初盘样本，不能仅用接口连通替代这些条件。
+2026-10-31 更新：已接通 HKJC 第一方公开 HDC 报价，与 Titan007 分组独立。实采 13 场匹配 12 场，但 Titan007 本轮不可用，仍未形成双源同时有效。详见 [接入证据和时效语义](DELIVERY.md)。现有 [iSports 主盘口文档](https://www.isportsapi.com/docs.html?id=24) 提供初盘数值但未给出可用的真实开盘时间字段；[The Odds API 历史接口](https://the-odds-api.com/historical-odds-data/) 返回按时间取近的历史快照，不能当作真正开盘。后续仍需保证两路独立源同时可用，并取得真实初盘样本，不能仅用接口连通替代这些条件。
 
 ## 发布链路和实际回执
 

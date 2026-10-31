@@ -2,6 +2,8 @@ name: 公开赛程预测与报告
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
   push:
     branches: [main]
     paths:
@@ -15,10 +17,15 @@ on:
       - 'collector/publish.mjs'
       - 'collector/market-evidence.mjs'
       - 'collector/policy.mjs'
+      - 'collector/sources/hkjc.mjs'
+      - 'collector/sources/hkjc-query.graphql'
+      - 'collector/sources/index.mjs'
+      - 'collector/delivery.mjs'
+      - 'config/delivery.json'
       - '.github/workflows/public-sources.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: dimension-football-public-sample
@@ -58,9 +65,25 @@ jobs:
           ARTIFACT_URL: ${{ steps.report-upload.outputs.artifact-url }}
           ARTIFACT_DIGEST: ${{ steps.report-upload.outputs.artifact-digest }}
         run: node collector/publish.mjs artifact reports/public
+      - name: 更新外部网站数据并回读核验
+        if: always() && hashFiles('reports/public/publication.json') != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node collector/publish.mjs website reports/public
+      - name: Telegram 通知（凭据未配置时不发送）
+        if: always() && hashFiles('reports/public/publication.json') != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node collector/publish.mjs telegram reports/public
       - name: 发布分类预测并记录 Summary 回执
         if: always() && hashFiles('reports/public/publication.json') != ''
         run: node collector/publish.mjs summary reports/public
+      - name: 同步网站最终发布状态
+        if: always() && hashFiles('reports/public/publication.json') != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node collector/publish.mjs website-receipt reports/public
       - name: 保留最终发布回执
         if: always() && hashFiles('reports/public/publication.json') != ''
         uses: actions/upload-artifact@v7

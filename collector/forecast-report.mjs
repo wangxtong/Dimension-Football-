@@ -70,7 +70,7 @@ export function renderPredictionsMarkdown(report) {
   if (!doc.backtests.some(row => row.metrics)) lines.push('| — | 0 | — | — | — | — | — |');
   lines.push('', '历史样本不足的比赛会跳过，指标仅针对可预测的比赛，不能代表全部赛程。回测使用当前取得的历史修订快照，不能还原当时数据可见性；最多 80 场，属于小样本回测，不能据此承诺未来命中率或投注收益。', '',
     '模型只使用同源球队 ID、主客场、历史全场进失球与时间衰减，未纳入伤停、阵容或赔率。JSON / HTML 同时提供比分分布参考、训练样本摘要和训练数据哈希。', '',
-    '实际发布状态见同目录 publication.json；GitHub 最终回执见 publication-receipt 附件。文件生成、Summary 写入和报告附件上传分别记账，外部网站和消息通知未配置。', '');
+    '实际发布状态见同目录 publication.json；GitHub 最终回执见 publication-receipt 附件。文件生成、Summary 写入和报告附件上传分别记账，网站与 Telegram 的实际结果另行记入回执；Telegram 缺凭据时不发送。', '');
   for (const source of doc.attribution) lines.push(`- 数据归属：[${markdown(source.name)}](${source.url})；[${markdown(source.license)}](${source.licenseUrl})。`);
   return `${lines.join('\n')}\n`;
 }
@@ -105,5 +105,5 @@ export function renderPredictionsHtml(report) {
 <h2 id="unassessable">暂不可评估</h2><div class="grid">${missing || '<p>本轮输入池均有普通预测。</p>'}</div>
 <h2>按时间滚动回测</h2><div class="scroll"><table><thead><tr><th>联赛 / 来源</th><th>场数</th><th>模型 Brier</th><th>基准 Brier</th><th>模型 Log loss</th><th>历史方向命中率</th></tr></thead><tbody>${backtests || '<tr><td colspan="6">没有足够历史开展回测。</td></tr>'}</tbody></table></div>
 <p class="note">每场只使用更早至少 4 小时的完赛记录，最多回测 80 场；样本不足的比赛跳过，指标仅代表可预测子集。Brier 和 Log loss 越低越好；基准为此前赛果频率。历史修订数据不能重建当时数据可见性，回测不是前瞻验证，也不表示未来命中率或投注收益。模型未纳入伤停、阵容或盘口。</p>
-<footer><p>预测到期后需重新采集。本页为报告快照，实际发布回执见 <a href="publication.json">publication.json</a>；GitHub 最终回执见 publication-receipt 附件。外部网站和消息通知未配置。原始概率、训练摘要、哈希和缺项见同目录 predictions.json。</p>${doc.attribution.map(source => `<p>数据：<a href="${html(source.url)}">${html(source.name)}</a> · <a href="${html(source.licenseUrl)}">${html(source.license)}</a></p>`).join('')}</footer></main></body></html>`;
+<footer><p>预测到期后需重新采集。本页为报告快照，实际发布回执见 <a href="publication.json">publication.json</a>；GitHub 最终回执见 publication-receipt 附件。网站与 Telegram 的实际结果另行记入回执；Telegram 缺凭据时不发送。原始概率、训练摘要、哈希和缺项见同目录 predictions.json。</p>${doc.attribution.map(source => `<p>数据：<a href="${html(source.url)}">${html(source.name)}</a> · <a href="${html(source.licenseUrl)}">${html(source.license)}</a></p>`).join('')}</footer></main></body></html>`;
 }
