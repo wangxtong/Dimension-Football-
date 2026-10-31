@@ -12,14 +12,25 @@ for command_name in tar flock find readlink runuser; do
   command -v "$command_name" >/dev/null || die "Missing command: $command_name"
 done
 source_commit=${VANTIS_COMMIT:-}
-[[ -z "$source_commit" || "$source_commit" =~ ^[0-9a-fA-F]{40}$ ]] || die 'VANTIS_COMMIT must be a full 40-character Git commit SHA.'
+[[ "$source_commit" =~ ^[0-9a-fA-F]{40}$ ]] || die 'An exact VANTIS_COMMIT is mandatory for production.'
+source_commit=${source_commit,,}
 [[ -f /etc/vantis/node-path && ! -L /etc/vantis/node-path ]] || die 'Run deploy/install.sh first.'
 IFS= read -r node_bin < /etc/vantis/node-path
 [[ "$node_bin" == /* && -x "$node_bin" ]] || die 'The configured Node.js executable is unavailable.'
 node_major=$("$node_bin" -p 'Number(process.versions.node.split(".")[0])')
 [[ "$node_major" =~ ^[0-9]+$ ]] && (( node_major >= 24 )) || die 'Node.js 24 or later is required.'
+gate=/opt/vantis/deployment/release-gate.mjs
+[[ -f "$gate" && ! -L "$gate" && $(stat -c '%u' "$gate") == 0 ]] || die 'Trusted release gate tooling missing.'
+"$node_bin" "$gate" "$source_commit" || die 'Release blocked by missing/invalid external approval.'
+
 
 source_dir=$(cd -- "${1:-$(dirname -- "${BASH_SOURCE[0]}")/..}" && pwd -P)
+# The marker is written only after an authenticated, exact-SHA Git fetch.
+# An unmarked local checkout must never be given a trusted release commit name.
+marker="$source_dir/.vantis-verified-commit"
+[[ -f "$marker" && ! -L "$marker" && $(stat -c '%u:%a' "$marker") == '0:600' ]] || die 'Verified Git source marker is missing.'
+IFS= read -r verified_commit < "$marker"
+[[ "$verified_commit" == "$source_commit" ]] || die 'Source marker and release approval SHA differ.'
 for source_file in package.json collector/run.mjs config/collection.json; do
   [[ -f "$source_dir/$source_file" ]] || die "Missing source file: $source_file"
 done
@@ -64,6 +75,8 @@ runuser -u vantis -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/b
   "$node_bin" "$stage_dir/collector/run.mjs" --help >/dev/null
 mv -- "$stage_dir" "$release_dir"
 ln -s -- "$release_dir" "$link_path"
+# Recheck the external approval immediately before the production pointer changes.
+"$node_bin" "$gate" "$source_commit" || die 'Release approval revoked or expired.'
 mv -Tf -- "$link_path" /opt/vantis/current
 
 # An active collector keeps using its existing release; the next run uses current.
