@@ -151,6 +151,41 @@ test('history metadata preserves observed-time provenance and isolates same matc
   assert.ok(walkForwardBacktest(observedNow, { ...options, visibility: 'snapshot' }).evaluated > 0);
 });
 
+test('as-observed 1X2 replay rejects missing result clocks and late-fetched revisions', () => {
+  // Synthetic historical match versions. No real match or prospective evidence.
+  const observed = history().map(row => {
+    const kickoff = Date.parse(row.kickoff);
+    return { ...row, resultObservedAt: new Date(kickoff + 5 * 3600000).toISOString(),
+      observedAt: new Date(kickoff + 6 * 3600000).toISOString(),
+      fetchedAt: new Date(kickoff + 7 * 3600000).toISOString() };
+  });
+  const targetId = observed.at(-1).id;
+  const options = { source: 'openligadb', league: 'BL1', nowISO: NOW, horizonHours: 24, visibility: 'as-observed' };
+  const evaluate = records => walkForwardBacktest(prepareForecastHistory(records).matches, options)
+    .evaluations.find(row => row.fixtureId === targetId);
+  const withoutRevision = evaluate(observed.slice(1));
+  assert.ok(withoutRevision);
+  assert.equal(withoutRevision.provenance, 'observed-history-replay');
+
+  for (const field of ['fetchedAt', 'sourceUpdatedAt']) {
+    // The final score was revised/collected after the target's 24h cutoff;
+    // keeping the earlier resultObservedAt must never backdate this version.
+    const postCutoff = { ...observed[0], homeGoals: 20, [field]: NOW };
+    const withLateRevision = evaluate([postCutoff, ...observed.slice(1)]);
+    assert.ok(withLateRevision);
+    assert.equal(withLateRevision.trainingHash, withoutRevision.trainingHash);
+    assert.deepEqual(withLateRevision.probabilities, withoutRevision.probabilities);
+  }
+
+  for (const missingField of ['resultObservedAt', 'observedAt']) {
+    const unavailable = observed.map(row => row.id === targetId ? { ...row, [missingField]: undefined } : row);
+    assert.equal(evaluate(unavailable), undefined);
+  }
+  const impossibleResult = observed.map(row => row.id === targetId
+    ? { ...row, resultObservedAt: row.kickoff } : row);
+  assert.equal(evaluate(impossibleResult), undefined);
+});
+
 test('effective and seasonal samples disclose a cold start without inventing roster effects', () => {
   const rows = history().map((row, i) => ({ ...row, season: i < 140 ? '2025' : '2026' }));
   const { sample, sampleQuality } = predict(rows, { ...fixture(), season: '2026' }).rows[0];
