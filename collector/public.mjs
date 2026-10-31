@@ -16,15 +16,16 @@ export async function runPublic(argv = [], { env = process.env, cwd = process.cw
   const started = performance.now(), budgetMs = options.budgetMs || 300000;
   const remaining = () => Math.max(0, budgetMs - (performance.now() - started));
   const outDir = resolve(cwd, options.out || 'reports/public');
-  const manifest = await fetchPublicFixtures({ nowISO: clock(), fetchImpl, clock, signal, remaining });
+  const manifest = await fetchPublicFixtures({ nowISO: clock(), fetchImpl, clock, signal, remaining, includeHistory: collect });
   const input = resolve(outDir, 'public-fixtures.json');
   await atomicJson(input, manifest);
   // Keep the ODbL-derived portion separately downloadable with its attribution.
   await atomicJson(resolve(outDir, 'openligadb-fixtures.json'), {
     attribution: manifest.sources[0], checkedAt: manifest.checkedAt,
     fixtures: manifest.fixtures.filter(fixture => fixture.source === 'openligadb'),
+    history: manifest.history,
   });
-  const lines = ['# 公开信息源试接入', '', `检查时间：${manifest.checkedAt}；真实赛程样本：${manifest.fixtures.length} 场；完整覆盖：否。`, '',
+  const lines = ['# 公开信息源试接入', '', `检查时间：${manifest.checkedAt}；真实赛程样本：${manifest.fixtures.length} 场；完赛历史：${manifest.history.length} 场；完整覆盖：否。`, '',
     '| 来源 | 联赛 | 状态 | HTTP | 收到 / 有效赛程 |', '| --- | --- | --- | --- | ---: |',
     ...manifest.diagnostics.map(row => `| ${row.id} | ${row.league} | ${row.code} | ${row.httpStatus ?? '—'} | ${row.receivedCount ?? 0} / ${row.matchedCount} |`), '',
     ...manifest.limitations.map(value => `- ${value}`), '',

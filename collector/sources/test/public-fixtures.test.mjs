@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fetchPublicFixtures, parsePublicFixtures } from '../public-fixtures.mjs';
+import { fetchPublicFixtures, parsePublicFixtures, parseOpenLigaHistory } from '../public-fixtures.mjs';
 import { runPublic } from '../../public.mjs';
 
 const NOW = '2026-10-31T04:00:00.000Z', KICKOFF = '2026-10-31T14:30:00Z';
@@ -19,6 +19,45 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
 });
 const parse = (rows, source = 'openligadb') => parsePublicFixtures(source === 'openligadb' ? rows : { events: rows },
   { source, league: source === 'openligadb' ? 'BL1' : 'PL', season: 2026, nowISO: NOW });
+
+const finished = (patch = {}) => ({ ...oldb(), matchIsFinished: true, matchDateTimeUTC: '2026-10-01T14:30:00Z',
+  matchResults: [{ resultTypeKind: 'HalfTime', pointsTeam1: 0, pointsTeam2: 0 },
+    { resultTypeKind: 'After90Minutes', pointsTeam1: 2, pointsTeam2: 1 }], ...patch });
+
+test('public history uses only unambiguous finished 90-minute scores with a conservative time lag', () => {
+  const result = parseOpenLigaHistory([finished()], { season: 2026, nowISO: NOW });
+  assert.equal(result.history.length, 1); assert.equal(result.history[0].homeGoals, 2);
+  assert.equal(result.history[0].homeTeamId, '1');
+  for (const patch of [{ matchIsFinished: false }, { matchDateTimeUTC: '2026-10-31T03:00:00Z' },
+    { leagueSeason: 2025 }, { matchResults: [{ resultTypeKind: 'HalfTime', pointsTeam1: 2, pointsTeam2: 0 }] },
+    { matchResults: [{ resultTypeKind: 'AfterExtraTime', pointsTeam1: 2, pointsTeam2: 0 }] },
+    { matchResults: [{ resultTypeKind: 'After90Minutes', pointsTeam1: -1, pointsTeam2: 0 }] }]) {
+    assert.equal(parseOpenLigaHistory([finished(patch)], { season: 2026, nowISO: NOW }).history.length, 0);
+  }
+  assert.throws(() => parseOpenLigaHistory([finished(), finished()], { season: 2026, nowISO: NOW }), { message: 'duplicate_fixture_id' });
+});
+
+test('history mode requests one extra season and keeps it separate from future fixtures', async () => {
+  const calls = [];
+  const result = await fetchPublicFixtures({ nowISO: NOW, clock: () => NOW, includeHistory: true, fetchImpl: async url => {
+    calls.push(url);
+    if (url.endsWith('/2026')) return json([oldb(), finished({ matchID: 8 })]);
+    if (url.endsWith('/2025')) return json([finished({ matchID: 9, leagueSeason: 2025, matchDateTimeUTC: '2026-05-01T14:30:00Z' })]);
+    return json({ events: null });
+  } });
+  assert.equal(calls.length, 6); assert.equal(result.fixtures.length, 1); assert.equal(result.history.length, 2);
+  assert.equal(result.diagnostics.find(row => row.purpose === 'history').historyCount, 1);
+});
+
+test('a failed prior-season endpoint does not discard the current schedule and usable history', async () => {
+  const result = await fetchPublicFixtures({ nowISO: NOW, clock: () => NOW, includeHistory: true, fetchImpl: async url => {
+    if (url.endsWith('/2026')) return json([oldb(), finished({ matchID: 8 })]);
+    if (url.endsWith('/2025')) return json({}, 503);
+    return json({ events: null });
+  } });
+  assert.equal(result.fixtures.length, 1); assert.equal(result.history.length, 1);
+  assert.ok(result.diagnostics.some(row => row.code === 'http_unavailable'));
+});
 
 test('public schedules keep explicit identities, UTC times, provenance and unknown update time', () => {
   const german = parse([oldb()]).fixtures[0], english = parse([tsdb()], 'thesportsdb-free').fixtures[0];

@@ -80,6 +80,7 @@ test('opening evidence is required and cannot disagree on handicap, movement or 
     evidence.quotes = evidence.quotes.map(row => ({ ...row, opening: row.opening ? change(row) : undefined }));
     const result = evaluateFixture(fixture, evidence, NOW);
     assert.notEqual(result.status, 'candidate');
+    assert.equal(result.status, 'source_insufficient', 'opposite-direction conflict must not mask missing opening evidence');
     assert.ok(result.reasons.includes('OPENING_TRAJECTORY_MISSING_OR_CHANGED'));
   });
 });

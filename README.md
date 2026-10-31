@@ -2,7 +2,7 @@
 
 把原来的云端定时采集整理为可审阅、可部署的 Node.js 24 项目。入口为 `npm run collect`，GitHub Actions 支持手动运行与每小时运行。核心 HTTP 采集无 npm 第三方依赖；可选浏览器运行时采用锁定版本的 Crawlee + Playwright。
 
-本版负责取得赛程和已实现的数据源证据、按规则逐场筛选、保存进度并输出报告。它不调用 OpenAI API，不发送 Telegram 消息，也不下注。`candidate` 表示证据门槛通过后仍需人工复核的候选，不代表已经发布的推荐。
+本版取得赛程、历史比分和已实现的数据源证据，分别生成基础赛前预测与严格盘口筛选结果，保存进度并输出报告。它不调用 OpenAI API，不发送 Telegram 消息，也不下注。`forecast` 是历史统计模型的胜平负概率；`candidate` 是通过盘口证据门槛后仍需人工复核的候选，两者分别计数。
 
 ## 先在本机验证
 
@@ -29,9 +29,15 @@ npm run collect -- --input /path/to/fixtures.json --state .collection-state/stat
 
 `FIXTURES_FILE` 环境变量与 `--input` 对应。默认正式入口缺少 API key、又没有赛程文件时会明确失败，不会用演示数据补齐。真实赛程文件的字段与人工证据导入方式见[迁移与部署说明](docs/CLOUD_TASK_MIGRATION.md)。
 
-没有私有凭据时可显式试接官方公开源：`npm run fixtures:public` 取得有限赛程样本；`npm run collect:public` 将样本送入现有公开证据分析。输出默认在 `reports/public/`，状态独立保存在 `.collection-state/public/`。OpenLigaDB 提供社区德甲赛程，TheSportsDB 使用官方共享免费 Key `123`，其余四个联赛各取最多一场；不是五大联赛完整实时服务。命令默认整轮最多 5 分钟，不改变现有自动调度。详情和实测限制见 [公开信息源试接入](docs/PUBLIC_SOURCES.md)。
+没有私有凭据时可显式使用官方公开源：`npm run fixtures:public` 取得有限赛程样本；`npm run collect:public` 另取德甲当前及上一赛季的完赛历史，生成基础预测和公开证据分析。输出默认在 `reports/public/`，状态独立保存在 `.collection-state/public/`。TheSportsDB 使用官方共享免费 Key `123`，其余四个联赛各取最多一场，缺少对应历史时逐场说明；不是五大联赛完整实时服务。命令默认整轮最多 5 分钟，不改变现有自动调度。详情见 [公开信息源](docs/PUBLIC_SOURCES.md)。
 
 环境变量不会从 `.env` 自动加载。本地可将一种凭据保存在 Git 忽略的 `.env.local` 中，再运行 `node --env-file=.env.local collector/run.mjs`。ECS / 轻量服务器可用同一命令，将 `--env-file`、`--state`、`--out` 指向发布目录以外的固定路径，并由系统调度器每小时执行；云效的部署变量不会自动成为后续定时任务的环境变量。
+
+## 赛前预测与报告
+
+`npm run collect:public` 会生成 `predictions.html`、`predictions.md`、`predictions.json`。页面逐场展示主胜 / 平 / 客胜概率、预期进球、比分参考、历史样本和缺项。即使盘口来源不足，历史充分的比赛仍会有基础预测；严格盘口候选不会因此放宽门槛。GitHub 的“公开赛程预测与报告”工作流将结果写入 Summary 并保存可下载产物。
+
+当前模型是按主客场、进失球和时间衰减估计的泊松基线，带按时间滚动回测；尚未做概率校准，不使用盘口或伤停数据。缺历史、球队 ID 或样本不足时不输出默认概率。通用入口也支持 `npm run collect -- --input fixtures.json --history history.json`，身份与历史字段见 [预测实现说明](docs/FORECASTING.md)。
 
 ## 信息源自动更新与故障切换
 

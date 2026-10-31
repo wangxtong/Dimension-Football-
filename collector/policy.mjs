@@ -76,6 +76,10 @@ export function preparePool(input, policy = DEFAULT_POLICY) {
     const fixture = Object.fromEntries(identityFields.map(key => [key, item[key]]));
     fixture.status = item.status;
     fixture.updatedAt = typeof item.updatedAt === 'string' ? item.updatedAt : null;
+    for (const key of ['homeTeamId', 'awayTeamId']) if (Object.hasOwn(item, key)) {
+      if (typeof item[key] !== 'string' || !/^[A-Za-z0-9_.:-]{1,80}$/.test(item[key])) throw new Error('INVALID_FIXTURE');
+      fixture[key] = item[key];
+    }
     for (const key of ['fetchedAt', 'sourceUpdatedAt']) if (Object.hasOwn(item, key)) fixture[key] = Number.isFinite(isoMillis(item[key])) ? item[key] : null;
     const fingerprint = digest(fixture);
     if (seen.has(item.id)) {
@@ -185,5 +189,7 @@ export function evaluateFixture(fixture, { quotes = [], signals = [] } = {}, now
     };
   }
   if (best) return { status: 'candidate', reasons: ['EVIDENCE_GATE_PASSED_REQUIRES_REVIEW'], candidate: best };
-  return { status: reasons.has('FORECAST_CONFLICT') ? 'avoid' : 'source_insufficient', reasons: [...reasons] };
+  // A conflict for the opposite direction must not turn a supported direction
+  // missing its opening evidence into an apparent negative prediction.
+  return { status: reasons.size === 1 && reasons.has('FORECAST_CONFLICT') ? 'avoid' : 'source_insufficient', reasons: [...reasons] };
 }
