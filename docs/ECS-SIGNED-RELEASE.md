@@ -22,6 +22,9 @@
   "toolingDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
   "ciRunUrl": "https://github.com/wangxtong/Dimension-Football-/actions/runs/123",
   "ciCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "ciEvent": "push",
+  "ciBranch": "main",
+  "targetInstanceId": "i-j6c4g9s2y6b5irl5gcr9",
   "ciConclusion": "success",
   "previousVersionRegressionPassed": true,
   "ecsAuthorizationGranted": true,
@@ -31,6 +34,8 @@
   "expiresAt": "2026-11-01T10:00:00Z"
 }
 ```
+
+**不得把 PR CI 的绿色检查或附件当作可签署生产制品**：pull_request 的 GITHUB_SHA 通常是临时 merge commit（与 PR head 不同）。必须审核独立 **main push** CI，验证 event=push、branch=main、真实 main SHA 与来源归档一致；GitHub artifact ZIP 的 digest 不是内层 release.tar 的摘要。
 
 sourceCommit、archiveSha256、toolingDigest 必须与已验证解包的 vantis-manifest.json 完全相同。审批人和复核人必须不同。批准期最长 7 天；不能为未知 CI、未知回归或未授权的部署将字段设为 true。
 
