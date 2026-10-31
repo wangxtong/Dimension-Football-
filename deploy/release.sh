@@ -7,8 +7,14 @@ source_dir=$(cd -- "$1" && pwd -P)
 python3 /opt/vantis/deployment/bundle.py verify-directory "$source_dir" >/dev/null
 exec 9>/run/lock/vantis-deploy.lock
 flock -n 9 || die 'DEPLOY_ALREADY_RUNNING'
+# Match rollback/backup lock order; never switch code during an active lane.
+exec 8>/var/lib/vantis/operations/run.lock
+flock -w 210 8 || die 'ACTIVE_LANE_LOCK_TIMEOUT'
 IFS= read -r node_bin < /etc/vantis/node-path
 [[ "$node_bin" == /* && -x "$node_bin" && -d /opt/vantis/releases && ! -L /opt/vantis/releases ]] || die 'INSTALL_REQUIRED'
+# A test-passing main commit is never sufficient ECS deployment approval.
+[[ -f /opt/vantis/deployment/release-authorization.mjs && ! -L /opt/vantis/deployment/release-authorization.mjs ]] || die 'SIGNED_RELEASE_VERIFIER_MISSING'
+"$node_bin" /opt/vantis/deployment/release-authorization.mjs "$source_dir/vantis-manifest.json" >/dev/null || die 'SIGNED_RELEASE_APPROVAL_REQUIRED'
 [[ ! -e /opt/vantis/current || -L /opt/vantis/current ]] || die 'CURRENT_MUST_BE_SYMLINK'
 python3 /opt/vantis/deployment/persistent-config.py check-contract "$source_dir/deploy/release-contract.json" >/dev/null
 release_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
