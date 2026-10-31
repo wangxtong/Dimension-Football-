@@ -5,18 +5,7 @@ umask 077
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 work=$(mktemp -d /tmp/vantis-restore-drill.XXXXXXXX)
 trap 'rm -rf -- "$work"' EXIT
-python3 "$script_dir/bundle.py" extract "$1" "$work/restored" --sha256 "$2" --kind backup
-python3 - "$work/restored" <<'PYVERIFY'
-import hashlib,json,sys
-from pathlib import Path
-root=Path(sys.argv[1]);report=root/'reports/predictions.json';receipt=root/'reports/publication.json'
-if report.exists() and receipt.exists():
- r=json.loads(report.read_text());p=json.loads(receipt.read_text())
- if r.get('publication',{}).get('reportId')!=p.get('reportId'):raise SystemExit('RESTORED_REPORT_RECEIPT_MISMATCH')
- for f in p.get('files',[]):
-  name=f.get('name','')
-  if Path(name).name!=name:raise SystemExit('RESTORED_RECEIPT_PATH_INVALID')
-  path=root/'reports'/name
-  if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=f.get('sha256'):raise SystemExit('RESTORED_RECEIPT_DIGEST_MISMATCH')
-print(json.dumps({'status':'restore_drill_passed','productionModified':False,'notificationsSent':False}))
-PYVERIFY
+# The archive digest proves the extracted bytes, not the completeness of
+# publication evidence. Missing report/receipt or empty file index must block.
+python3 "$script_dir/bundle.py" extract "$1" "$work/restored" --sha256 "$2" --kind backup >/dev/null
+python3 "$script_dir/restore-verify.py" "$work/restored"
