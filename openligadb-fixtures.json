@@ -10,7 +10,7 @@
     ],
     "coverage": "Community Bundesliga schedule; publication does not confirm all kickoff times."
   },
-  "checkedAt": "2026-10-31T06:23:04.052Z",
+  "checkedAt": "2026-10-31T06:28:22.246Z",
   "fixtures": [
     {
       "id": "oldb-83220",
@@ -22,8 +22,8 @@
       "kickoff": "2026-10-31T14:30:00.000Z",
       "status": "SCHEDULED",
       "source": "openligadb",
-      "updatedAt": "2026-10-31T06:23:04.052Z",
-      "fetchedAt": "2026-10-31T06:23:04.052Z",
+      "updatedAt": "2026-10-31T06:28:22.246Z",
+      "fetchedAt": "2026-10-31T06:28:22.246Z",
       "sourceUpdatedAt": null
     },
     {
@@ -36,8 +36,8 @@
       "kickoff": "2026-10-31T14:30:00.000Z",
       "status": "SCHEDULED",
       "source": "openligadb",
-      "updatedAt": "2026-10-31T06:23:04.052Z",
-      "fetchedAt": "2026-10-31T06:23:04.052Z",
+      "updatedAt": "2026-10-31T06:28:22.246Z",
+      "fetchedAt": "2026-10-31T06:28:22.246Z",
       "sourceUpdatedAt": null
     },
     {
@@ -50,8 +50,8 @@
       "kickoff": "2026-10-31T14:30:00.000Z",
       "status": "SCHEDULED",
       "source": "openligadb",
-      "updatedAt": "2026-10-31T06:23:04.052Z",
-      "fetchedAt": "2026-10-31T06:23:04.052Z",
+      "updatedAt": "2026-10-31T06:28:22.246Z",
+      "fetchedAt": "2026-10-31T06:28:22.246Z",
       "sourceUpdatedAt": null
     },
     {
@@ -64,8 +64,8 @@
       "kickoff": "2026-10-31T14:30:00.000Z",
       "status": "SCHEDULED",
       "source": "openligadb",
-      "updatedAt": "2026-10-31T06:23:04.052Z",
-      "fetchedAt": "2026-10-31T06:23:04.052Z",
+      "updatedAt": "2026-10-31T06:28:22.246Z",
+      "fetchedAt": "2026-10-31T06:28:22.246Z",
       "sourceUpdatedAt": null
     },
     {
@@ -78,8 +78,8 @@
       "kickoff": "2026-10-31T14:30:00.000Z",
       "status": "SCHEDULED",
       "source": "openligadb",
-      "updatedAt": "2026-10-31T06:23:04.052Z",
-      "fetchedAt": "2026-10-31T06:23:04.052Z",
+      "updatedAt": "2026-10-31T06:28:22.246Z",
+      "fetchedAt": "2026-10-31T06:28:22.246Z",
       "sourceUpdatedAt": null
     },
     {
@@ -92,8 +92,8 @@
       "kickoff": "2026-10-31T17:30:00.000Z",
       "status": "SCHEDULED",
       "source": "openligadb",
-      "updatedAt": "2026-10-31T06:23:04.052Z",
-      "fetchedAt": "2026-10-31T06:23:04.052Z",
+      "updatedAt": "2026-10-31T06:28:22.246Z",
+      "fetchedAt": "2026-10-31T06:28:22.246Z",
       "sourceUpdatedAt": null
     },
     {
@@ -106,8 +106,8 @@
       "kickoff": "2026-11-01T14:30:00.000Z",
       "status": "SCHEDULED",
       "source": "openligadb",
-      "updatedAt": "2026-10-31T06:23:04.052Z",
-      "fetchedAt": "2026-10-31T06:23:04.052Z",
+      "updatedAt": "2026-10-31T06:28:22.246Z",
+      "fetchedAt": "2026-10-31T06:28:22.246Z",
       "sourceUpdatedAt": null
     },
     {
@@ -120,8 +120,8 @@
       "kickoff": "2026-11-01T16:30:00.000Z",
       "status": "SCHEDULED",
       "source": "openligadb",
-      "updatedAt": "2026-10-31T06:23:04.052Z",
-      "fetchedAt": "2026-10-31T06:23:04.052Z",
+      "updatedAt": "2026-10-31T06:28:22.246Z",
+      "fetchedAt": "2026-10-31T06:28:22.246Z",
       "sourceUpdatedAt": null
     },
     {
@@ -134,8 +134,8 @@
       "kickoff": "2026-11-06T19:30:00.000Z",
       "status": "SCHEDULED",
       "source": "openligadb",
-      "updatedAt": "2026-10-31T06:23:04.052Z",
-      "fetchedAt": "2026-10-31T06:23:04.052Z",
+      "updatedAt": "2026-10-31T06:28:22.246Z",
+      "fetchedAt": "2026-10-31T06:28:22.246Z",
       "sourceUpdatedAt": null
     }
   ],
