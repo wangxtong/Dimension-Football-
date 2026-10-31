@@ -178,4 +178,10 @@ class PersistentPathTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'STATE_SCHEMA_INCOMPATIBLE'):persistent.check_contract({'stateRelativePath':'state/state.json'},new,{'version':2})
         self.assertEqual(persistent.check_contract({},old,{'version':1})['stateRelativePath'],'state.json')
 
+class SignedReleaseAuthorizationTests(unittest.TestCase):
+    def test_detached_signature_policy_fails_closed(self):
+        result=subprocess.run(['node','--test',str(Path(__file__).with_name('test_release_authorization.mjs'))],
+                              capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+'\n'+result.stderr)
+
 if __name__=='__main__':unittest.main()
