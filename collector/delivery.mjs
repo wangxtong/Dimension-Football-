@@ -8,7 +8,8 @@ export function deliveryConfig(value) {
   const w = value?.website, t = value?.telegram;
   if (value?.version !== 1 || typeof w?.enabled !== 'boolean' || typeof t?.enabled !== 'boolean'
     || w.repository !== 'wangxtong/Dimension-Football-' || w.branch !== 'published-reports'
-    || t.tokenVariable !== 'TELEGRAM_BOT_TOKEN' || t.chatIdVariable !== 'TELEGRAM_CHAT_ID') throw new Error('INVALID_DELIVERY_CONFIG');
+    || t.tokenVariable !== 'TELEGRAM_BOT_TOKEN' || t.chatIdVariable !== 'TELEGRAM_CHAT_ID'
+    || t.destinationFingerprint !== undefined && !/^[a-f0-9]{16}$/.test(t.destinationFingerprint)) throw new Error('INVALID_DELIVERY_CONFIG');
   const url = new URL(w.url);
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('INVALID_DELIVERY_CONFIG');
   return value;
@@ -107,9 +108,16 @@ export async function publishTelegram(directory, { config, env = {}, fetchImpl =
   deliveryConfig(config);
   return updatePublicationChannel(directory, 'notifications', async receipt => {
     if (receipt.simulated) return { status:'skipped', checkedAt:stamp(), code:'SIMULATION_NOT_SENT' };
-    const token = env[config.telegram.tokenVariable], chatId = env[config.telegram.chatIdVariable];
+    const token = env[config.telegram.tokenVariable]; let chatId = env[config.telegram.chatIdVariable];
     if (!config.telegram.enabled || !token || !chatId) return { status:'not_configured', checkedAt:stamp(), channel:'telegram', code:'TELEGRAM_CREDENTIALS_REQUIRED' };
     if (!/^\d{5,20}:[A-Za-z0-9_-]{20,150}$/.test(token) || !/^-?\d{5,20}$/.test(String(chatId))) throw new Error('TELEGRAM_CONFIGURATION_INVALID');
+    const digest = id => createHash('sha256').update(String(id)).digest('hex').slice(0,16);
+    let adjustment;
+    if (config.telegram.destinationFingerprint && digest(chatId) !== config.telegram.destinationFingerprint) {
+      if (/^100\d+$/.test(String(chatId)) && digest('-'+chatId) === config.telegram.destinationFingerprint) {
+        chatId = '-'+chatId; adjustment = 'restored-verified-group-minus-sign';
+      } else return {status:'failed',checkedAt:stamp(),channel:'telegram',code:'TELEGRAM_DESTINATION_MISMATCH',destinationFingerprint:digest(chatId)};
+    }
     const report = await readJson(resolve(directory,'predictions.json'));
     if (Date.now() - Date.parse(report.generatedAt) > 3600000) return { status:'skipped', checkedAt:stamp(), code:'REPORT_EXPIRED' };
     const fingerprint = createHash('sha256').update(String(chatId)).digest('hex').slice(0,16);
@@ -122,6 +130,7 @@ export async function publishTelegram(directory, { config, env = {}, fetchImpl =
       if (!response.ok || data.ok !== true) return { status:'failed', checkedAt:stamp(), channel:'telegram', code:'TELEGRAM_API_REJECTED', httpStatus:response.status };
       if (!Number.isSafeInteger(data.result?.message_id) || String(data.result?.chat?.id) !== String(chatId)) return { status:'unknown', checkedAt:stamp(), channel:'telegram', code:'TELEGRAM_RECEIPT_UNVERIFIED' };
       return { status:'accepted', checkedAt:stamp(), channel:'telegram', messageId:data.result.message_id, destinationFingerprint:fingerprint,
+        ...(adjustment ? {configurationAdjusted:adjustment} : {}),
         meaning:'telegram-api-accepted-not-a-user-read-receipt' };
     } catch { return { status:'unknown', checkedAt:stamp(), channel:'telegram', code:'DELIVERY_RESULT_UNKNOWN_NO_AUTOMATIC_RETRY' }; }
   });

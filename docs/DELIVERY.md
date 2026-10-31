@@ -46,3 +46,5 @@ Sites 运行时 Secrets 使用 `DASHBOARD_AUTH`（含 username、100000 次 PBKD
 报告代理只访问固定 GitHub 数据分支的三个允许文件，不转发客户端 Cookie 或 Authorization。本层保护网站访问；原本公开的 GitHub 数据分支可见性没有改变。
 
 构建：`node website/build.mjs /tmp/dimension-site-build`。构建目录包含 `.openai/hosting.json` 与 `server/index.js`；发布归档将构建目录放在 `dist/` 下，并在归档根目录保留同一份 `.openai/hosting.json`，入口为 `dist/server/index.js`。Worker 内嵌明确列出的静态资源，产物不包含运行时 Secrets。`npm test` 覆盖认证、签名伪造、过期、密码轮换、来源校验、限流和未授权接口访问。
+
+已核对目标群的哈希指纹记录在 `config/delivery.json` 的 `telegram.destinationFingerprint`。仅当 Secrets 漏写超级群 ID 的负号、且补回后与预期指纹完全一致时，发送器自动恢复负号并记录 `configurationAdjusted`；其它收件地址不匹配时拒绝发送。迁移通知目标需同步核对新群并更新该指纹，不会盲目把任意正数个人 ID 改成群 ID。

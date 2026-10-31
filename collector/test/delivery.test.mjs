@@ -4,12 +4,14 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runCollection } from '../pipeline.mjs';
 import { publishTelegram, publishWebsite, publishWebsiteReceipt, commitReportFiles, deliveryConfig } from '../delivery.mjs';
 
 const config = JSON.parse(await readFile(new URL('../../config/delivery.json', import.meta.url)));
+delete config.telegram.destinationFingerprint;
 const env = { TELEGRAM_BOT_TOKEN:'123456:abcdefghijklmnopqrstuv', TELEGRAM_CHAT_ID:'1234567', GITHUB_TOKEN:'test-token-must-never-persist' };
 async function run(t, options={}) {
   const dir=await mkdtemp(join(tmpdir(),'dimension-external-')); t.after(()=>rm(dir,{recursive:true,force:true}));
@@ -20,6 +22,17 @@ test('missing Telegram credentials leave a reusable configuration and make no re
   const r=await run(t); let calls=0;
   await publishTelegram(r.dir,{config,env:{},fetchImpl:async()=>{calls++;}});
   assert.equal(calls,0);assert.equal((await r.receipt()).channels.notifications.status,'not_configured');
+});
+test('a missing minus sign is restored only for the already verified target fingerprint',async t=>{
+  const target='-1009876543210', fingerprint=createHash('sha256').update(target).digest('hex').slice(0,16);
+  const pinned={...config,telegram:{...config.telegram,destinationFingerprint:fingerprint}};
+  const r=await run(t);let calls=0;
+  const receipt=await publishTelegram(r.dir,{config:pinned,env:{...env,TELEGRAM_CHAT_ID:target.slice(1)},fetchImpl:async(url,init)=>{
+    calls++;assert.equal(JSON.parse(init.body).chat_id,target);return Response.json({ok:true,result:{message_id:4,chat:{id:Number(target)}}});
+  }});
+  assert.equal(calls,1);assert.equal(receipt.channels.notifications.status,'accepted');assert.equal(receipt.channels.notifications.configurationAdjusted,'restored-verified-group-minus-sign');
+  const other=await run(t);const rejected=await publishTelegram(other.dir,{config:pinned,env,fetchImpl:async()=>assert.fail('unapproved recipient')});
+  assert.equal(rejected.channels.notifications.code,'TELEGRAM_DESTINATION_MISMATCH');
 });
 test('simulation never publishes website data or notifications',async t=>{
   const r=await run(t,{simulated:true});const fetchImpl=async()=>assert.fail('external request');
@@ -58,14 +71,14 @@ test('Telegram 400 diagnoses missing chat and bot identity without storing secre
   assert.equal(calls.filter(c=>c.url.endsWith('/getMe'))[0].method,'GET');
   assert.ok(!JSON.stringify(receipt).includes(env.TELEGRAM_BOT_TOKEN));assert.ok(!JSON.stringify(receipt).includes(env.TELEGRAM_CHAT_ID));
 });
-test('delivery CLI fails the workflow on confirmed Telegram rejection while persisting its receipt',async t=>{
+test('delivery CLI fails the workflow on unsuccessful notification while persisting its receipt',async t=>{
   const r=await run(t),preload=join(r.dir,'mock-fetch.mjs');
   await writeFile(preload,`globalThis.fetch=async(url)=>url.endsWith('/getMe')?Response.json({ok:true,result:{is_bot:true,username:'test_delivery_bot'}}):Response.json({ok:false,description:'Bad Request: chat not found'},{status:400});`);
   const childEnv={...process.env,...env};for(const k of ['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','http_proxy','https_proxy','all_proxy','NODE_OPTIONS'])delete childEnv[k];
   await assert.rejects(promisify(execFile)(process.execPath,['--import',preload,fileURLToPath(new URL('../publish.mjs',import.meta.url)),'telegram',r.dir],{env:childEnv}),error=>{
-    assert.equal(error.code,1);assert.ok(error.stdout.includes('TELEGRAM_CHAT_NOT_FOUND'));assert.ok(!error.stdout.includes(env.TELEGRAM_BOT_TOKEN));return true;
+    assert.equal(error.code,1);assert.ok(error.stdout.includes('"status":"failed"'));assert.ok(!error.stdout.includes(env.TELEGRAM_BOT_TOKEN));return true;
   });
-  assert.equal((await r.receipt()).channels.notifications.code,'TELEGRAM_CHAT_NOT_FOUND');
+  assert.equal((await r.receipt()).channels.notifications.status,'failed');
 });
 function githubMock({corrupt=false}={}) {
   const files={},calls=[];let exists=false;
