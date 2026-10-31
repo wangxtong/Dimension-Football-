@@ -32,6 +32,9 @@ chmod 0755 "$work_dir"
 find "$work_dir/source" -type d -exec chmod 0755 {} +
 find "$work_dir/source" -type f -exec chmod 0644 {} +
 IFS= read -r node_bin < /etc/vantis/node-path
+# Read-only Git identity grants no right to activate arbitrary main commits.
+"$node_bin" /opt/vantis/deployment/release-authorization.mjs "$work_dir/source/vantis-manifest.json" >/dev/null \
+  || { printf 'SIGNED_SOURCE_RELEASE_APPROVAL_MISSING_CURRENT_KEPT\n' >&2; exit 1; }
 # Keep regression tests in a separate disposable source checkout, never inside
 # the runtime archive or installed release. Both inputs bind to the same SHA.
 git -c core.hooksPath=/dev/null --git-dir=/var/lib/vantis-sync/source.git worktree add --detach "$check_dir" "$remote_commit" >/dev/null 2>&1 \
