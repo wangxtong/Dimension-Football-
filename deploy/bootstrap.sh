@@ -6,36 +6,57 @@ umask 027
 install_node=false
 if [[ $# -eq 3 ]]; then [[ "$3" == --install-node ]] || exit 1;install_node=true;fi
 [[ "$1" == /* && -f "$1" && ! -L "$1" ]] || exit 1
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
-for command in python3 sha256sum mktemp; do command -v "$command" >/dev/null; done
+for command in python3 mktemp readlink; do command -v "$command" >/dev/null || exit 1; done
 work=$(mktemp -d /tmp/vantis-bootstrap.XXXXXXXX)
 trap 'rm -rf -- "$work"' EXIT
-python3 "$script_dir/bundle.py" extract "$1" "$work/source" --sha256 "$2" >/dev/null
+# Before running ANY code delivered in the archive (including bundle.py and
+# install-node.sh), verify approval with independently staged root-owned tools.
+# If no trusted preflight Node/verifier/bundle parser exists, do not bootstrap.
+verifier=/opt/vantis/deployment/release-authorization.mjs
+trusted_bundle=/opt/vantis/deployment/bundle.py
+preflight_node=${NODE_BIN:-$(command -v node || true)}
+[[ -n "$preflight_node" && -x "$preflight_node" ]] || { printf 'RELEASE_AUTH_PREFLIGHT_NODE_REQUIRED\n' >&2; exit 1; }
+preflight_node=$(readlink -f -- "$preflight_node")
+python3 - "$verifier" "$trusted_bundle" "$preflight_node" <<'PYTRUST' || { printf 'RELEASE_AUTH_TRUSTED_RUNTIME_REQUIRED\n' >&2; exit 1; }
+import os, stat, sys
+from pathlib import Path
+for path in map(Path, sys.argv[1:]):
+    if not path.is_absolute(): sys.exit(1)
+    for entry in (*reversed(path.parents), path):
+        try: info = os.lstat(entry)
+        except OSError: sys.exit(1)
+        if info.st_uid != 0 or info.st_mode & 0o022 or stat.S_ISLNK(info.st_mode): sys.exit(1)
+        if entry == path:
+            if not stat.S_ISREG(info.st_mode): sys.exit(1)
+        elif not stat.S_ISDIR(info.st_mode): sys.exit(1)
+PYTRUST
+# Standard-library-only, read-only archive/SHA preflight. No incoming archive
+# code runs before the signed manifest identity is independently checked.
+python3 - "$1" "$2" "$work/preflight-manifest.json" <<'PYMANIFEST' || { printf 'RELEASE_ARCHIVE_PREFLIGHT_FAILED\n' >&2; exit 1; }
+import hashlib, json, sys, tarfile
+from pathlib import Path
+archive_path, expected, out = map(Path, (sys.argv[1], sys.argv[2], sys.argv[3]))
+if archive_path.stat().st_size > 544 * 1024 * 1024: sys.exit(1)
+h = hashlib.sha256()
+with archive_path.open('rb') as src:
+    for chunk in iter(lambda: src.read(1024 * 1024), b''): h.update(chunk)
+if h.hexdigest() != str(expected): sys.exit(1)
+with tarfile.open(archive_path, mode='r:') as tar:
+    found = [item for item in tar if item.name == 'vantis-manifest.json']
+    if len(found) != 1 or not found[0].isfile() or found[0].size > 4 * 1024 * 1024: sys.exit(1)
+    src = tar.extractfile(found[0])
+    if src is None: sys.exit(1)
+    manifest = json.loads(src.read())
+if not isinstance(manifest, dict) or manifest.get('kind') != 'release': sys.exit(1)
+manifest['archiveSha256'] = str(expected)
+out.write_text(json.dumps(manifest, sort_keys=True) + '\n')
+PYMANIFEST
+"$preflight_node" "$verifier" "$work/preflight-manifest.json" >/dev/null || { printf 'SIGNED_RELEASE_APPROVAL_REQUIRED_BEFORE_RUNTIME_INSTALL\n' >&2; exit 1; }
+# The first invocation of code from the release happens only after approval.
+python3 "$trusted_bundle" extract "$1" "$work/source" --sha256 "$2" >/dev/null
 chmod 0755 "$work"
 find "$work/source" -type d -exec chmod 0755 {} +
 find "$work/source" -type f -exec chmod 0644 {} +
-# P0: runtime installation changes /opt/vantis-node. Require a trusted,
-# root-controlled verifier and a signed approval BEFORE running install-node.sh.
-# This deliberately fails closed on fresh hosts until an authorized Workbench
-# administrator stages the verifier and a usable preflight Node independently.
-verifier=/opt/vantis/deployment/release-authorization.mjs
-preflight_node=${NODE_BIN:-$(command -v node || true)}
-[[ -n "$preflight_node" && -x "$preflight_node" ]] || { printf 'RELEASE_AUTH_PREFLIGHT_NODE_REQUIRED\\n' >&2; exit 1; }
-preflight_node=$(readlink -f -- "$preflight_node")
-python3 - "$verifier" "$preflight_node" <<'PYTRUST' || { printf 'RELEASE_AUTH_TRUSTED_RUNTIME_REQUIRED\\n' >&2; exit 1; }
-import os, stat, sys
-from pathlib import Path
-for path, is_file in ((Path(sys.argv[1]), True), (Path(sys.argv[2]), True)):
-    if not path.is_absolute(): sys.exit(1)
-    for entry in (*reversed(path.parents), path):
-        try: mode = os.lstat(entry)
-        except OSError: sys.exit(1)
-        if mode.st_uid != 0 or mode.st_mode & 0o022 or stat.S_ISLNK(mode.st_mode): sys.exit(1)
-        if entry == path:
-            if not stat.S_ISREG(mode.st_mode): sys.exit(1)
-        elif not stat.S_ISDIR(mode.st_mode): sys.exit(1)
-PYTRUST
-"$preflight_node" "$verifier" "$work/source/vantis-manifest.json" >/dev/null || { printf 'SIGNED_RELEASE_APPROVAL_REQUIRED_BEFORE_RUNTIME_INSTALL\\n' >&2; exit 1; }
 candidate=${NODE_BIN:-$(command -v node || true)}
 usable=false
 if [[ -n "$candidate" && -x "$candidate" ]]; then
