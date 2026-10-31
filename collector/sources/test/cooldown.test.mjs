@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { withSourceCooldown } from '../cooldown.mjs';
@@ -24,6 +24,8 @@ test('Retry-After serializes concurrent callers and survives a new acquisition r
     assert.equal((await cooldown.fetch('hkjc', async () => { calls++; return new Response('ok'); }, 'https://example.invalid')).status, 200);
   });
   assert.equal(calls, 2);
+  assert.deepEqual(JSON.parse(await readFile(statePath, 'utf8')).sources, {},
+    'a verified 200 probe must clear the old persisted rate-limit status');
 });
 
 test('memory-only rounds honor 503 date Retry-After and corrupt persistent state fails closed', async t => {
