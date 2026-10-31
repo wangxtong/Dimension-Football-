@@ -37,6 +37,8 @@ npm run collect -- --input /path/to/fixtures.json --state .collection-state/stat
 
 `npm run collect:public` 会生成 `predictions.html`、`predictions.md`、`predictions.json`。页面逐场展示主胜 / 平 / 客胜概率、预期进球、比分参考、历史样本和缺项。即使盘口来源不足，历史充分的比赛仍会有基础预测；严格盘口候选不会因此放宽门槛。GitHub 的“公开赛程预测与报告”工作流将结果写入 Summary 并保存可下载产物。
 
+报告现在按普通预测、严格盘口候选、暂不可评估三类展示，并提供球队相对实力、数据检查项、回测和预测有效期。实际文件生成、GitHub Summary 写入及附件上传分别记录在 `publication.json`；最终回执见本轮 `publication-receipt` 附件。严格盘口增加真实初盘来源与时间校验及持久档案；第二独立自动报价源仍待授权接入。
+
 当前模型是按主客场、进失球和时间衰减估计的泊松基线，带按时间滚动回测；尚未做概率校准，不使用盘口或伤停数据。缺历史、球队 ID 或样本不足时不输出默认概率。通用入口也支持 `npm run collect -- --input fixtures.json --history history.json`，身份与历史字段见 [预测实现说明](docs/FORECASTING.md)。
 
 ## 信息源自动更新与故障切换

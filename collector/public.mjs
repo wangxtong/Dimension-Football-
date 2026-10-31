@@ -11,7 +11,8 @@ export async function runPublic(argv = [], { env = process.env, cwd = process.cw
   const collect = argv.includes('--collect');
   if (argv.filter(value => value === '--collect').length > 1) throw new Error('DUPLICATE_ARGUMENT');
   const options = parseArgs(argv.filter(value => value !== '--collect'));
-  if (Object.keys(options).some(key => !['state', 'out', 'budget-minutes', 'budgetMs'].includes(key))) throw new Error('INVALID_ARGUMENT');
+  if (Object.keys(options).some(key => !['state', 'out', 'budget-minutes', 'budgetMs', 'evidence', 'accept-reviewed-evidence'].includes(key))
+    || !collect && (options.evidence || options['accept-reviewed-evidence'])) throw new Error('INVALID_ARGUMENT');
   if (fetchImpl === fetch) configureEnvironmentProxy(env);
   const started = performance.now(), budgetMs = options.budgetMs || 300000;
   const remaining = () => Math.max(0, budgetMs - (performance.now() - started));
@@ -36,7 +37,8 @@ export async function runPublic(argv = [], { env = process.env, cwd = process.cw
   if (signal?.aborted || remaining() < 100 || !manifest.fixtures.length) return { manifest, exitCode: 1, collection: null };
   if (!collect) return { manifest, exitCode: 0, collection: null };
   const collection = await runCli(['--basic', '--input', input, '--state', options.state || '.collection-state/public/state.json',
-    '--out', outDir, '--budget-minutes', String(remaining() / 60000)], { env, cwd, clock, fetchImpl, stdout, signal });
+    '--out', outDir, '--budget-minutes', String(remaining() / 60000),
+    ...(options.evidence ? ['--evidence', options.evidence] : []), ...(options['accept-reviewed-evidence'] ? ['--accept-reviewed-evidence'] : [])], { env, cwd, clock, fetchImpl, stdout, signal });
   return { manifest, collection, exitCode: collection.exitCode };
 }
 

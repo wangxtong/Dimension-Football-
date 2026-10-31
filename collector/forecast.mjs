@@ -83,10 +83,15 @@ function predict(fixture, matches, cutoff) {
   const smoothed = (rows, field, prior) => (sum(rows, field) + FORECAST_MODEL.priorMatches * prior) / (sum(rows) + FORECAST_MODEL.priorMatches);
   const homeRate = clamp(smoothed(homeVenue, 'homeGoals', leagueHome) * smoothed(awayVenue, 'homeGoals', leagueHome) / leagueHome, .15, 4.5);
   const awayRate = clamp(smoothed(awayVenue, 'awayGoals', leagueAway) * smoothed(homeVenue, 'awayGoals', leagueAway) / leagueAway, .15, 4.5);
+  const strength = { basis: 'weighted-venue-goals-relative-to-league', leagueHomeGoals: leagueHome, leagueAwayGoals: leagueAway,
+    homeAttack: smoothed(homeVenue, 'homeGoals', leagueHome) / leagueHome,
+    homeDefenceConceding: smoothed(homeVenue, 'awayGoals', leagueAway) / leagueAway,
+    awayAttack: smoothed(awayVenue, 'awayGoals', leagueAway) / leagueAway,
+    awayDefenceConceding: smoothed(awayVenue, 'homeGoals', leagueHome) / leagueHome };
   const { probabilities, topScores } = poissonProbabilities(homeRate, awayRate);
   const ranked = OUTCOMES.toSorted((a, b) => probabilities[b] - probabilities[a]);
   return { status: 'forecast', reasons: [], probabilities, selection: Math.abs(probabilities[ranked[0]] - probabilities[ranked[1]]) < 1e-9 ? null : ranked[0],
-    expectedGoals: { home: homeRate, away: awayRate }, topScores, sample,
+    expectedGoals: { home: homeRate, away: awayRate }, topScores, sample, strength,
     trainingCutoff: new Date(cutoff).toISOString(), newestTrainingKickoff: history.at(-1).kickoff,
     trainingHash: digest(history), confidence: 'uncalibrated-baseline',
     limitations: ['仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。', '基线概率尚未校准，不代表亚洲盘赢盘概率。'] };
@@ -127,7 +132,7 @@ export function walkForwardBacktest(matches, { source, league, nowISO, remaining
 export function buildForecasts({ fixtures, history = [], nowISO, policy = DEFAULT_POLICY, simulated = false, remaining = () => Infinity }) {
   const clean = prepareForecastHistory(history), now = isoMillis(nowISO);
   if (!Number.isFinite(now)) throw new Error('INVALID_NOW');
-  const rows = fixtures.map(fixture => {
+  let rows = fixtures.map(fixture => {
     const screened = basicScreen(fixture, nowISO, policy);
     const blocked = simulated ? 'SIMULATION_ONLY' : screened?.reasons[0] || (clean.matches.length && remaining() <= 0 ? 'BUDGET_EXHAUSTED' : null);
     return { fixtureId: fixture.id, generatedAt: nowISO,
@@ -135,6 +140,28 @@ export function buildForecasts({ fixtures, history = [], nowISO, policy = DEFAUL
   });
   const groups = [...new Map(fixtures.map(row => [`${row.source}:${row.league}`, { source: row.source, league: row.league }])).values()];
   const backtests = simulated ? [] : groups.map(group => walkForwardBacktest(clean.matches, { ...group, nowISO, remaining }));
+  rows = rows.map((row, index) => {
+    const fixture = fixtures[index], validation = backtests.find(b => b.source === fixture.source && b.league === fixture.league);
+    const checked = row.status === 'forecast' && (!validation || validation.interrupted || validation.evaluated < 30)
+      ? { fixtureId: row.fixtureId, generatedAt: row.generatedAt, status: 'unavailable', reasons: ['BACKTEST_INSUFFICIENT'], sample: row.sample } : row;
+    const required = {
+      teamIdentity: token(fixture.homeTeamId) && token(fixture.awayTeamId) && fixture.homeTeamId !== fixture.awayTeamId,
+      leagueHistory: (row.sample?.league || 0) >= FORECAST_MODEL.minimumLeagueMatches,
+      homeHistory: (row.sample?.home || 0) >= FORECAST_MODEL.minimumTeamMatches,
+      awayHistory: (row.sample?.away || 0) >= FORECAST_MODEL.minimumTeamMatches,
+      venueHistory: Math.min(row.sample?.homeVenue || 0, row.sample?.awayVenue || 0) >= FORECAST_MODEL.minimumVenueMatches,
+      teamRecency: !!row.sample?.home && !!row.sample?.away && !row.reasons.includes('TEAM_HISTORY_STALE'),
+      prematchFreshness: !basicScreen(fixture, nowISO, policy),
+      backtest: !!validation && !validation.interrupted && validation.evaluated >= 30,
+    };
+    return { ...checked, validation: validation ? { status: validation.status, evaluated: validation.evaluated, skipped: validation.skipped, metrics: validation.metrics } : null,
+      completeness: { scope: 'baseline-required-checks-not-global-coverage', passed: Object.values(required).filter(Boolean).length,
+        total: Object.keys(required).length, checks: required, enrichmentMissing: ['injuries', 'lineups', 'odds'], globalCoverage: 'unknown' },
+      freshness: { generatedAt: nowISO, fixtureFetchedAt: fixture.fetchedAt || fixture.updatedAt,
+        fixtureSourceUpdatedAt: fixture.sourceUpdatedAt || null,
+        validUntil: new Date(Math.min(now + 3600000, Date.parse(fixture.kickoff), Date.parse(fixture.updatedAt) + policy.maxFixtureAgeMs) || now).toISOString(),
+        maximumAgeMinutes: 60 } };
+  });
   return { version: 1, model: FORECAST_MODEL, generatedAt: nowISO, simulated,
     history: { accepted: clean.matches.length, rejected: clean.rejected, duplicates: clean.duplicates },
     rows, backtests, summary: { forecasts: rows.filter(row => row.status === 'forecast').length, unavailable: rows.filter(row => row.status !== 'forecast').length } };
@@ -144,8 +171,10 @@ export function finalizeForecasts(model, fixtures, nowISO, policy = DEFAULT_POLI
   const map = new Map(fixtures.map(fixture => [fixture.id, fixture]));
   const rows = model.rows.map(row => {
     const screened = basicScreen(map.get(row.fixtureId), nowISO, policy);
-    return row.status === 'forecast' && screened ? { fixtureId: row.fixtureId, generatedAt: row.generatedAt,
-      status: 'unavailable', reasons: screened.reasons } : row;
+    const expired = Date.parse(row.freshness?.validUntil) <= Date.parse(nowISO);
+    return row.status === 'forecast' && (screened || expired) ? { fixtureId: row.fixtureId, generatedAt: row.generatedAt,
+      freshness: row.freshness, completeness: row.completeness, validation: row.validation,
+      status: 'unavailable', reasons: screened?.reasons || ['FORECAST_EXPIRED'] } : row;
   });
   return { ...model, checkedAtPublication: nowISO, rows,
     summary: { forecasts: rows.filter(row => row.status === 'forecast').length, unavailable: rows.filter(row => row.status !== 'forecast').length } };

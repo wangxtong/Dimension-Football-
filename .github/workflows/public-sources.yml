@@ -11,6 +11,10 @@ on:
       - 'collector/forecast-report.mjs'
       - 'collector/pipeline.mjs'
       - 'collector/report.mjs'
+      - 'collector/publication.mjs'
+      - 'collector/publish.mjs'
+      - 'collector/market-evidence.mjs'
+      - 'collector/policy.mjs'
       - '.github/workflows/public-sources.yml'
 
 permissions:
@@ -33,20 +37,35 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: 采集赛程与历史并生成预测（最多 2 分钟）
+        env:
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+          ISPORTS_API_KEY: ${{ secrets.ISPORTS_API_KEY }}
         run: npm run collect:public -- --budget-minutes 2
-      - name: 写入来源与结果摘要
-        if: always()
-        shell: bash
-        run: |
-          for report in reports/public/latest-brief.md reports/public/predictions.md reports/public/public-sources.md; do
-            if [[ -f "$report" ]]; then
-              cat "$report" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
       - uses: actions/upload-artifact@v7
+        id: report-upload
         if: always()
         with:
           name: public-source-sample-${{ github.run_id }}-${{ github.run_attempt }}
           path: reports/public/
-          if-no-files-found: warn
+          if-no-files-found: error
+          retention-days: 30
+      - name: 记录报告附件实际上传回执
+        if: always() && hashFiles('reports/public/publication.json') != ''
+        env:
+          UPLOAD_OUTCOME: ${{ steps.report-upload.outcome }}
+          ARTIFACT_ID: ${{ steps.report-upload.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.report-upload.outputs.artifact-url }}
+          ARTIFACT_DIGEST: ${{ steps.report-upload.outputs.artifact-digest }}
+        run: node collector/publish.mjs artifact reports/public
+      - name: 发布分类预测并记录 Summary 回执
+        if: always() && hashFiles('reports/public/publication.json') != ''
+        run: node collector/publish.mjs summary reports/public
+      - name: 保留最终发布回执
+        if: always() && hashFiles('reports/public/publication.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: publication-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/public/publication.json
+          if-no-files-found: error
           retention-days: 30

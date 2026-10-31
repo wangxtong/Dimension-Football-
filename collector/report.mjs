@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { atomicJson } from './storage.mjs';
+import { atomicJson, acquireLock } from './storage.mjs';
+import { beginPublication, finishGeneration } from './publication.mjs';
 import { predictionDocument, renderPredictionsMarkdown, renderPredictionsHtml } from './forecast-report.mjs';
 
 const statuses = { pending: '待续查', candidate: '候选，待人工复核', simulated_candidate: '模拟候选', avoid: '回避', source_insufficient: '来源不足' };
@@ -109,6 +110,10 @@ export function renderMessage(report) {
 
 export async function writeReports(report, directory) {
   await mkdir(directory, { recursive: true });
+  const release = await acquireLock(resolve(directory, 'publication.json'));
+  let receipt;
+  try {
+  receipt = await beginPublication(report, directory);
   const name = `collection-${report.completedAt.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')}`;
   const brief = renderBrief(report), message = renderMessage(report);
   const jsonPath = resolve(directory, `${name}.json`);
@@ -121,6 +126,13 @@ export async function writeReports(report, directory) {
   await atomicJson(resolve(directory, 'predictions.json'), predictionDocument(report));
   await writeFile(resolve(directory, 'predictions.md'), renderPredictionsMarkdown(report), 'utf8');
   await writeFile(resolve(directory, 'predictions.html'), renderPredictionsHtml(report), 'utf8');
+  await finishGeneration(directory, receipt, [`${name}.json`, `${name}-brief.md`, `${name}-message.md`,
+    'latest.json', 'latest-brief.md', 'latest-message.md', 'predictions.json', 'predictions.md', 'predictions.html']);
   return { jsonPath, briefPath: resolve(directory, 'latest-brief.md'), messagePath: resolve(directory, 'latest-message.md'),
-    predictionsPath: resolve(directory, 'predictions.json'), predictionsHtmlPath: resolve(directory, 'predictions.html') };
+    predictionsPath: resolve(directory, 'predictions.json'), predictionsHtmlPath: resolve(directory, 'predictions.html'),
+    publicationPath: resolve(directory, 'publication.json') };
+  } catch (error) {
+    if (receipt) await finishGeneration(directory, receipt, [], true);
+    throw error;
+  } finally { await release(); }
 }
