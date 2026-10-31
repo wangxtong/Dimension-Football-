@@ -20,9 +20,12 @@ export function normalizeHistoryRecord(row) {
       clean[key] = time;
     }
   }
-  if (clean.observedAt && clean.fetchedAt && clean.observedAt > clean.fetchedAt
-    || clean.resultObservedAt && clean.fetchedAt && clean.resultObservedAt > clean.fetchedAt) throw new Error('INVALID_HISTORY_PROVENANCE');
   const normalized = withEventIdentity(clean);
+  // These times document a completed result version, not the original fixture
+  // announcement. A full-time score cannot have been seen before kickoff.
+  if (['fetchedAt', 'observedAt', 'resultObservedAt'].some(key => clean[key] && clean[key] <= normalized.kickoff)
+    || clean.observedAt && clean.fetchedAt && clean.observedAt > clean.fetchedAt
+    || clean.resultObservedAt && clean.fetchedAt && clean.resultObservedAt > clean.fetchedAt) throw new Error('INVALID_HISTORY_PROVENANCE');
   for (const key of ['canonicalMatchId', 'identityRevision', 'revisionId', 'recordHash']) {
     if (row[key] !== undefined && row[key] !== normalized[key]) throw new Error('HISTORY_IDENTITY_MISMATCH');
   }
