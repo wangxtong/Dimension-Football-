@@ -13,6 +13,15 @@ node_bin=${NODE_BIN:-$(command -v node || true)}
 node_bin=$(readlink -f "$node_bin")
 case "$node_bin" in /root/*|/home/*|/run/user/*) die 'NODE_MUST_BE_SYSTEM_WIDE';; esac
 "$node_bin" --input-type=module -e 'import * as h from "node:http";const [a,b]=process.versions.node.split(".").map(Number);if(a!==24||b<14||typeof h.setGlobalProxyFromEnv!=="function"||!AbortSignal.any)process.exit(1)' || die 'NODE_24_14_CAPABILITY_REQUIRED'
+# Verify approval before changing accounts, tools, units or persistent state.
+# For upgrades prefer the already installed root-controlled verifier, never
+# allow incoming release code to weaken an existing production check.
+release_verifier="$source_dir/deploy/release-authorization.mjs"
+if [[ -e /opt/vantis/deployment/release-authorization.mjs ]]; then
+  [[ -f /opt/vantis/deployment/release-authorization.mjs && ! -L /opt/vantis/deployment/release-authorization.mjs ]] || die 'INSTALLED_RELEASE_VERIFIER_UNSAFE'
+  release_verifier=/opt/vantis/deployment/release-authorization.mjs
+fi
+"$node_bin" "$release_verifier" "$source_dir/vantis-manifest.json" >/dev/null || die 'SIGNED_RELEASE_APPROVAL_REQUIRED'
 if ! getent passwd vantis >/dev/null; then useradd --system --user-group --home-dir /var/lib/vantis --no-create-home --shell /usr/sbin/nologin vantis; fi
 if ! getent passwd vantis-check >/dev/null; then useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin vantis-check; fi
 [[ $(id -u vantis) -ne 0 ]] || die 'SERVICE_USER_MUST_NOT_BE_ROOT'
