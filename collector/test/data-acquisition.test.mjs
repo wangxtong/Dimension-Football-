@@ -52,7 +52,7 @@ test('a valid digest cannot make future fixture observation/provider/update cloc
 test('history versions fetched or revised after read cutoff cannot travel backward through a hashed snapshot', async t => {
   for (const key of ['observedAt', 'resultObservedAt', 'sourceUpdatedAt', 'fetchedAt']) {
     await t.test(key, () => {
-      const later = { ...result(), fetchedAt: AFTER };
+      const later = { ...result(), fetchedAt: key === 'sourceUpdatedAt' ? NOW : AFTER };
       if (key === 'observedAt' || key === 'resultObservedAt') later[key] = AFTER;
       if (key === 'sourceUpdatedAt') later.sourceUpdatedAt = AFTER;
       const archived = snapshot(fixture(), [later]);
@@ -60,5 +60,7 @@ test('history versions fetched or revised after read cutoff cannot travel backwa
       assert.throws(() => verify(archived), /INVALID_ACQUISITION_SNAPSHOT/);
     });
   }
+  assert.throws(() => verify(snapshot(fixture(), [{ ...result(), fetchedAt: BEFORE, sourceUpdatedAt: NOW }])),
+    /INVALID_ACQUISITION_SNAPSHOT/, 'provider revision after its recorded retrieval cannot be known');
   assert.equal(verify(snapshot(fixture(), [{ ...result(), sourceUpdatedAt: NOW }])).history.length, 1);
 });
