@@ -43,7 +43,7 @@ Sites 运行时 Secrets 使用 `DASHBOARD_AUTH`（含 username、100000 次 PBKD
 
 会话有效期 12 小时，Cookie 使用 `__Host-`、Secure、HttpOnly 和 SameSite=Lax。登录、退出只接受同源 POST；页面和接口禁止缓存。退出会清除当前浏览器 Cookie。失败尝试按运行实例及请求 IP 限制为 10 次/10 分钟；这是有界内存保护，并非跨实例持久限流。看板没有账户注册、个人权限或支付功能。
 
-报告代理只访问固定 GitHub 数据分支的三个允许文件，不转发客户端 Cookie 或 Authorization。本层保护网站访问；原本公开的 GitHub 数据分支可见性没有改变。
+报告代理只访问固定 GitHub 数据分支的三个允许文件，不转发客户端 Cookie 或 Authorization。**仓库现为 Private**，Worker 不再使用匿名 `raw.githubusercontent.com`，而是以固定 GitHub Contents API 地址读取 base64 文件。必须在 Sites Worker 运行时安全设置 `REPORTS_GITHUB_TOKEN`：限定到 `wangxtong/Dimension-Football-` 的只读 Contents 权限，令牌只留在服务端，不进入 HTML、浏览器请求、GitHub 仓库或源码。未配置密钥时返回 503；403、重定向、文件名不匹配、无效编码和响应过大均失败关闭。GitHub Actions 临时的 `GITHUB_TOKEN` **不能**当成网站运行时令牌；发布前先完成运行时密钥配置，再在预览环境实测登录、三类报表和报告 ID 匹配。
 
 构建：`node website/build.mjs /tmp/dimension-site-build`。构建目录包含 `.openai/hosting.json` 与 `server/index.js`；发布归档将构建目录放在 `dist/` 下，并在归档根目录保留同一份 `.openai/hosting.json`，入口为 `dist/server/index.js`。Worker 内嵌明确列出的静态资源，产物不包含运行时 Secrets。`npm test` 覆盖认证、签名伪造、过期、密码轮换、来源校验、限流和未授权接口访问。
 
