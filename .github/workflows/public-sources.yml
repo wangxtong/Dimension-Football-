@@ -1,0 +1,48 @@
+name: 公开信息源试接入
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'collector/public.mjs'
+      - 'collector/sources/public-fixtures.mjs'
+      - '.github/workflows/public-sources.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dimension-football-public-sample
+  cancel-in-progress: false
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: 公开赛程与证据试采集（不注入私有密钥，最多 2 分钟）
+        run: npm run collect:public -- --budget-minutes 2
+      - name: 写入来源与结果摘要
+        if: always()
+        shell: bash
+        run: |
+          for report in reports/public/public-sources.md reports/public/latest-brief.md; do
+            if [[ -f "$report" ]]; then
+              cat "$report" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: public-source-sample-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/public/
+          if-no-files-found: warn
+          retention-days: 30
