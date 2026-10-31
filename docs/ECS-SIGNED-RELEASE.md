@@ -78,3 +78,9 @@ openssl pkeyutl -verify -rawin -pubin -inkey /secure/release-authorization.pub.p
 5. 正式预测继续 BLOCKED：五大联赛冻结前瞻回测、独立盘口源、批准与实际 ECS smoke 全部需要 A1 门禁，不可向网站或 Telegram 放行正式预测。
 
 此 PR 只是候选实现；不得自动合并或自动生产部署。
+
+### 首次安装的可信引导边界（2026-10-31 A7 修复，Draft）
+
+**不能从待安装归档里执行用于认证该归档的校验器。** 新版 bootstrap 在运行来源包中的任何 Python/Node/shell 代码、Node 下载或服务安装前，先使用 Python 标准库只读验证完整 tar SHA-256、单一 manifest，再由 ECS 管理员独立预置且 root 独占的 `/opt/vantis/deployment/release-authorization.mjs` 校验独立签署批准。归档实际解包使用同样独立预置的 root 可信 `/opt/vantis/deployment/bundle.py`；直接调用 install.sh 也必须调用这些可信工具，不再回退到候选包里的同名脚本。预先存在的 Node（可解析到 root 拥有、无组/其他写权限的真实文件和父目录）必须足以运行 Ed25519 签名验证；之后才可以受控使用已批准包中的 `install-node.sh` 补齐 24.14+。无 Node、无独立安装的可信校验器或可信 bundle 解析器时，一律 BLOCKED，**不允许为了方便使用未验签来源脚本自举安装**。
+
+有权限的 Workbench 管理员需在可信渠道独立审核工具来源及摘要、确认旧版可能存在的直推入口已停用，并预置上述只读可信工具与必要的可信 Node；这**不是**由 GitHub 工作流自动安装或 A7 远程执行。首次预置不能通过刚接收的未经认证的发行包直接拷贝校验器来冒充信任。安装后在 Issue #14 回填不含秘密的 verifier/bundle 文件 SHA-256、所有权及权限、公钥指纹、批准文件摘要、精确 main CI run 与 ECS 实际 SHA；不得提交私钥或机密 env。维护期间若候选版本缺少此前已信任的工具，先阻断，由 A1 复核可信工具升级策略。
