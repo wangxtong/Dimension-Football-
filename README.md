@@ -35,7 +35,7 @@ npm run collect -- --input /path/to/fixtures.json --state .collection-state/stat
 
 ## 赛前预测与报告
 
-`npm run collect:public` 会生成 `predictions.html`、`predictions.md`、`predictions.json`。页面逐场展示主胜 / 平 / 客胜概率、预期进球、比分参考、历史样本和缺项。即使盘口来源不足，历史充分的比赛仍会有基础预测；严格盘口候选不会因此放宽门槛。GitHub 的“公开赛程预测与报告”工作流将结果写入 Summary 并保存可下载产物。
+`npm run collect:public` 会生成 `predictions.html`、`predictions.md`、`predictions.json`。页面逐场展示主胜 / 平 / 客胜概率、预期进球、比分参考、历史样本和缺项。即使盘口来源不足，历史充分的比赛仍会有基础预测；严格盘口候选不会因此放宽门槛。GitHub 的“公开赛程预测与报告”工作流将结果写入 Summary 并保存可下载产物。 在完整历史回测门禁仍不满足时，本 PR 改为只生成内部 Actions 附件与 Summary，网站数据和 Telegram 的自动对外发布被强制阻断；修复代码未合并前主分支仍采用原行为。
 
 报告现在按普通预测、严格盘口候选、暂不可评估三类展示，并提供球队相对实力、数据检查项、回测和预测有效期。实际文件生成、GitHub Summary 写入及附件上传分别记录在 `publication.json`；最终回执见本轮 `publication-receipt` 附件。严格盘口增加真实初盘来源与时间校验及持久档案；已接通香港赛马会第一方公开 HDC 报价，独立于球探渠道；双源同时有效和真实初盘仍逐场核验。外部看板与 Telegram 配置见 [网站和通知](docs/DELIVERY.md)。
 
