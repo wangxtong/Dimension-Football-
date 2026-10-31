@@ -1,8 +1,6 @@
 import { resolve } from 'node:path';
 import { publishSummary, recordArtifact } from './publication.mjs';
 import { readJson } from './storage.mjs';
-import { configureEnvironmentProxy } from './network.mjs';
-import { publishWebsite, publishWebsiteReceipt, publishTelegram } from './delivery.mjs';
 import { blockUnverifiedPublication } from './block-unverified-delivery.mjs';
 
 const [mode, directory] = process.argv.slice(2);
