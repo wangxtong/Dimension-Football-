@@ -178,4 +178,44 @@ class PersistentPathTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'STATE_SCHEMA_INCOMPATIBLE'):persistent.check_contract({'stateRelativePath':'state/state.json'},new,{'version':2})
         self.assertEqual(persistent.check_contract({},old,{'version':1})['stateRelativePath'],'state.json')
 
+
+class DiagnoseSafetyTests(unittest.TestCase):
+    def invoke(self, systemctl):
+        with tempfile.TemporaryDirectory() as root:
+            cmd=Path(root)/'systemctl'
+            cmd.write_text('#!/bin/sh\n'+systemctl+'\n')
+            cmd.chmod(0o755)
+            env=dict(os.environ,PATH=root+os.pathsep+os.environ.get('PATH',''))
+            result=subprocess.run(['bash',str(Path(__file__).with_name('diagnose.sh'))],
+                                  capture_output=True,text=True,env=env)
+            return result,json.loads(result.stdout)
+
+    def test_systemctl_command_failure_blocks_with_nonzero_exit(self):
+        result,data=self.invoke('exit 1')
+        self.assertEqual(result.returncode,2)
+        self.assertEqual(data['diagnosticStatus'],'blocked')
+        self.assertEqual(data['productionReleaseStatus'],'BLOCKED')
+        self.assertEqual(len(data['probeErrors']),6)
+        self.assertFalse(data['journalReviewed'])
+
+    def test_empty_success_output_is_not_a_valid_probe(self):
+        result,data=self.invoke('exit 0')
+        self.assertEqual(result.returncode,2)
+        self.assertEqual(len(data['probeErrors']),6)
+
+    def test_failed_service_state_blocks_even_when_systemctl_exits_zero(self):
+        result,data=self.invoke('printf "LoadState=loaded\nActiveState=failed\nSubState=failed\nResult=exit-code\nExecMainStatus=1\n"')
+        self.assertEqual(result.returncode,2)
+        self.assertTrue(any('UNIT_RUNTIME_FAILURE' in s for s in data['probeErrors']))
+
+    def test_synthetic_healthy_units_are_inspection_only_not_release_approval(self):
+        result,data=self.invoke('printf "LoadState=loaded\nActiveState=active\nSubState=running\nResult=success\nExecMainStatus=0\n"')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(data['probeErrors'],[])
+        self.assertEqual(len(data['units']),6)
+        self.assertEqual(data['diagnosticStatus'],'inspection_only')
+        self.assertEqual(data['productionReleaseStatus'],'BLOCKED')
+        self.assertFalse(data['remoteConnectivityTested'])
+        self.assertFalse(data['secretsRead'])
+
 if __name__=='__main__':unittest.main()
