@@ -73,6 +73,9 @@ function served(content, receipt, reportHash) {
   const observation = content.report.publicationKind === 'observations' ? { publicationKind: 'observations',
     originReportId: content.report.originReportId, forecastPublished: false } : {};
   const result = { ...content, ...observation, receipt, reportHash, freshness: { mode: 'hosted', generatedAt: content.report.generatedAt }, health: { status: 'available' } };
+  // Revalidate against the actual content digest before a readback or receipt write
+  // can claim that a particular site report was delivered.
+  validateBundle(result);
   if (bytes(result).byteLength > MAX_REPORT_BUNDLE_BYTES) throw problem('REPORT_BUNDLE_TOO_LARGE', 413);
   return result;
 }
