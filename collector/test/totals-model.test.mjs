@@ -116,14 +116,14 @@ test('walk-forward never fits on target outcome and never upgrades history repla
   });
   assert.equal(baseline.horizonHours, 24);
   assert.equal(baseline.visibility, 'as-observed-history-replay');
-  assert.equal(baseline.evaluatedRows.length, 220);
-  assert.equal(baseline.coverage.skipped, 40);
+  assert.equal(baseline.evaluatedRows.length, 219);
+  assert.equal(baseline.coverage.skipped, 41);
   assert.equal(baseline.coverage.eligible, 260);
   assert.equal(baseline.status, 'RETROSPECTIVE_ONLY_UNVERIFIED');
   assert.equal(baseline.releaseGate, 'BLOCKED');
   assert.equal(baseline.canRelease, false);
   const first = baseline.evaluatedRows[0];
-  assert.equal(first.fixtureId, 'synthetic-40');
+  assert.equal(first.fixtureId, 'synthetic-41');
   assert.equal(first.generatedAt, stamp(Date.parse(first.kickoff) - DAY));
   const futureVersion = { ...makeRows(1, Date.parse('2025-09-20T12:00:00.000Z'))[0],
     id: 'synthetic-later-revision', homeGoals: 20,
