@@ -37,7 +37,8 @@ async function getPublicJSON(url, { fetchImpl, signal, clock, remaining, timeout
       httpStatus = response.status;
       if (!response.ok) {
         await response.body?.cancel?.().catch(() => {});
-        throw new PublicError(httpStatus === 401 || httpStatus === 403 ? 'authorization_required'
+        // HTTP 402 is a paid-access challenge, not an ordinary transient outage.
+        throw new PublicError([401, 402, 403].includes(httpStatus) ? 'authorization_required'
           : httpStatus === 429 ? 'rate_limited' : httpStatus >= 300 && httpStatus < 400 ? 'redirect_blocked' : 'http_unavailable',
         httpStatus, retryAfterMs(response.headers.get('retry-after'), Date.parse(clock())));
       }
