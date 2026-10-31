@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "createdDate": "2026-10-31",
+  "repository": "wangxtong/Dimension-Football-",
+  "baselineSha": "fd76ae66b546627a53a7615e3bf7d5c7f23c79e4",
+  "releasePolicy": "BACKTEST_ALL_GREEN_ONLY=GREEN and RELEASE_GATE=GREEN are mandatory for formal forecast publishing",
+  "roles": [
+    {
+      "id": "A1",
+      "profile": ".github/agents/a1-control-audit.agent.md",
+      "issue": 17,
+      "priority": "P0",
+      "owns": [
+        "AGENTS.md",
+        ".github/agents/",
+        ".github/workflows/",
+        "config/agent-workstreams.json",
+        "config/upgrade-progress.json",
+        "scripts/agents-route.mjs",
+        "collector/control.mjs"
+      ],
+      "dependsOn": [],
+      "reviewedBy": "A7",
+      "accept": [
+        "Review decisions cite full Git SHA, exact CI run and independent evidence",
+        "Block all FAIL/WARN_BLOCKING/UNKNOWN/BACKTEST_INSUFFICIENT",
+        "No production release without all mandatory prerequisites"
+      ]
+    },
+    {
+      "id": "A2",
+      "profile": ".github/agents/a2-source-reliability.agent.md",
+      "issue": 22,
+      "priority": "P1",
+      "owns": [
+        "collector/sources/",
+        "collector/crawl.mjs",
+        "collector/browser.mjs",
+        "config/sources.json",
+        "config/providers.json"
+      ],
+      "dependsOn": [],
+      "reviewedBy": "A3",
+      "accept": [
+        "Permanently distinguish unauthorized, missing, stale, incomplete, simulated and valid source data",
+        "Test throttling/timeout/429/401/403 and source recovery",
+        "Provide by-league coverage and real provider rights evidence or BLOCKED"
+      ]
+    },
+    {
+      "id": "A3",
+      "profile": ".github/agents/a3-data-provenance.agent.md",
+      "issue": 23,
+      "priority": "P1",
+      "owns": [
+        "collector/data/",
+        "collector/sources/team-names.mjs"
+      ],
+      "dependsOn": [
+        "A2"
+      ],
+      "reviewedBy": "A4",
+      "accept": [
+        "Replays bind source/event/team IDs, revision, observedAt and exact input hashes",
+        "Conflict, rescheduling and future-data leakage tests pass",
+        "Missing data remains explicitly unavailable"
+      ]
+    },
+    {
+      "id": "A4",
+      "profile": ".github/agents/a4-model-evaluation.agent.md",
+      "issue": 15,
+      "priority": "P1",
+      "owns": [
+        "collector/forecast.mjs",
+        "collector/forecast-evaluation.mjs",
+        "collector/forecast-report.mjs",
+        "collector/prediction-ledger.mjs",
+        "collector/test/forecast.test.mjs",
+        "collector/test/prediction-ledger.test.mjs"
+      ],
+      "dependsOn": [
+        "A3"
+      ],
+      "reviewedBy": "A1",
+      "accept": [
+        "Per-league prospective sample counts, Brier, LogLoss, calibration, abstention, benchmark and odds utility",
+        "No future information or post-hoc selection in validation",
+        "Never claim >=62% or ~70% unless independent evidence supports it"
+      ]
+    },
+    {
+      "id": "A5",
+      "profile": ".github/agents/a5-market-verification.agent.md",
+      "issue": 16,
+      "priority": "P1",
+      "owns": [
+        "collector/market-evidence.mjs",
+        "collector/full-market-analysis.mjs",
+        "collector/sources/market-sources.mjs",
+        "collector/sources/hkjc.mjs",
+        "collector/sources/hkjc-query.graphql",
+        "config/collection.json"
+      ],
+      "dependsOn": [
+        "A2",
+        "A3"
+      ],
+      "reviewedBy": "A1",
+      "accept": [
+        "Opening observedAt is provider-original and earlier than latest market observedAt",
+        "Two independently sourced paired quotes meet policy and valid temporal boundaries",
+        "Zero verified candidates is acceptable until valid data exists"
+      ]
+    },
+    {
+      "id": "A6",
+      "profile": ".github/agents/a6-delivery-integrity.agent.md",
+      "issue": 24,
+      "priority": "P0",
+      "owns": [
+        "collector/delivery.mjs",
+        "collector/publication.mjs",
+        "collector/publish.mjs",
+        "collector/outbox.mjs",
+        "collector/report-store.mjs",
+        "collector/report-server.mjs"
+      ],
+      "dependsOn": [
+        "A1"
+      ],
+      "reviewedBy": "A8",
+      "accept": [
+        "All user-visible forecast delivery paths fail closed when BACKTEST_ALL_GREEN_ONLY or RELEASE_GATE is missing",
+        "No duplicate Telegram delivery after uncertain acknowledgement; no raw tokens in logs",
+        "Actual website receipt requires same reportId/hash as ECS and authenticated HTTPS smoke"
+      ]
+    },
+    {
+      "id": "A7",
+      "profile": ".github/agents/a7-ecs-operations.agent.md",
+      "issue": 14,
+      "priority": "P0",
+      "owns": [
+        "deploy/",
+        "collector/operations.mjs",
+        "collector/orchestrate.mjs"
+      ],
+      "dependsOn": [
+        "A1"
+      ],
+      "reviewedBy": "A1",
+      "accept": [
+        "Never infer production SHA from repository; obtain actual ECS evidence from authorized operator",
+        "Test restart persistence, reportId health, safe rollback and existing weidu-bridge compatibility",
+        "Fail closed without authorized ECS identity or full GREEN release gate"
+      ]
+    },
+    {
+      "id": "A8",
+      "profile": ".github/agents/a8-site-qa.agent.md",
+      "issue": 25,
+      "priority": "P0",
+      "owns": [
+        "website/",
+        "docs/WEBSITE.md"
+      ],
+      "dependsOn": [
+        "A6",
+        "A7"
+      ],
+      "reviewedBy": "A6",
+      "accept": [
+        "No session or backend token leaks; anonymous cannot read protected content",
+        "Verified same reportId/hash served in real ECS mode vs site; bootstrap never shown as live",
+        "Mobile/desktop cross-browser tests and old-site feature comparison"
+      ]
+    }
+  ]
+}

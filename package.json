@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "collect": "node collector/run.mjs",
     "collect:demo": "node collector/run.mjs --demo",
@@ -22,6 +24,8 @@
     "site:build": "node website/build.mjs dist",
     "operations:help": "node collector/operations.mjs --help",
     "orchestrate:help": "node collector/orchestrate.mjs --help",
-    "check": "node --check collector/run.mjs"
+    "check": "node --check collector/run.mjs",
+    "agents:route": "node scripts/agents-route.mjs",
+    "agents:check": "node --test collector/test/agents.test.mjs"
   }
 }

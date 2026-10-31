@@ -34,3 +34,9 @@ Existing ECS: instance `i-j6c4g9s2y6b5irl5gcr9`, public address `8.218.6.246`. A
 ECS will own persistent collection, reporting and notification. Preserve Sites as the visitor entrypoint. GitHub Actions OIDC is valid only for Actions jobs, not a permanent ECS identity.
 
 Progress states: pending -> active -> review -> verified; blocked requires an exact dependency and next action. All production claims require timestamped evidence.
+
+## GitHub custom agent profiles and routing (2026-10-31)
+
+The eight roles above now have repository-native GitHub Copilot custom agent profiles under `.github/agents/*.agent.md` (see [README](.github/agents/README.md)). Their code work is tracked by GitHub issues and a strict review handoff. **Profiles do not by themselves start AI tasks; Copilot cloud agent must be enabled and profiles merged into the default branch before it can select them.** No autonomous production access is implied.
+
+Use `npm run agents:route -- --issue 15`, `npm run agents:route -- --path website/worker.mjs` or `npm run agents:check`. Ownership and cross-review requirements live in `config/agent-workstreams.json`. The A1 control role audits cross-ownership edits and the exact CI/PR evidence. All roles create separate Draft PRs, do not merge, and preserve BACKTEST_ALL_GREEN_ONLY and RELEASE_GATE as fail-closed production restrictions. Evidence gaps are BLOCKED, not GREEN.
