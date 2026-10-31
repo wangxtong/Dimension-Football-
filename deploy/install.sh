@@ -5,7 +5,7 @@ die(){ printf 'INSTALL_FAILED: %s\n' "$1" >&2; exit 1; }
 [[ $EUID -eq 0 && $# -eq 1 && -d /run/systemd/system ]] || die 'ROOT_SYSTEMD_AND_VERIFIED_SOURCE_REQUIRED'
 source_dir=$(cd -- "$1" && pwd -P)
 for command in python3 systemctl getent useradd install flock readlink runuser git timeout sha256sum; do command -v "$command" >/dev/null || die 'REQUIRED_TOOL_MISSING'; done
-python3 "$source_dir/deploy/bundle.py" verify-directory "$source_dir" >/dev/null
+# Incoming bundle.py is untrusted until independently approved.
 exec 8>/run/lock/vantis-install.lock
 flock -n 8 || die 'INSTALL_ALREADY_RUNNING'
 node_bin=${NODE_BIN:-$(command -v node || true)}
@@ -19,7 +19,8 @@ case "$node_bin" in /root/*|/home/*|/run/user/*) die 'NODE_MUST_BE_SYSTEM_WIDE';
 release_verifier=/opt/vantis/deployment/release-authorization.mjs
 # Never let a candidate artifact authenticate itself on first installation.
 # This verifier must be staged and audited independently by the ECS operator.
-python3 - "$release_verifier" <<'PYTRUST' || die 'ROOT_TRUSTED_VERIFIER_REQUIRED'
+trusted_bundle=/opt/vantis/deployment/bundle.py
+python3 - "$release_verifier" "$trusted_bundle" "$node_bin" <<'PYTRUST' || die 'ROOT_TRUSTED_VERIFIER_REQUIRED'
 import os, stat, sys
 from pathlib import Path
 p=Path(sys.argv[1])
@@ -31,6 +32,7 @@ for entry in (*reversed(p.parents), p):
         if not stat.S_ISREG(info.st_mode): sys.exit(1)
     elif not stat.S_ISDIR(info.st_mode): sys.exit(1)
 PYTRUST
+python3 "$trusted_bundle" verify-directory "$source_dir" >/dev/null || die 'TRUSTED_SOURCE_VERIFICATION_FAILED'
 "$node_bin" "$release_verifier" "$source_dir/vantis-manifest.json" >/dev/null || die 'SIGNED_RELEASE_APPROVAL_REQUIRED'
 if ! getent passwd vantis >/dev/null; then useradd --system --user-group --home-dir /var/lib/vantis --no-create-home --shell /usr/sbin/nologin vantis; fi
 if ! getent passwd vantis-check >/dev/null; then useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin vantis-check; fi
@@ -73,7 +75,7 @@ for module in "${modules[@]}"; do
   timeout 10s runuser -u vantis-check -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent TMPDIR=/tmp "$node_bin" --check "$module" >/dev/null 2>&1 || die 'RUNTIME_SYNTAX_FAILED'
 done
 timeout 30s runuser -u vantis-check -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent TMPDIR=/tmp "$node_bin" "$source_dir/collector/orchestrate.mjs" --help >/dev/null 2>&1 || die 'ENTRYPOINT_HELP_FAILED'
-python3 "$source_dir/deploy/bundle.py" verify-directory "$source_dir" >/dev/null
+python3 "$trusted_bundle" verify-directory "$source_dir" >/dev/null
 runuser -u vantis -- "$node_bin" --env-file=/etc/vantis/collector.env "$source_dir/collector/operations.mjs" self-check \
   --root /var/lib/vantis --release "$source_dir" --config /etc/vantis/operations.json || die 'CAPABILITY_OR_ENTRYPOINT_CHECK_FAILED'
 for src in "$source_dir"/deploy/*; do
