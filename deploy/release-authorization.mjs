@@ -25,7 +25,8 @@ function blocked(code) {
 // Canonical bytes: JSON UTF-8 of sorted [path, sha256, size] tuples.
 export function hashReleaseFileManifest(files) {
   if (!files || typeof files !== 'object' || Array.isArray(files)) blocked('SOURCE_FILE_MANIFEST_INVALID');
-  const paths = Object.keys(files).sort();
+  // UTF-8 byte order matches the standalone Python signing workstation.
+  const paths = Object.keys(files).sort((a, b) => Buffer.compare(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8')));
   if (!paths.length || paths.length > 20000) blocked('SOURCE_FILE_MANIFEST_INVALID');
   const entries = paths.map(path => {
     const file = files[path];
