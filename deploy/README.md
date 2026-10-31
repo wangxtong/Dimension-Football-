@@ -23,7 +23,7 @@ sudo journalctl -u vantis-collector.service -n 100 --no-pager
 sudo systemctl list-timers vantis-collector.timer
 ```
 
-安装后，`vantis-sync.timer` 每 2 分钟通过公开 Git HTTPS 检查固定仓库 `wangxtong/Dimension-Football-` 的 `main` 分支。发现新提交后下载该完整 SHA 的 codeload 源码，在 `vantis` 用户和干净环境中运行全部测试；通过后原子发布。网络、源码检查或测试失败均保留现有版本。无需 GitHub API、访问令牌或开放入站端口。
+安装后，`vantis-sync.timer` 每 2 分钟通过 root-only Git 凭据读取 **Private** 仓库的 `main`。只有经独立核验并由 root 专用文件授权的完整提交 SHA，才执行下载、测试及原子切换。缺令牌/发布审批/CI 证据、SHA 不符或测试失败，一律保留旧版本。
 
 ```sh
 sudo systemctl start vantis-sync.service
@@ -32,7 +32,7 @@ sudo systemctl list-timers vantis-sync.timer
 cat /opt/vantis/current/.source-commit
 ```
 
-使用 `bootstrap.sh FULL_40_CHARACTER_COMMIT_SHA` 安装时，初始提交会自动写入发布元数据。手工调用安装或发布脚本时，可用 `sudo env VANTIS_COMMIT=FULL_40_CHARACTER_COMMIT_SHA ...` 记录相同元数据；未提供元数据时，同步器会在首次检查时对 `main` 执行一次测试和发布。同步与采集使用不同定时器，部署失败不会停止采集。
+初装须附已审阅的 `--deployment-dir` 工具包，并提供 root-only Git 只读凭据与对同一 SHA 的根目录外批准文件。所有人工 `release.sh` 也须传入完整 `VANTIS_COMMIT`，源文件带经过 Git 验证后创建的 `.vantis-verified-commit` 标记。缺任一前置条件禁止发布。
 
 部署工具可由控制台单独上传，再引导已发布的程序提交。例如，解压工具包后运行：
 
@@ -40,12 +40,12 @@ cat /opt/vantis/current/.source-commit
 sudo bash /absolute/uploaded/deploy/bootstrap.sh FULL_40_CHARACTER_COMMIT_SHA --deployment-dir /absolute/uploaded/deploy
 ```
 
-`--deployment-dir` 仅接受实际绝对目录，按固定名单读取 5 个脚本和 4 个 systemd 单元，拒绝符号链接；仅覆盖临时源码中的这些部署文件。程序的 `collector/` 与配置仍来自指定提交，`.source-commit` 准确记录该提交。部署工具另以 `/opt/vantis/deployment/.tool-version` 的 SHA256 指纹记录，自动 Git 同步不会覆盖它们。
+`--deployment-dir` 仅接受实际绝对目录，按固定名单读取 5 个 Shell 脚本、`release-gate.mjs`、`private-git-askpass.sh` 和 4 个 systemd 单元，拒绝符号链接；仅覆盖临时源码中的这些部署文件。程序的 `collector/` 与配置仍来自指定提交，`.source-commit` 准确记录该提交。部署工具另以 `/opt/vantis/deployment/.tool-version` 的 SHA256 指纹记录，自动 Git 同步不会覆盖它们。
 
-云效主机部署获取并解压新源码后，执行以下命令，将占位路径替换为该次解压目录。构建阶段应先运行 `npm test`。
+云效主机部署同样要先取得 root 维护的完整回测/回归审批、认证来源完整 SHA 及源码标记；仅运行 `npm test` 不能授权生产发布。
 
 ```sh
-sudo bash /opt/vantis/deployment/release.sh /path/to/source
+sudo env VANTIS_COMMIT=APPROVED_FULL_SHA bash /opt/vantis/deployment/release.sh /path/to/verified-source
 ```
 
 每次发布复制运行源码到新目录，完成 CLI 离线加载检查后原子切换 `current`。正在运行的采集继续使用旧版本，下一轮使用新版本。发布不会立即发起采集，也不会覆盖配置或持久状态。旧版本保留用于人工检查和回退，不自动清理。
@@ -58,6 +58,8 @@ sudo bash /opt/vantis/deployment/release.sh /path/to/source
 | `/opt/vantis/current/.source-commit` | 当前发布对应的完整 Git 提交 SHA |
 | `/etc/vantis/collector.env` | 仓库外凭据；root 所有，vantis 组只读，权限 0640 |
 | `/etc/vantis/node-path` | 固定的 Node.js 可执行文件路径 |
+| `/etc/vantis/github-read-token` | 只读私有仓库凭据，仅 root 可读的普通文件，权限 0600 |
+| `/etc/vantis/release-approvals/<SHA>.json` | 生产前独立审批，root 0600，完整 SHA 匹配且 48 小时内有效 |
 | `/var/lib/vantis/state.json` | 持久检查点，vantis 用户可写 |
 | `/var/lib/vantis/state.json.sources.json` | 官方赛程来源健康状态、失败冷却及最近切换记录；备份时与检查点一同保留 |
 | `/var/lib/vantis/state.json.crawl.json` | 公开爬虫域名冷却、robots 与页面缓存；不保存授权浏览器会话 |
@@ -81,3 +83,14 @@ sudo systemctl disable --now vantis-collector.timer
 ```sh
 sudo systemctl disable --now vantis-sync.timer
 ```
+
+## 安全上线门禁（未满足时完全拒绝）
+
+私有仓库 Git 读取由 `deploy/private-git-askpass.sh` 处理：只允许固定 github.com 来源，凭据存于 `/etc/vantis/github-read-token`，要求 `root:root` 和 `0600`；不得写入命令行、URL、前端或仓库。文件须由运维人员通过安全通道准备，默认不会创建真实令牌。
+
+每个允许上线的提交都需要根目录外 `/etc/vantis/release-approvals/<full lowercase SHA>.json`，目录 root 拥有且不可由非 root 写入，文件 root:root 0600、不得为符号链接。格式为 schemaVersion=1、commitSha、approvedAt（不超过 48 小时）、BACKTEST_ALL_GREEN_ONLY=GREEN、RELEASE_GATE=GREEN。
+`checks` 内以下全部项目须为 GREEN：COMMERCIAL_API_AUTHORIZED、FIVE_LEAGUE_BACKTEST_SUFFICIENT、WALK_FORWARD_NO_LOOKAHEAD、PROBABILITY_CALIBRATION、ASIAN_ODDS_INDEPENDENCE_AND_OPENING、PREMATCH_DATA_FROZEN、ALL_REGRESSIONS、CI_ON_EXACT_COMMIT、MERGED_PR_ON_EXACT_COMMIT、STAGING_SMOKE、OLD_VERSION_NO_REGRESSION、ROLLBACK_READY。
+`evidence` 必须包含与审批 SHA 一致的 candidateSha、不同的 baselineSha、backtestSha256、stagingSmokeSha256、regressionSha256、ciRunUrl、mergedPrUrl。审批只是独立操作员对证据的断言，并非代码自动从第三方核验真实性；只有逐项审计真实证据后才能安全签发。任何 FAIL、WARN_BLOCKING、UNKNOWN、BACKTEST_INSUFFICIENT、缺失或旧证据一律阻断。
+所有入口在切换生产之前再次执行 root-owned release gate。部署完成后仍须单独执行真实生产烟雾、重启持久化和与旧版相同样本的无回归对照；上线审批不能自动宣称最终发布完成。
+
+新门禁仅在脚本经审阅、合并且安全安装到目标 ECS 后生效；该仓库 PR 不会自行配置凭据、保护分支或修改服务器。
