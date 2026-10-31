@@ -1,4 +1,4 @@
-import { digest, fixtureKey, preparePool, basicScreen, evaluateFixture, retainedEvidence, isoMillis, DEFAULT_POLICY } from './policy.mjs';
+import { digest, fixtureKey, basicScreen, evaluateFixture, retainedEvidence, isoMillis, DEFAULT_POLICY } from './policy.mjs';
 import { acquireLock, readState, atomicJson } from './storage.mjs';
 import { writeReports } from './report.mjs';
 import { publicSourceHealth } from './sources/manager.mjs';
@@ -6,6 +6,8 @@ import { CRAWLER_CODES } from './sources/crawler.mjs';
 import { PUBLIC_FIXTURE_SOURCES } from './sources/public-fixtures.mjs';
 import { buildForecasts, finalizeForecasts } from './forecast.mjs';
 import { reconcileMarketEvidence, marketReadiness } from './market-evidence.mjs';
+import { prepareAcquiredPool } from './data/acquisition-snapshot.mjs';
+import { prepareForecastHistory } from './forecast.mjs';
 
 // Persist only diagnostic metadata, never headers, response bodies or thrown messages.
 export function safeDiagnostics(rows = []) {
@@ -18,10 +20,16 @@ export function safeDiagnostics(rows = []) {
     httpStatus: Number.isInteger(row.httpStatus) && row.httpStatus >= 100 && row.httpStatus <= 599 ? row.httpStatus : null,
     responseAt: Number.isFinite(isoMillis(row.responseAt)) ? row.responseAt : null,
     matchedCount: Number.isSafeInteger(row.matchedCount) && row.matchedCount >= 0 ? row.matchedCount : 0,
-    ...Object.fromEntries(['parsedCount', 'scheduleParsedCount', 'requestedFixtureCount', 'eligibleFixtureCount', 'unmatchedFixtureCount']
+    ...Object.fromEntries(['parsedCount', 'scheduleParsedCount', 'requestedFixtureCount', 'eligibleFixtureCount', 'unmatchedFixtureCount',
+      'receivedCount', 'rejectedCount', 'historyCount', 'historyRejectedCount']
       .filter(key => Number.isSafeInteger(row[key]) && row[key] >= 0 && row[key] <= 3000).map(key => [key, row[key]])),
-    ...Object.fromEntries(['sourceUpdatedAt', 'scheduleUpdatedAt', 'scheduleCoverageFrom', 'scheduleCoverageTo']
+    ...Object.fromEntries(['sourceUpdatedAt', 'scheduleUpdatedAt', 'scheduleCoverageFrom', 'scheduleCoverageTo', 'fetchedAt', 'nextProbeAt']
       .filter(key => Number.isFinite(isoMillis(row[key]))).map(key => [key, row[key]])),
+    ...(Number.isSafeInteger(row.retryAfterMs) && row.retryAfterMs >= 0 ? { retryAfterMs: row.retryAfterMs } : {}),
+    ...(['history', 'fixtures'].includes(row.purpose) ? { purpose: row.purpose } : {}),
+    ...(typeof row.historyRequested === 'boolean' ? { historyRequested: row.historyRequested } : {}),
+    ...(typeof row.cacheHit === 'boolean' ? { cacheHit: row.cacheHit } : {}),
+    ...(typeof row.season === 'string' && /^[A-Za-z0-9][A-Za-z0-9 ./_-]{0,79}$/.test(row.season) ? { season: row.season } : {}),
   }));
 }
 
@@ -59,11 +67,16 @@ const LIMITATIONS = [
 export async function runCollection({
   fixtures, statePath, outDir, collectEvidence, policy = DEFAULT_POLICY, simulated = false,
   fixtureDiagnostics = [], poolComplete = true, sourceManagement = null, importedEvidence = { quotes: [], signals: [] }, history = [],
+  coverage = [], codeVersion = null, prospectiveEvaluation = null,
   clock = () => new Date().toISOString(), monotonic = () => performance.now(), startedTick = monotonic(),
   checkpoint = atomicJson, signal,
 }) {
   if (!simulated && fixtures.some(f => ['simulation', 'owner-supplied-example'].includes(f.source))) throw new Error('EXAMPLE_FIXTURES_REQUIRE_DEMO');
-  const pool = preparePool(fixtures, policy), startedAt = clock(), release = await acquireLock(statePath);
+  const pool = prepareAcquiredPool(fixtures, policy), startedAt = clock(), release = await acquireLock(statePath);
+  if (pool.conflicts.length) {
+    poolComplete = false;
+    fixtureDiagnostics = [...fixtureDiagnostics, { id: 'data-identity', status: 'partial', code: 'logical_fixture_conflict', checkedAt: startedAt, rejectedCount: pool.rejected }];
+  }
   const deadline = startedTick + policy.budgetMs;
   const remaining = () => signal?.aborted ? 0 : Math.max(0, deadline - monotonic());
   try {
@@ -91,11 +104,12 @@ export async function runCollection({
       const controller = new AbortController(), timer = setTimeout(() => controller.abort(), remaining());
       try {
         evidence = await collectEvidence({ fixtures: eligible, nowISO: clock(), signal: controller.signal });
-        if (!evidence || !Array.isArray(evidence.quotes) || !Array.isArray(evidence.signals) || !Array.isArray(evidence.diagnostics)) throw new Error('EVIDENCE_SCHEMA_INVALID');
+        if (!evidence || !Array.isArray(evidence.quotes) || !Array.isArray(evidence.signals) || !Array.isArray(evidence.diagnostics)
+          || evidence.marketStates !== undefined && !Array.isArray(evidence.marketStates)) throw new Error('EVIDENCE_SCHEMA_INVALID');
       } catch { sourceFailed = true; evidence = { quotes: [], signals: [], diagnostics: [{ id: 'collection', status: 'failed', code: controller.signal.aborted ? 'BUDGET_EXHAUSTED' : 'SOURCE_COLLECTION_FAILED', checkedAt: clock() }] }; }
       finally { clearTimeout(timer); }
     }
-    evidence.quotes.push(...importedEvidence.quotes);
+    evidence.quotes.push(...(evidence.marketStates || []), ...importedEvidence.quotes);
     evidence.signals.push(...importedEvidence.signals);
     for (const fixture of eligible) {
       const entry = state.entries[fixtureKey(fixture)];
@@ -157,7 +171,8 @@ export async function runCollection({
       forecasts: forecasts.summary.forecasts, forecastUnavailable: forecasts.summary.unavailable };
     const report = { version: 1, task: '维度足球长期公开信息采集', simulated, timezone: 'Asia/Shanghai', startedAt, completedAt,
       poolComplete, status: sourceFailed ? 'failed' : summary.pending || hasSourceIssue || !poolComplete ? 'partial' : 'complete',
-      summary, diagnostics, marketDiagnostics, results, limitations: LIMITATIONS, policy,
+      summary, diagnostics, marketDiagnostics, results, limitations: LIMITATIONS, policy, coverage,
+      identityConflicts: pool.conflicts, prospectiveEvaluation,
       forecasts,
       publicFixtureSources: PUBLIC_FIXTURE_SOURCES.filter(source => pool.fixtures.some(fixture => fixture.source === source.id)),
       crawler: evidence.crawler || null,
@@ -167,7 +182,7 @@ export async function runCollection({
       candidates: simulated ? [] : results.filter(row => row.result.status === 'candidate') };
     state.runs = [...state.runs.slice(-49), { startedAt, completedAt, status: report.status, summary }];
     await checkpoint(statePath, state);
-    const files = await writeReports(report, outDir);
+    const files = await writeReports(report, outDir, { history: prepareForecastHistory(history).matches, codeVersion, clock });
     return { report, files };
   } finally { await release(); }
 }

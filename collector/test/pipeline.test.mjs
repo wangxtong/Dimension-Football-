@@ -23,7 +23,7 @@ function syntheticInput(count = 1) {
   for (const fixture of fixtures) {
     const fixtureSnapshot = Object.fromEntries(['id', 'league', 'home', 'away', 'kickoff', 'source'].map(key => [key, fixture[key]]));
     quotes.push(...structuredClone(demo.evidence.quotes).map(row => ({ ...row, fixtureId: fixture.id, fixtureSnapshot,
-      ...(row.opening ? { opening: { ...row.opening, fixtureId: fixture.id } } : {}) })));
+      ...(row.opening ? { opening: { ...row.opening, fixtureId: fixture.id, fixtureSnapshot } } : {}) })));
     signals.push(...structuredClone(demo.evidence.signals).map(row => ({ ...row, fixtureId: fixture.id, fixtureSnapshot })));
   }
   return { fixtures, evidence: { quotes, signals, diagnostics: [] } };
@@ -273,6 +273,29 @@ test('production refuses example fixtures before collecting evidence', async t =
   await assert.rejects(runCollection({ ...paths, fixtures: demo.fixtures, clock: () => NOW,
     collectEvidence: async () => { calls++; return demo.evidence; } }), { message: 'EXAMPLE_FIXTURES_REQUIRE_DEMO' });
   assert.equal(calls, 0);
+});
+
+test('adapter negative market states override older imported prices in the pipeline', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  const previous = input.evidence.quotes.map(row => ({ ...row, observedAt: new Date(Date.parse(NOW) - 60000).toISOString(),
+    sourceUpdatedAt: new Date(Date.parse(NOW) - 60000).toISOString() }));
+  const marketStates = input.evidence.quotes.filter(row => row.selection === 'home').map(row => ({ ...row,
+    selection: undefined, handicap: undefined, decimalOdds: undefined, opening: undefined,
+    marketState: 'unavailable', stateReason: 'incomplete_market' }));
+  const result = await runCollection(invocation(paths, input, { importedEvidence: { quotes: previous, signals: [] },
+    collectEvidence: async () => ({ quotes: [], signals: input.evidence.signals, diagnostics: [], marketStates }) }));
+  assert.equal(result.report.summary.candidates, 0);
+  assert.ok(result.report.results[0].marketReadiness.blockers.includes('LATEST_MARKET_UNAVAILABLE'));
+});
+
+test('logical fixture conflicts are quarantined with diagnostics instead of counting duplicate matches', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  const row = { ...input.fixtures[0], sourceFixtureId: '1', homeTeamId: '10', awayTeamId: '20' };
+  const result = await runCollection({ ...paths, fixtures: [row, { ...row, id: 'fd-2', sourceFixtureId: '2' }], clock: () => NOW,
+    collectEvidence: () => assert.fail('ambiguous pool must not collect evidence') });
+  assert.equal(result.report.summary.total, 0); assert.equal(result.report.poolComplete, false);
+  assert.equal(result.report.diagnostics.find(row => row.code === 'logical_fixture_conflict').rejectedCount, 2);
+  assert.equal(result.report.identityConflicts[0].ids.length, 2);
 });
 
 test('state lock prevents overlapping collectors and release allows another run', async t => {

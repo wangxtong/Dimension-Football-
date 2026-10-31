@@ -123,7 +123,7 @@ function signalFixtureEligible(fixture,now) {
 }
 
 function signalMatchRows(rows,fixtures,sourceId,checkedAt,now) {
-  const signals=[];
+  const signals=[],mappings=[];
   for (const fixture of fixtures) {
     if (!signalFixtureEligible(fixture,now)) continue;
     const kickoff=Date.parse(fixture.kickoff),league=signalLeague(fixture.league);
@@ -131,6 +131,11 @@ function signalMatchRows(rows,fixtures,sourceId,checkedAt,now) {
       &&signalTeam(row.away)===signalTeam(fixture.away)&&Math.abs(Date.parse(row.kickoff)-kickoff)<=300000);
     if (matches.length!==1) continue;
     const row=matches[0];
+    mappings.push({fixture,row});
+  }
+  for(const {fixture,row} of mappings) {
+    if(mappings.filter(mapping=>mapping.row===row).length!==1)continue;
+    const kickoff=Date.parse(fixture.kickoff);
     signals.push({fixtureId:fixture.id,fixtureSnapshot:{id:fixture.id,home:fixture.home,away:fixture.away,kickoff:fixture.kickoff,league:fixture.league,source:fixture.source},
       sourceId,market:'1x2',selection:row.selection,probability:row.probability,observedAt:checkedAt,
       validUntil:new Date(Math.min(now+21600000,kickoff)).toISOString(),evidenceUrl:row.evidenceUrl,

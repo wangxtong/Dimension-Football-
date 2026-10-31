@@ -1,5 +1,5 @@
 [Unit]
-Description=Dimension Football hourly collector
+Description=Dimension Football persistent layered scheduler
 Wants=network-online.target
 After=network-online.target
 
@@ -9,8 +9,9 @@ User=vantis
 Group=vantis
 WorkingDirectory=/var/lib/vantis
 ExecStart=/opt/vantis/deployment/run.sh
-TimeoutStartSec=23min
+TimeoutStartSec=210s
 TimeoutStopSec=45s
+KillMode=control-group
 KillSignal=SIGTERM
 UMask=0027
 StandardOutput=journal

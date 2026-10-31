@@ -49,6 +49,10 @@ test('rejects ambiguous identical provider matches rather than picking first',as
   const result=await fetchPredictionSignals({fixtures:[fixture],fetchImpl:publicFetch(page(match()+match())),nowISO});
   assert.equal(result.signals.length,0);
 });
+test('one prediction row cannot support multiple local fixture identities',async()=>{
+  const result=await fetchPredictionSignals({fixtures:[fixture,{...fixture,id:'af-same-event',source:'api-football'}],fetchImpl:publicFetch(),nowISO});
+  assert.equal(result.signals.length,0);
+});
 test('uses an explicit provider GMT offset and rejects unknown or ambiguous zones',()=>{
   const rows=parseStatareaSignals(page(match(),'ITALY - SERIE A','GMT +1'));
   assert.equal(rows[0].kickoff,'2026-10-27T18:45:00.000Z');

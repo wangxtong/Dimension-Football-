@@ -18,7 +18,7 @@ const fixture = { id: 'fd-1', league: 'PL', home: 'Arsenal FC', away: 'Chelsea F
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { date: new Date(NOW).toUTCString(), ...headers } });
 const smEvent = (league = 8, id = league) => ({ id, league_id: league, state_id: 1,
   starting_at_timestamp: Date.parse(KICKOFF) / 1000,
-  participants: [{ name: 'Arsenal', meta: { location: 'home' } }, { name: 'Chelsea', meta: { location: 'away' } }],
+  participants: [{ id: 1, name: 'Arsenal', meta: { location: 'home' } }, { id: 2, name: 'Chelsea', meta: { location: 'away' } }],
   predictions: [{ fixture_id: id, predictions: { home: 55, draw: 25, away: 20 },
     type: { developer_name: 'FULLTIME_RESULT_PROBABILITY', model_type: 'prediction' } }] });
 const page = (rows, current = 1, more = false) => ({ data: rows, pagination: { current_page: current, has_more: more } });
@@ -267,4 +267,56 @@ test('a model subscription failure does not suppress a usable independent market
       new URL(value).host === 'api.sportmonks.com' ? json({}, 403) : json([oddsEvent()]) });
   assert.equal(result.providers.attempts[0].status, 'plan_restricted');
   assert.equal(result.providers.observations.length, 3); assert.equal(result.providers.attempts[1].status, 'checked');
+});
+
+test('empty matched coverage remains degraded despite a healthy HTTP transport', async t => {
+  const cwd = await workspace(t), statePath = join(cwd, 'empty.json');
+  const result = await collectProviderEvidence({ fixtures: [fixture], nowISO: NOW, statePath,
+    env: { THE_ODDS_API_KEY: 'synthetic' }, fetchImpl: async () => json([]) });
+  const health = (await readProviderHealth(statePath)).sources['the-odds-api'];
+  assert.equal(health.status, 'degraded'); assert.equal(health.transportStatus, 'healthy');
+  assert.equal(health.coverageStatus, 'empty'); assert.equal(health.matchedCount, 0);
+  assert.equal(health.lastDataAt, null); assert.equal(health.code, 'empty_coverage');
+  assert.equal(result.diagnostics[0].code, 'no_matching_markets');
+});
+
+test('one unavailable league preserves verified markets and cools only that league', async t => {
+  const cwd = await workspace(t), statePath = join(cwd, 'partial.json');
+  const fixtures = [fixture, { ...fixture, id: 'fd-2', league: 'PD' }];
+  const urls = [];
+  const run = () => collectProviderEvidence({ fixtures, nowISO: NOW, statePath, env: { THE_ODDS_API_KEY: 'synthetic' }, fetchImpl: async value => {
+    const url = new URL(value); urls.push(url.pathname);
+    return url.pathname.includes('soccer_epl') ? json([oddsEvent()]) : json({}, 403);
+  } });
+  const first = await run(), second = await run();
+  assert.equal(first.providers.observations.length, 3); assert.equal(second.providers.observations.length, 3);
+  assert.equal(urls.filter(url => url.includes('soccer_epl')).length, 2);
+  assert.equal(urls.filter(url => url.includes('soccer_spain')).length, 1);
+  const health = (await readProviderHealth(statePath)).sources['the-odds-api'];
+  assert.equal(health.status, 'degraded'); assert.equal(health.coverageStatus, 'partial');
+  assert.equal(health.nextProbeAt, null); assert.equal(health.lastDataAt, NOW);
+  assert.equal(health.leagues.PD.nextProbeAt, '2026-10-31T16:00:00.000Z');
+  assert.equal(second.diagnostics.find(row => row.league === 'PD').code, 'cooldown');
+});
+
+test('later account rate limiting preserves earlier data but stops later requests and persists cooldown', async t => {
+  const cwd = await workspace(t), statePath = join(cwd, 'limited.json'); let calls = 0;
+  const result = await collectProviderEvidence({ fixtures: [fixture, { ...fixture, id: 'pd', league: 'PD' }, { ...fixture, id: 'sa', league: 'SA' }],
+    nowISO: NOW, statePath, env: { THE_ODDS_API_KEY: 'synthetic' }, fetchImpl: async () => {
+      calls++; return calls === 1 ? json([oddsEvent()]) : json({}, 429, { 'retry-after': '7200' });
+    } });
+  assert.equal(calls, 2); assert.equal(result.providers.observations.length, 3);
+  const health = (await readProviderHealth(statePath)).sources['the-odds-api'];
+  assert.equal(health.transportStatus, 'degraded'); assert.equal(health.coverageStatus, 'partial');
+  assert.equal(health.code, 'rate_limited'); assert.equal(health.nextProbeAt, '2026-10-31T12:00:00.000Z');
+});
+
+test('Sportmonks keeps a complete earlier league while rejecting an incomplete later league atomically', async () => {
+  const result = await fetchSportmonksEvidence({ fixtures: [fixture, { ...fixture, id: 'pd', league: 'PD' }], nowISO: NOW,
+    client: client('sportmonks', async value => {
+      const league = new URL(value).searchParams.get('filters');
+      return league === 'fixtureLeagues:8' ? json(page([smEvent()])) : json({ data: [smEvent(564)] });
+    }) });
+  assert.equal(result.observations.length, 1); assert.equal(result.signals.length, 1);
+  assert.equal(result.diagnostics.find(row => row.league === 'PD').code, 'incomplete_response');
 });

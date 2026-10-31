@@ -69,6 +69,8 @@ test('five concurrent authenticated requests use only the official fixture endpo
     assert.equal(fixture.updatedAt, nowISO);
     assert.equal(fixture.fetchedAt, nowISO);
     assert.equal(fixture.sourceUpdatedAt, null);
+    assert.equal(fixture.homeTeamId, '1');
+    assert.equal(fixture.awayTeamId, '2');
   }
   assert.equal(JSON.stringify(result).includes(testKey), false);
 });

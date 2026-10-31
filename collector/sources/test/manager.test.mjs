@@ -18,7 +18,7 @@ const leagueOf = url => provider(url) === FD ? new URL(url).pathname.split('/')[
 function response(url, { status = 200, now = NOW, date = now, rows = 0, headers = {}, malformed = false } = {}) {
   const league = leagueOf(url), index = LEAGUES.indexOf(league), id = index + 100;
   const matches = rows ? provider(url) === FD ? [{ id, competition: { code: league },
-    homeTeam: { name: `Home ${league}` }, awayTeam: { name: `Away ${league}` },
+    homeTeam: { id: 1, name: `Home ${league}` }, awayTeam: { id: 2, name: `Away ${league}` },
     utcDate: advance(86_400_000), status: 'TIMED' }] : [{ fixture: { id,
     date: advance(86_400_000), timestamp: Date.parse(advance(86_400_000)) / 1000, status: { short: 'NS' } },
     league: { id: AF_IDS[index] }, teams: { home: { id: 1, name: `Home ${league}` }, away: { id: 2, name: `Away ${league}` } } }] : [];

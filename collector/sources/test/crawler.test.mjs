@@ -31,6 +31,48 @@ test('robots rules select specific agent groups, longest paths, wildcard/end anc
   assert.equal(robotsPolicy('User-agent: *\nDisallow: /*.xml$\nAllow: /vbsxml/goal17.xml', TITAN).allowed, true);
   assert.equal(robotsPolicy('User-agent: *\nDisallow: /*.xml$', TITAN.replace('17', '24')).allowed, false);
   assert.equal(robotsPolicy('User-agent: *\nDisallow:', STATAREA).allowed, true);
+  for (const rule of ['/%70redictions', '/predictions', '/%70%72edictions']) {
+    assert.equal(robotsPolicy(`User-agent: *\nDisallow: ${rule}`, STATAREA).allowed, false);
+  }
+  assert.equal(robotsPolicy('User-agent: *\nDisallow: /caf%C3%A9', 'https://www.statarea.com/café').allowed, false);
+  assert.equal(robotsPolicy('User-agent: *\nDisallow: /café', 'https://www.statarea.com/caf%c3%a9').allowed, false);
+  assert.equal(robotsPolicy('User-agent: *\nDisallow: /a%2fb', 'https://www.statarea.com/a/b').allowed, true);
+  assert.equal(robotsPolicy('User-agent: *\nDisallow: /a%2fb', 'https://www.statarea.com/a%2Fb').allowed, false);
+});
+
+test('browser navigation and assets share robots, pacing and the exact HTTP request budget', async t => {
+  const h = await harness(t), starts = [], outcomes = [];
+  const browser = { matches: url => url === STATAREA, metadata: { engine: 'mock-browser' },
+    fetch: async (url, init) => {
+      for (const [target, navigation] of [[url, true], ['https://www.statarea.com/assets/blocked.js', false],
+        ['https://www.statarea.com/assets/a.js', false], ['https://www.statarea.com/assets/b.js', false]]) {
+        try {
+          await init.requestPolicy.beforeRequest({ url: target, navigation, method: 'GET', resourceType: navigation ? 'document' : 'script' });
+          starts.push(performance.now());
+          await init.requestPolicy.afterResponse({ status: 200, headers: new Headers() });
+          outcomes.push('fetched');
+        } catch (error) { outcomes.push(error.code); }
+      }
+      return page();
+    } };
+  const result = await h.run(async () => page('User-agent: *\nDisallow: /assets/blocked.js\nCrawl-delay: 0.1'),
+    fetchPublic => fetchPublic(STATAREA), { browser, policy: { ...policy, minIntervalMs: 100, maxRequests: 3 } });
+  assert.deepEqual(outcomes, ['fetched', 'robots_denied', 'fetched', 'crawler_budget_exhausted']);
+  assert.equal(result.crawler.networkRequests, 3); // robots + navigation + one permitted asset
+  assert.ok(starts[1] - starts[0] >= 90);
+});
+
+test('browser resource Retry-After prevents later resources and survives the next round', async t => {
+  const h = await harness(t); let fetches = 0;
+  const browser = { matches: url => url === STATAREA,
+    fetch: async (url, init) => {
+      await init.requestPolicy.beforeRequest({ url, navigation: true, method: 'GET', resourceType: 'document' });
+      fetches++;
+      await init.requestPolicy.afterResponse({ status: 429, headers: new Headers({ 'retry-after': '7200' }) });
+    } };
+  await h.run(async () => page('User-agent: *\nAllow: /'), fetchPublic => assert.rejects(fetchPublic(STATAREA), { code: 'rate_limited' }), { browser });
+  await h.run(() => assert.fail('cooldown must suppress all traffic'), fetchPublic => assert.rejects(fetchPublic(STATAREA), { code: 'crawler_cooldown' }), { browser });
+  assert.equal(fetches, 1);
 });
 
 test('allowlist and credential boundary reject unknown URLs, write-like POSTs and secret headers before any network', async t => {

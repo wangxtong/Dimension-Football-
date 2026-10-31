@@ -88,9 +88,11 @@ function marketSourceQuote(fixture,events,prices,source,priceData,scheduleData,n
   const teamCandidates=leagueCandidates.filter(row=>marketSourceName(row[5])===marketSourceName(fixture.home)&&marketSourceName(row[8])===marketSourceName(fixture.away));
   const candidates=teamCandidates.filter(row=>Math.abs(marketSourceKickoff(row)-kickoff)<=300000);
   const counts={leagueCandidateCount:leagueCandidates.length,teamCandidateCount:teamCandidates.length,scheduleCandidateCount:candidates.length,marketRowCount:0};
-  const rejected=note=>({quote:null,note,...counts});
+  let providerMatchId=null;
+  const rejected=note=>({quote:null,note,providerMatchId,...counts});
   if(!candidates.length)return rejected('fixture_identity_unmatched');
   if(candidates.length!==1)return rejected('fixture_identity_ambiguous');
+  providerMatchId=candidates[0][0];
   if(candidates[0][13]!=='0'||marketSourceKickoff(candidates[0])<=now)return rejected('not_prematch');
   const id=candidates[0][0],rows=prices.get(id)||[];counts.marketRowCount=rows.length;
   if(!rows.length)return rejected('market_not_published');
@@ -146,7 +148,7 @@ export async function fetchMarketSourceAudit({fixtures=[],fetchImpl=fetch,nowISO
   const now=Date.parse(nowISO);
   if(!Array.isArray(fixtures)||fixtures.length>3000||!Number.isFinite(now)||typeof fetchImpl!=='function')throw new TypeError('Invalid market source request');
   const checkedAt=new Date(now).toISOString(),eligible=fixtures.filter(f=>marketSourceFixtureAllowed(f,now));
-  const sources=[],quotes=[],fixtureDiagnostics=[];
+  const sources=[],quotes=[],marketStates=[],fixtureDiagnostics=[];
   const pending=[
     {id:'singbet',name:'Singbet',url:'https://ac88dev.atlassian.net/wiki/spaces/AWA/pages/542900336/4.3.+GetMatches'},
     {id:'ibc',name:'IBC Sports',url:'https://ac88dev.atlassian.net/wiki/spaces/AWA/pages/542900336/4.3.+GetMatches'},
@@ -167,6 +169,14 @@ export async function fetchMarketSourceAudit({fixtures=[],fetchImpl=fetch,nowISO
       if(result.status!=='fulfilled')throw result.reason;const priceData=result.value,parsed=marketSourcePrices(priceData.text);
       if(scheduleError)throw scheduleError;
       const inspected=eligible.map(fixture=>({fixture,...marketSourceQuote(fixture,events,parsed.markets,source,priceData,results[0].value,now)}));
+      const mappings=new Map();
+      for(const item of inspected)if(item.quote){const id=item.quote.providerMatchId;mappings.set(id,(mappings.get(id)||0)+1);}
+      for(const item of inspected)if(item.quote&&mappings.get(item.quote.providerMatchId)>1){item.providerMatchId=item.quote.providerMatchId;item.quote=null;item.note='fixture_identity_ambiguous';}
+      for(const item of inspected)if(!item.quote)marketStates.push({fixtureId:item.fixture.id,
+        fixtureSnapshot:Object.fromEntries(['id','home','away','league','kickoff','source'].map(key=>[key,item.fixture[key]])),
+        sourceId:'titan007',bookmaker:source.bookmaker,providerMatchId:item.providerMatchId??null,
+        market:'asian-handicap',period:'full-time',marketState:'unavailable',stateReason:item.note,
+        observedAt:checkedAt,sourceUpdatedAt:priceData.sourceUpdatedAt,evidenceUrl:url,verified:true,verificationMethod:'automatic'});
       const matched=inspected.filter(item=>item.quote).map(item=>({fixtureId:item.fixture.id,quote:item.quote}));
       for(const {fixture,quote,...details} of inspected)fixtureDiagnostics.push(marketSourceFixtureDiagnostic(fixture,source,checkedAt,
         {...details,status:quote?'available':'pending',httpStatus:priceData.httpStatus,sourceUpdatedAt:priceData.sourceUpdatedAt,
@@ -184,5 +194,5 @@ export async function fetchMarketSourceAudit({fixtures=[],fetchImpl=fetch,nowISO
         reason:(scheduleError===error?'赛程身份快照校验失败，无法安全关联到比赛：':'')+(marketSourceFailureReasons[error?.code]||marketSourceFailureReasons.network_unavailable),action:'保留具体错误代码，下一轮自动重新核验；失效报价不参与比较。'});
     }
   }
-  return {quotes,sources:[...sources,...pending],fixtureDiagnostics,checkedAt};
+  return {quotes,marketStates,sources:[...sources,...pending],fixtureDiagnostics,checkedAt};
 }

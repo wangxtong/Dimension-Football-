@@ -81,7 +81,24 @@ export function preparePool(input, policy = DEFAULT_POLICY) {
       if (typeof item[key] !== 'string' || !/^[A-Za-z0-9_.:-]{1,80}$/.test(item[key])) throw new Error('INVALID_FIXTURE');
       fixture[key] = item[key];
     }
-    for (const key of ['fetchedAt', 'sourceUpdatedAt']) if (Object.hasOwn(item, key)) fixture[key] = Number.isFinite(isoMillis(item[key])) ? item[key] : null;
+    for (const key of ['observedAt', 'fetchedAt', 'sourceUpdatedAt']) if (Object.hasOwn(item, key)) fixture[key] = Number.isFinite(isoMillis(item[key])) ? item[key] : null;
+    if (Object.hasOwn(item, 'season')) {
+      const season = Number.isSafeInteger(item.season) ? String(item.season) : item.season;
+      if (season !== null && (typeof season !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9 ./_-]{0,79}$/.test(season))) throw new Error('INVALID_FIXTURE_IDENTITY');
+      fixture.season = season;
+    }
+    // Identity fields are supplied by the source-scoped canonical identity layer.
+    // Preserving them does not prove a cross-provider mapping.
+    for (const [key, pattern] of Object.entries({ canonicalMatchId: /^evt_[a-f0-9]{64}$/,
+      identityRevision: /^[a-f0-9]{64}$/, revisionId: /^[a-f0-9]{64}$/, recordHash: /^[a-f0-9]{64}$/, sourceFixtureId: /^[A-Za-z0-9_.:-]{1,160}$/ })) {
+      if (!Object.hasOwn(item, key)) continue;
+      if (typeof item[key] !== 'string' || !pattern.test(item[key])) throw new Error('INVALID_FIXTURE_IDENTITY');
+      fixture[key] = item[key];
+    }
+    if (Object.hasOwn(item, 'identityScope')) {
+      if (item.identityScope !== 'source') throw new Error('INVALID_FIXTURE_IDENTITY');
+      fixture.identityScope = item.identityScope;
+    }
     const fingerprint = digest(fixture);
     if (seen.has(item.id)) {
       if (seen.get(item.id) !== fingerprint) throw new Error('CONFLICTING_FIXTURE_ID');
@@ -127,6 +144,7 @@ export function validQuote(row, fixture, now, p = DEFAULT_POLICY) {
     && asOf <= isoMillis(row.observedAt) && now - asOf <= p.maxQuoteAgeMs
     && Number.isInteger(row.cacheMaxAgeSeconds) && row.cacheMaxAgeSeconds >= 0 && row.cacheMaxAgeSeconds <= 60;
   return validEvidence(row, fixture, now, p.maxQuoteAgeMs) && row.market === 'asian-handicap' && row.period === 'full-time'
+    && typeof row.providerMatchId === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(row.providerMatchId)
     && ['home', 'away'].includes(row.selection) && typeof row.bookmaker === 'string' && row.bookmaker.length > 0 && row.bookmaker.length <= 80 && !/[\u0000-\u001f]/u.test(row.bookmaker)
     && !/crown|皇冠|crow\*/i.test(row.bookmaker) && row.inPlay === false && row.closed === false
     && Number.isFinite(row.handicap) && Number.isInteger(row.handicap * 4) && Math.abs(row.handicap) <= 10
@@ -136,19 +154,26 @@ export function validQuote(row, fixture, now, p = DEFAULT_POLICY) {
 
 export function hasPair(quote, quotes) {
   return quotes.some(other => other !== quote && other.sourceId === quote.sourceId && other.bookmaker === quote.bookmaker
+    && other.providerMatchId === quote.providerMatchId && other.providerPoolId === quote.providerPoolId
+    && other.market === quote.market && other.period === quote.period
     && other.selection !== quote.selection && other.handicap === -quote.handicap
     && other.sourceAsOf === quote.sourceAsOf
     && other.observedAt === quote.observedAt && other.sourceUpdatedAt === quote.sourceUpdatedAt);
 }
 
 export function safeQuote(quote) {
-  return Object.fromEntries(['sourceId', 'bookmaker', 'selection', 'handicap', 'decimalOdds', 'observedAt', 'sourceUpdatedAt', 'validUntil', 'evidenceUrl', 'verificationMethod',
+  return Object.fromEntries(['sourceId', 'bookmaker', 'providerMatchId', 'providerPoolId', 'market', 'period', 'selection', 'handicap', 'decimalOdds', 'observedAt', 'sourceUpdatedAt', 'validUntil', 'evidenceUrl', 'verificationMethod',
     'sourceAsOf', 'providerPoolUpdatedAt', 'freshnessBasis', 'cacheMaxAgeSeconds'].filter(key => Object.hasOwn(quote, key)).map(key => [key, quote[key]]));
 }
 
 export function validOpening(quote, fixture, nowISO) {
   const o = quote.opening, source = SOURCES[quote.sourceId], at = isoMillis(o?.observedAt), captured = isoMillis(o?.recordedAt);
   return Boolean(o && source && o.basis === 'provider-opening' && o.sourceId === quote.sourceId && o.bookmaker === quote.bookmaker
+    && o.market === 'asian-handicap' && o.market === quote.market && o.period === 'full-time' && o.period === quote.period
+    && typeof o.providerMatchId === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(o.providerMatchId) && o.providerMatchId === quote.providerMatchId
+    && sameFixture(o.fixtureSnapshot, fixture)
+    && (!fixture.canonicalMatchId || o.canonicalMatchId === fixture.canonicalMatchId)
+    && (!fixture.identityRevision || o.identityRevision === fixture.identityRevision)
     && o.selection === quote.selection && o.fixtureId === fixture.id && publicUrl(o.evidenceUrl, source)
     && Number.isFinite(at) && at < isoMillis(quote.observedAt) && at <= isoMillis(quote.sourceUpdatedAt)
     && at < isoMillis(fixture.kickoff) && captured >= at && captured <= isoMillis(nowISO)
@@ -157,15 +182,90 @@ export function validOpening(quote, fixture, nowISO) {
 }
 
 export function safeOpening(opening) {
-  return Object.fromEntries(['basis', 'sourceId', 'bookmaker', 'selection', 'fixtureId', 'handicap', 'decimalOdds',
-    'observedAt', 'recordedAt', 'evidenceUrl'].map(key => [key, opening[key]]));
+  const safe = Object.fromEntries(['basis', 'sourceId', 'bookmaker', 'selection', 'fixtureId', 'providerMatchId', 'market', 'period', 'canonicalMatchId', 'identityRevision', 'handicap', 'decimalOdds',
+    'observedAt', 'recordedAt', 'evidenceUrl'].filter(key => Object.hasOwn(opening, key)).map(key => [key, opening[key]]));
+  if (opening.fixtureSnapshot) safe.fixtureSnapshot = Object.fromEntries(identityFields.map(key => [key, opening.fixtureSnapshot[key]]));
+  return safe;
+}
+
+export function openingIdentity(opening) {
+  return digest(['sourceId', 'bookmaker', 'selection', 'fixtureId', 'providerMatchId', 'market', 'period', 'canonicalMatchId', 'identityRevision',
+    'handicap', 'decimalOdds', 'observedAt'].map(key => opening?.[key]).concat([opening?.fixtureSnapshot ? fixtureKey(opening.fixtureSnapshot) : null]));
+}
+
+export function validOpeningTrajectory(quote, fixture, nowISO, policy = DEFAULT_POLICY) {
+  return validOpening(quote, fixture, nowISO) && quote.opening.handicap === quote.handicap
+    && Math.abs(quote.opening.decimalOdds - quote.decimalOdds) <= policy.maxPriceMovement;
+}
+
+// Resolve a source's latest snapshot before checking prices, availability or
+// completeness. A newer closed/incomplete market must never revive an old price.
+export function latestMarketQuotes(fixture, quotes, nowISO) {
+  const grouped = new Map(), blockers = new Set(), now = isoMillis(nowISO);
+  for (const row of quotes) {
+    if (!row || !Object.hasOwn(SOURCES, row.sourceId) || row.verified !== true
+      || !['automatic', 'owner-verified'].includes(row.verificationMethod) || row.fixtureId !== fixture.id
+      || !sameFixture(row.fixtureSnapshot, fixture) || row.market !== 'asian-handicap' || row.period !== 'full-time'
+      || typeof row.bookmaker !== 'string' || !row.bookmaker.trim() || row.bookmaker.length > 80) continue;
+    const key = digest([row.sourceId, row.bookmaker, row.market, row.period]);
+    const values = grouped.get(key) || []; values.push(row); grouped.set(key, values);
+  }
+  const current = [];
+  for (const rows of grouped.values()) {
+    const sourceTime = row => isoMillis(row.sourceId === 'hkjc' ? row.sourceAsOf : row.sourceUpdatedAt);
+    if (rows.some(row => !Number.isFinite(sourceTime(row)) || !Number.isFinite(isoMillis(row.observedAt))
+      || sourceTime(row) > isoMillis(row.observedAt) || isoMillis(row.observedAt) > now)) {
+      blockers.add('MARKET_SNAPSHOT_TIMESTAMP_INVALID'); continue;
+    }
+    const observed = Math.max(...rows.map(row => isoMillis(row.observedAt)));
+    const observedRows = rows.filter(row => isoMillis(row.observedAt) === observed), latestTime = Math.max(...observedRows.map(sourceTime));
+    if (rows.some(row => sourceTime(row) > latestTime)) { blockers.add('MARKET_SNAPSHOT_REGRESSED'); continue; }
+    const latest = rows.filter(row => sourceTime(row) === latestTime);
+    const signature = row => digest(['providerMatchId', 'providerPoolId', 'selection', 'handicap', 'decimalOdds', 'inPlay', 'closed',
+      'sourceUpdatedAt', 'sourceAsOf', 'validUntil', 'evidenceUrl', 'verificationMethod', 'freshnessBasis', 'providerPoolUpdatedAt', 'cacheMaxAgeSeconds'].map(key => row[key]));
+    if (['home', 'away'].some(side => new Set(latest.filter(row => row.selection === side).map(signature)).size > 1)
+      || new Set(latest.map(row => row.providerMatchId)).size !== 1 || new Set(latest.map(row => row.providerPoolId)).size !== 1) {
+      blockers.add('CURRENT_MARKET_AMBIGUOUS'); continue;
+    }
+    const snapshot = latest.filter(row => isoMillis(row.observedAt) === observed);
+    if (snapshot.some(row => ['closed', 'incomplete', 'unavailable'].includes(row.marketState))) {
+      blockers.add('LATEST_MARKET_UNAVAILABLE'); continue;
+    }
+    if (snapshot.some(row => !['home', 'away'].includes(row.selection)) || ['home', 'away'].some(side => !snapshot.some(row => row.selection === side))) {
+      blockers.add('LATEST_MARKET_INCOMPLETE'); continue;
+    }
+    for (const side of ['home', 'away']) {
+      const sameSide = snapshot.filter(row => row.selection === side), claims = sameSide.filter(row => row.opening);
+      // Reconciliation persists this conflict; direct policy callers also fail closed.
+      const openingConflict = new Set(rows.filter(row => row.selection === side && validOpening(row, fixture, nowISO)).map(row => openingIdentity(row.opening))).size > 1;
+      const chosen = claims.length ? [...claims].sort((a, b) => String(a.opening.recordedAt).localeCompare(String(b.opening.recordedAt)))[0] : sameSide[0];
+      current.push(openingConflict ? { ...chosen, opening: undefined } : chosen);
+    }
+  }
+  return { quotes: current, blockers: [...blockers].sort() };
+}
+
+// Shared market-only gates for formal evaluation and readiness diagnostics.
+export function inspectMarket(fixture, quotes, nowISO, policy = DEFAULT_POLICY) {
+  const screened = basicScreen(fixture, nowISO, policy), latest = latestMarketQuotes(fixture, quotes, nowISO);
+  const valid = screened ? [] : latest.quotes.filter(row => validQuote(row, fixture, isoMillis(nowISO), policy));
+  const paired = valid.filter(row => hasPair(row, valid));
+  const eligible = paired.filter(row => row.decimalOdds >= policy.priceMin && row.decimalOdds <= policy.priceMax && Math.abs(row.handicap) <= policy.maxAbsHandicap);
+  const groups = new Map();
+  for (const quote of eligible) {
+    const key = digest([quote.selection, quote.handicap]), rows = groups.get(key) || []; rows.push(quote); groups.set(key, rows);
+  }
+  const markets = [...groups.values()].map(rows => ({ selection: rows[0].selection, handicap: rows[0].handicap, quotes: rows,
+    quoteGroups: [...new Set(rows.map(row => SOURCES[row.sourceId].group))].sort(),
+    openingQuotes: rows.filter(row => validOpeningTrajectory(row, fixture, nowISO, policy)) }));
+  return { screened, valid, paired, eligible, markets, snapshotBlockers: latest.blockers };
 }
 
 export function retainedEvidence(fixture, { quotes = [], signals = [] }, nowISO, p = DEFAULT_POLICY) {
   const now = isoMillis(nowISO);
   return {
     observedAt: nowISO,
-    quotes: quotes.filter(row => validQuote(row, fixture, now, p)).map(row => ({ ...safeQuote(row),
+    quotes: latestMarketQuotes(fixture, quotes, nowISO).quotes.filter(row => validQuote(row, fixture, now, p)).map(row => ({ ...safeQuote(row),
       ...(validOpening(row, fixture, nowISO) ? { opening: safeOpening(row.opening) } : {}) })),
     signals: signals.filter(row => validEvidence(row, fixture, now, p.maxSignalAgeMs)
       && ['1x2', 'asian-handicap'].includes(row.market) && ['home', 'draw', 'away'].includes(row.selection)
@@ -179,30 +279,25 @@ export function evaluateFixture(fixture, { quotes = [], signals = [] } = {}, now
   const initial = basicScreen(fixture, nowISO, policy);
   if (initial) return initial;
   const now = isoMillis(nowISO);
-  const valid = quotes.filter(quote => validQuote(quote, fixture, now, policy));
-  const complete = valid.filter(quote => hasPair(quote, valid));
+  const { paired: complete, eligible, markets, snapshotBlockers } = inspectMarket(fixture, quotes, nowISO, policy);
   const forecasts = signals.filter(signal => validEvidence(signal, fixture, now, policy.maxSignalAgeMs)
     && ['home', 'draw', 'away'].includes(signal.selection)
     && ['1x2', 'asian-handicap'].includes(signal.market)
     && Number.isFinite(signal.probability) && signal.probability >= 0 && signal.probability <= 1);
-  if (!complete.length) return { status: 'source_insufficient', reasons: ['NO_FRESH_COMPLETE_ASIAN_MARKET'] };
-  const eligible = complete.filter(quote => quote.decimalOdds >= policy.priceMin && quote.decimalOdds <= policy.priceMax
-    && Math.abs(quote.handicap) <= policy.maxAbsHandicap);
+  if (!complete.length) return { status: 'source_insufficient', reasons: ['NO_FRESH_COMPLETE_ASIAN_MARKET', ...snapshotBlockers] };
   if (!eligible.length) return { status: 'avoid', reasons: ['PRICE_OR_HANDICAP_OUTSIDE_POLICY'] };
   let best = null;
   const reasons = new Set();
   for (const quote of eligible) {
-    const matching = eligible.filter(other => other.selection === quote.selection && other.handicap === quote.handicap);
-    const groups = new Set(matching.map(other => SOURCES[other.sourceId].group));
+    const market = markets.find(item => item.selection === quote.selection && item.handicap === quote.handicap);
+    const matching = market.quotes, groups = new Set(market.quoteGroups);
     if (groups.size < policy.minimumQuoteGroups) { reasons.add('SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING'); continue; }
     const forecastRows = forecasts.filter(signal => !groups.has(SOURCES[signal.sourceId].group));
     if (forecastRows.some(signal => signal.selection !== quote.selection)) { reasons.add('FORECAST_CONFLICT'); continue; }
     if (!forecastRows.some(signal => signal.selection === quote.selection
       && (signal.market !== 'asian-handicap' || signal.handicap === quote.handicap))) { reasons.add('INDEPENDENT_FORECAST_MISSING'); continue; }
-    const opening = quote.opening, openingAt = isoMillis(opening?.observedAt);
-    if (!validOpening(quote, fixture, nowISO) || !Number.isFinite(opening.handicap) || !Number.isInteger(opening.handicap * 4) || opening.handicap !== quote.handicap
-      || !Number.isFinite(opening.decimalOdds) || opening.decimalOdds <= 1 || opening.decimalOdds > 21 || !(openingAt < isoMillis(quote.observedAt))
-      || Math.abs(opening.decimalOdds - quote.decimalOdds) > policy.maxPriceMovement) { reasons.add('OPENING_TRAJECTORY_MISSING_OR_CHANGED'); continue; }
+    const opening = quote.opening;
+    if (!validOpeningTrajectory(quote, fixture, nowISO, policy)) { reasons.add('OPENING_TRAJECTORY_MISSING_OR_CHANGED'); continue; }
     if (!best || quote.decimalOdds > best.decimalOdds) best = {
       selection: quote.selection, handicap: quote.handicap, decimalOdds: quote.decimalOdds,
       quotes: matching.map(safeQuote), opening: safeOpening(opening),

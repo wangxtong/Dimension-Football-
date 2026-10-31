@@ -1,4 +1,4 @@
-import { retryAfterMs } from './health.mjs';
+import { FAILURE_CODES, retryAfterMs } from './health.mjs';
 
 // Fixed destinations: credentials must never follow a redirect or a next_page URL.
 export const PROVIDER_ORIGINS = Object.freeze({
@@ -11,6 +11,36 @@ export class ProviderError extends Error {
     super(code); this.code = code; this.httpStatus = httpStatus; this.retryAfterMs = retryMs;
   }
 }
+
+export const ACCOUNT_FAILURES = new Set(['authorization_required', 'invalid_credentials', 'subscription_required', 'rate_limited']);
+export const LOCAL_FAILURES = new Set(['cancelled', 'budget_exhausted', 'request_limit']);
+
+// A complete league is the commit boundary. A later league's entitlement or
+// schema failure cannot erase data already verified for another competition.
+export async function collectProviderLeagues({ provider, leagues, nowISO, clock = () => nowISO, leagueHealth = {}, collect }) {
+  const result = { observations: [], signals: [], diagnostics: [] };
+  let stopped;
+  for (const league of leagues) {
+    const nextProbeAt = leagueHealth[league]?.nextProbeAt;
+    if (Date.parse(nextProbeAt) > Date.parse(clock())) {
+      result.diagnostics.push({ id: provider, sourceId: provider, league, checkedAt: clock(), status: 'unavailable',
+        code: 'cooldown', nextProbeAt, matchedCount: 0, requestAttempted: false });
+      continue;
+    }
+    try {
+      if (stopped) throw stopped;
+      const part = await collect(league);
+      result.observations.push(...part.observations); result.signals.push(...part.signals); result.diagnostics.push(...part.diagnostics);
+    } catch (error) {
+      const code = error instanceof ProviderError && FAILURE_CODES.has(error.code) ? error.code : 'invalid_response';
+      result.diagnostics.push({ id: provider, sourceId: provider, league, checkedAt: clock(), status: 'unavailable', code,
+        httpStatus: error instanceof ProviderError ? error.httpStatus : null,
+        retryAfterMs: error instanceof ProviderError ? error.retryAfterMs : null, matchedCount: 0, requestAttempted: !stopped });
+      if (ACCOUNT_FAILURES.has(code) || LOCAL_FAILURES.has(code)) stopped = error;
+    }
+  }
+  return result;
+}
 export function credential(value) {
   if (value === undefined || value === null || value === '') return '';
   if (typeof value !== 'string' || value.length > 1024 || /[\x00-\x20\x7f]/u.test(value.trim())) {
@@ -22,9 +52,12 @@ export function createProviderClient({ provider, apiKey, fetchImpl = fetch, nowI
   clock = () => nowISO, signal, maxRequests = 30, timeoutMs = 6000, remaining = () => Infinity }) {
   const key = credential(apiKey), origin = Object.hasOwn(PROVIDER_ORIGINS, provider) ? PROVIDER_ORIGINS[provider] : null;
   if (!origin) throw new ProviderError('invalid_provider');
-  let requests = 0;
+  let requests = 0, successfulResponses = 0, failedResponses = 0;
   return {
     get requests() { return requests; },
+    get transportStatus() { return !requests ? 'unknown' : successfulResponses === requests ? 'healthy'
+      : successfulResponses ? 'degraded' : 'unavailable'; },
+    get responseCounts() { return { successful: successfulResponses, failed: failedResponses }; },
     async get(path, params = {}) {
       if (!key) throw new ProviderError('not_configured');
       if (signal?.aborted) throw new ProviderError('cancelled');
@@ -45,6 +78,7 @@ export function createProviderClient({ provider, apiKey, fetchImpl = fetch, nowI
         const operation = (async () => {
           const response = await fetchImpl(url.href, { method: 'GET', headers, redirect: 'manual', signal: joined });
           status = response.status;
+          if (response.ok) successfulResponses++; else failedResponses++;
           const now = Date.parse(clock());
           if (!response.ok) {
             await response.body?.cancel?.().catch(() => {});

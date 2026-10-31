@@ -1,8 +1,10 @@
 # 维度足球 · 长期采集任务
 
-把原来的云端定时采集整理为可审阅、可部署的 Node.js 24 项目。入口为 `npm run collect`，GitHub Actions 支持手动运行与每小时运行。核心 HTTP 采集无 npm 第三方依赖；可选浏览器运行时采用锁定版本的 Crawlee + Playwright。
+把原来的云端定时采集整理为可审阅、可部署的 Node.js 24 项目。本地采集入口为 `npm run collect`；生产目标是由现有阿里云 ECS 保存持久状态并统一发布，Sites 保留原网址与登录。GitHub Actions 在 ECS 实机验收前保留每小时归档，验收切换后只作手动灾备。核心 HTTP 采集无 npm 第三方依赖；可选浏览器运行时采用锁定版本的 Crawlee + Playwright。
 
-本版取得赛程、历史比分和已实现的数据源证据，分别生成基础赛前预测与严格盘口筛选结果，保存进度并输出报告。它不调用 OpenAI API，不发送 Telegram 消息，也不下注。`forecast` 是历史统计模型的胜平负概率；`candidate` 是通过盘口证据门槛后仍需人工复核的候选，两者分别计数。
+本版取得赛程、历史比分和已实现的数据源证据，分别生成基础赛前预测与严格盘口筛选结果，保存进度并输出报告。采集命令本身不发送 Telegram；生产交付编排在配置后发送有持久回执的小时摘要。项目不调用 OpenAI API，也不下注。`forecast` 是历史统计模型的胜平负概率；`candidate` 是通过盘口证据门槛后仍需人工复核的候选，两者分别计数。
+
+**本次切换的验收起点：ECS 尚未完成实机部署和 HTTPS 供数验收；网站当前使用含 9 场普通预测的真实 bootstrap 恢复快照。** 快照保留原生成时间，不能算作持续采集或实时网站发布。源码提交、测试通过、GitHub 归档成功都不能替代 ECS 与原站点的同报告回读验收。
 
 ## 先在本机验证
 
@@ -29,13 +31,13 @@ npm run collect -- --input /path/to/fixtures.json --state .collection-state/stat
 
 `FIXTURES_FILE` 环境变量与 `--input` 对应。默认正式入口缺少 API key、又没有赛程文件时会明确失败，不会用演示数据补齐。真实赛程文件的字段与人工证据导入方式见[迁移与部署说明](docs/CLOUD_TASK_MIGRATION.md)。
 
-没有私有凭据时可显式使用官方公开源：`npm run fixtures:public` 取得有限赛程样本；`npm run collect:public` 另取德甲当前及上一赛季的完赛历史，生成基础预测和公开证据分析。输出默认在 `reports/public/`，状态独立保存在 `.collection-state/public/`。TheSportsDB 使用官方共享免费 Key `123`，其余四个联赛各取最多一场，缺少对应历史时逐场说明；不是五大联赛完整实时服务。命令默认整轮最多 5 分钟；公开预测工作流每小时第 17 分钟自动更新网站（Actions 调度可能延迟）。详情见 [公开信息源](docs/PUBLIC_SOURCES.md)。
+没有私有凭据时可显式使用官方公开源：`npm run fixtures:public` 取得有限赛程样本；`npm run collect:public` 另取德甲当前及上一赛季的完赛历史，生成基础预测和公开证据分析。输出默认在 `reports/public/`，状态独立保存在 `.collection-state/public/`。TheSportsDB 使用官方共享免费 Key `123`，其余四个联赛各取最多一场，缺少对应历史时逐场说明；不是五大联赛完整实时服务。命令默认整轮最多 5 分钟。公开归档工作流在过渡期每小时第 17 分钟执行，**只归档，不自动更新网站或发送通知**；Actions 调度可能延迟。详情见 [公开信息源](docs/PUBLIC_SOURCES.md)。
 
-环境变量不会从 `.env` 自动加载。本地可将一种凭据保存在 Git 忽略的 `.env.local` 中，再运行 `node --env-file=.env.local collector/run.mjs`。ECS / 轻量服务器可用同一命令，将 `--env-file`、`--state`、`--out` 指向发布目录以外的固定路径，并由系统调度器每小时执行；云效的部署变量不会自动成为后续定时任务的环境变量。
+环境变量不会从 `.env` 自动加载。本地可将一种凭据保存在 Git 忽略的 `.env.local` 中，再运行 `node --env-file=.env.local collector/run.mjs`。生产 ECS 从服务配置加载秘密，将状态和报告放在发布目录之外；自动与手动执行统一经过 `deploy/run.sh` 的 OS 锁，不能另起独立采集进程。云效的部署变量不会自动成为后续服务的环境变量。
 
 ## 赛前预测与报告
 
-`npm run collect:public` 会生成 `predictions.html`、`predictions.md`、`predictions.json`。页面逐场展示主胜 / 平 / 客胜概率、预期进球、比分参考、历史样本和缺项。即使盘口来源不足，历史充分的比赛仍会有基础预测；严格盘口候选不会因此放宽门槛。GitHub 的“公开赛程预测与报告”工作流将结果写入 Summary 并保存可下载产物。
+`npm run collect:public` 会生成 `predictions.html`、`predictions.md`、`predictions.json`。页面逐场展示主胜 / 平 / 客胜概率、预期进球、比分参考、历史样本和缺项。即使盘口来源不足，历史充分的比赛仍会有基础预测；严格盘口候选不会因此放宽门槛。GitHub 的“公开数据过渡归档与灾备”工作流将结果写入 Summary 并保存可下载产物。
 
 报告现在按普通预测、严格盘口候选、暂不可评估三类展示，并提供球队相对实力、数据检查项、回测和预测有效期。实际文件生成、GitHub Summary 写入及附件上传分别记录在 `publication.json`；最终回执见本轮 `publication-receipt` 附件。严格盘口增加真实初盘来源与时间校验及持久档案；已接通香港赛马会第一方公开 HDC 报价，独立于球探渠道；双源同时有效和真实初盘仍逐场核验。外部看板与 Telegram 配置见 [网站和通知](docs/DELIVERY.md)。
 
@@ -53,7 +55,7 @@ npm run collect -- --input /path/to/fixtures.json --state .collection-state/stat
 npm run sources:status -- --state .collection-state/state.json
 ```
 
-这是随现有采集轮次执行的自动维护机制；默认调度仍为每小时，冷却时间不是新的独立定时器。
+这是随实际采集轮次执行的自动维护机制；ECS 分层任务按各自周期运行，过渡期 Actions 归档仍为每小时。冷却时间不是新的独立定时器，增加调度频率也不能绕过来源预算和冷却。
 
 ## 商业预测与盘口接口
 
@@ -80,33 +82,37 @@ npm run crawl:check -- --source all
 
 工具选择、自动环境检查、持久安装、会话配置、缓存时效和验证边界见 [开源爬虫接入说明](docs/CRAWLER_INTEGRATION.md)。`crawl:check` 只检查公开抓取链路，返回内容不等于已取得有效比赛预测。
 
-## 部署到 GitHub Actions
+## GitHub Actions：过渡归档与手动灾备
 
-1. 将项目文件上传到仓库默认分支，确认 **Actions** 中出现“维度足球长期采集”。
-2. 在 **Settings → Secrets and variables → Actions → Secrets** 添加所用赛程服务的密钥：`FOOTBALL_DATA_API_KEY` / `FOOTBALL_DATA_API_TOKEN`、`API_FOOTBALL_KEY` 或 `SPORTMONKS_API_TOKEN`。商业市场参考可另加 `THE_ODDS_API_KEY`、`ISPORTS_API_KEY`。如果使用仓库中的真实赛程文件，可在 **Variables** 添加 `FIXTURES_FILE`，值为该文件的仓库内路径。
-3. 先用 **Run workflow**，勾选 `demo` 做一次离线验证，再取消 `demo` 验证真实数据源。
-4. 原云端长期采集计划目前仍启用；确认新任务可用后，先停用旧采集计划，再把仓库变量 `VANTIS_COLLECTION_ENABLED` 设为字符串 `true`，开启新计划。这个项目不会修改原计划或自动发布任务。
+`.github/workflows/public-sources.yml` 保留 UTC 每小时第 17 分钟采集，直到 ECS 完成实机验收。也可在 main 分支手动 **Run workflow**；源码 push 不触发额外一轮采集。该工作流只执行采集、GitHub `archive`、Summary 和附件操作，不注入 Telegram 或站点探测令牌，不调用 `website`、`telegram` 或 `all`。
 
-工作流为 UTC 每小时第 0 分钟触发，对应北京时间每小时整点；GitHub 的排队与高负载可能造成延迟，不能当作准点服务。定时工作流只从默认分支触发，详见 [GitHub schedule 文档](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
+- 归档渠道为 `repositoryArchive`；GitHub 写入和回读成功不能把 `externalWebsite` 改为已发布。
+- 检查点独立保存在 `.collection-state/disaster-public/`。cache 只尽力恢复和加速，会失效或被清理；未命中时明确记录从空状态开始。它不是自动、可靠的跨轮持久数据库，更不是 ECS 生产历史。
+- 报告、最终 `publication-receipt` 和独立检查点 artifact 保留 30 天。检查点 artifact 是可下载的人工恢复证据，工作流不会自动从它恢复，也不会把它写入 ECS 或恢复通知 outbox。
+- 需要的现有来源凭据仍从 Actions Secrets 注入；无需新增 PAT。`GITHUB_TOKEN` 只用于固定私有仓库的数据归档。
 
-每轮内部预算最多 20 分钟，整个作业最多 25 分钟；相同工作流不会同时运行。检查点通过 cache 在多轮间恢复，失败时也尝试保存；报告作为 Actions artifact 保留 30 天。**cache 会失效或被清理，不是永久数据库。** 需要可靠长期续跑时，把同一命令部署在持久服务器上，并为状态文件与报告配置持久目录及备份。
+**只有在 ECS 调度、持久备份、原站点同报告回读及通知账本均验收后，才把仓库变量 `VANTIS_ECS_PRIMARY` 设置为字符串 `true`。** 此变量会跳过公开归档的 schedule，保留手动灾备；本次源码修改不会设置远端变量。启用 ECS 通知前，还须确认升级前已开始的旧版 Actions 发送作业已经结束，不能认为工作流文件更新会改变正在执行的作业。灾备运行不能自动接管网站或通知，恢复实时服务需重新核对 ECS 状态与同报告回执。
 
-## 阿里云 ECS / 轻量服务器与 Git 自动部署
+旧 `.github/workflows/collection.yml` 另有整点 schedule，以 `VANTIS_COLLECTION_ENABLED` 门控，仍保留手动与 push 验收入口。切换 ECS 时应保持其定时采集禁用，避免重复消耗来源配额；它不负责网站或 Telegram 交付。旧云端计划是否仍在运行须按实际记录检查，本仓库不会自动停用它。
 
-仓库也提供无需云效组织的 ECS 原生同步方式：以 root 运行 `deploy/bootstrap.sh <完整提交SHA>`，安装官方 Node.js 24、验证该提交的全部测试并安装服务。`vantis-sync.timer` 每两分钟检查固定仓库的 `main` 分支，新提交测试通过后原子发布；`vantis-collector.timer` 每小时执行采集。凭据在服务器的 `/etc/vantis/collector.env` 中配置，源码中不包含真实值。具体路径与日志命令见 [部署文件说明](deploy/README.md)。
+## 阿里云 ECS：持久状态与唯一生产发布端
 
-Linux 服务器的首次安装、每小时 systemd 调度、固定密钥和检查点目录见 [部署文件说明](deploy/README.md)。云效 Flow 使用 GitHub 仓库的 `main` 分支，开启代码提交触发，并按 [阿里云代码源触发文档](https://help.aliyun.com/zh/yunxiao/user-guide/code-source-trigger) 将该流水线的 Webhook 添加到 GitHub 仓库。
+以下是目标部署流程，不代表服务器已安装或已接通。复用现有 ECS，不改变仓库私有性、Sites 身份或通知目标。完整安装、恢复和实机验收步骤见 [运维说明](docs/OPERATIONS.md) 与 [部署入口](deploy/README.md)。
 
-构建阶段使用 Node.js 24，执行以下命令并将 `vantis-source.tar.gz` 作为制品上传。无需安装 npm 依赖，凭据也不进入构建产物。
+1. 先用既有 Workbench 做无秘密的只读检查，确认 Node.js 24.14+、磁盘、服务和现存状态。系统依赖须已安装；新版 bootstrap 不在线下载安装 Node，也不匿名下载私库。
+2. 从批准的完整提交构建带摘要清单的离线制品，通过既有 Workbench/云效传输。默认 `artifact` 模式不启用源码轮询。需要 Git 同步时另行配置固定私库只读 deploy key 与已核验主机密钥；不使用新的 PAT 或 Actions OIDC 作为 ECS 身份。
+3. 在服务器核验制品摘要并安装。秘密置于 `/etc/vantis/collector.env` 与独立报告服务配置；状态置于 `/var/lib/vantis`，发布目录只读。普通升级保留秘密、检查点和报告。
+4. 统一入口 `/opt/vantis/deployment/run.sh` 取得 OS 锁后运行分层编排。systemd 每分钟 tick；初始任务目标周期为赛程 15 分钟、盘口 2 分钟、交付 1 分钟、赛果 1 小时。排队和预算会导致延迟，不保证实时 SLA；Telegram 默认每 UTC 小时最多一条摘要，不随盘口轮次刷屏。
+5. 报告服务只监听 loopback，需既有可信 HTTPS 入口反代并完成授权回读，再让原 Sites 使用该入口。只有原站点回读同 reportId、报告摘要一致，且 `mode=ecs`、`health=available` 时，才能记录 `externalWebsite: published` 与 `servedVerified:true`。bootstrap、GitHub artifact、服务启动或 CI 成功都不能替代该条件。
+
+构建和校验示例（占位 SHA 必须换成实际已批准值）：
 
 ```sh
-node --test collector/test/*.test.mjs collector/sources/test/*.test.mjs
-tar --exclude='.env' --exclude='.env.*' --exclude='node_modules' --exclude='*.log' -czf vantis-source.tar.gz collector config deploy package.json
+python3 deploy/bundle.py build . FULL_40_CHARACTER_SHA /tmp/vantis-release.tar
+python3 deploy/bundle.py verify /tmp/vantis-release.tar --sha256 EXPECTED_64_CHARACTER_SHA256
 ```
 
-主机部署阶段将制品下载至固定路径（例如 `/opt/vantis/incoming/vantis-source.tar.gz`），解压到该次专用的临时目录，然后以 root 执行解压目录中的 `deploy/release.sh`。首次安装要先执行 `deploy/install.sh`，并在服务器 `/etc/vantis/collector.env` 填写一种 API 凭据。主机仍需单独安装系统级 Node.js 24；在 Flow 构建集群选择 Node.js 版本不会安装到服务器。
-
-代码推送触发的是源码更新；每小时采集由服务器的 `vantis-collector.timer` 负责。首次成功执行、检查报告和定时器后，再停用其他重复采集计划。此配置不包含 Telegram 自动发布。
+持久备份应覆盖检查点、来源状态、`reports/replays/`、预测 ledger、完整 `.delivery/` 和运维记录，尤其不能遗漏 `.delivery/outbox/`。备份与恢复使用统一锁，恢复演练验证摘要和报告身份；不要删除账本或把未知通知重置为未发送。每次切换核对 `operations/release.json`、`operations/health.json`、真实网站回读和通知回执，再决定是否停用过渡归档。
 
 ## 当前数据覆盖
 
@@ -138,20 +144,24 @@ npm run analyze:full -- --evidence /path/to/evidence.json --markets /path/to/sna
 
 输出独立 HTML 和 JSON，按最新官方赛程核验旧赔率的身份，保留每家公司的配对报价、更新时间、全部缺项和唯一市场参考方向。去水概率只描述价格；不代表真实胜率。3小时研究参考与5分钟正式报价时效分开，正式推荐仍需原有完整评估，不会因为报告已生成而自动变成可下注。空伤停记录、尚未公布首发和缺初盘轨迹分别报告。
 
-只生成报告，不会自动发送频道消息。`collector/run.mjs --deep-analysis` 会先完成原有证据筛选，再对同一完整输入池补取上述官方材料并生成 `reports/full-analysis/latest.html` 与 JSON；缺亚洲盘不会阻止补取其它维度。仅配置 `API_FOOTBALL_KEY`、未指定输入文件的正式采集也默认启用此流程，因此已安装的 ECS 启动脚本在同步新版运行源码后同样生效。深度模式必须配置 `API_FOOTBALL_KEY`，明确优先采用该服务的赛程ID，避免跨供应商ID误配。每轮官方深度请求预算最多250次，超预算逐项记录未取得材料；正式候选数量与逐项分析覆盖量分开。
+只生成报告，不会自动发送频道消息。`collector/run.mjs --deep-analysis` 会先完成原有证据筛选，再对同一完整输入池补取上述官方材料并生成 `reports/full-analysis/latest.html` 与 JSON；缺亚洲盘不会阻止补取其它维度。通用采集入口在仅配置 `API_FOOTBALL_KEY`、未指定输入文件时也默认启用此流程；这不证明 ECS 分层编排已经调用它，需以实际 lane 记录确认。深度模式必须配置 `API_FOOTBALL_KEY`，明确优先采用该服务的赛程ID，避免跨供应商ID误配。每轮官方深度请求预算最多250次，超预算逐项记录未取得材料；正式候选数量与逐项分析覆盖量分开。
 
-API-Football 单服务的 ECS 在同步该版本运行源码后，每轮自动启用逐项分析，无需替换独立部署脚本；只配置 football-data 的原有采集仍可运行。现有服务不因本地文件改动而更新，必须完成Git同步及服务器版本切换。48场规模每小时运行至多约6,000次深度请求/天，另计基础赛程请求；大输入池需要更高配额或数据缓存，不能把尚未取到的记录当成完整证据。
+现有服务不因本地文件改动而更新；应用制品切换与部署工具升级分别验收。48场规模若每小时执行一次深度分析，至多约6,000次深度请求/天，另计基础赛程请求；不能把该预算直接套用到两分钟盘口任务。大输入池需要相应配额或数据缓存，尚未取到的记录不能当成完整证据。
 
 每轮在 `reports/` 生成带 UTC 时间戳的 JSON、简报与消息草稿，以及 `latest.json`、`latest-brief.md`、`latest-message.md`。消息草稿只是文件，不会发送到外部服务。
 
 ```text
-.github/workflows/collection.yml  手动及每小时调度
+.github/workflows/public-sources.yml  过渡小时归档；ECS验收后可切为仅手动灾备
+.github/workflows/collection.yml  旧通用采集；定时执行由独立变量门控
+collector/orchestrate.mjs         ECS分层采集与交付入口
+collector/operations.mjs          持久调度与健康检查
 collector/                        数据源、筛选、进度、报告与测试
 config/collection.json            运行预算、时效与筛选阈值
 config/sources.json               官方赛程源优先级与失败冷却
 config/crawler.json               网页爬虫限速、重试、缓存与请求预算
 config/cloud-task.md              从可读取记录整理的原任务规则
 docs/CLOUD_TASK_MIGRATION.md       输入契约、迁移步骤和已知限制
+docs/OPERATIONS.md                ECS制品安装、持久备份与实机验收
 ```
 
 原有 `pitchsignal/` 网页目录独立保留；本次长期采集的运行入口在仓库根目录。

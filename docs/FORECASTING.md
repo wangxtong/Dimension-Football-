@@ -37,7 +37,7 @@ GitHub“公开赛程预测与报告”将逐场概率和缺项写入 Summary，
 
 ## 模型与边界
 
-模型版本为 `venue-poisson-v1`，固定参数：
+模型版本为 `venue-poisson-v2`（概率公式仍是未校准的主客场泊松基线），固定参数：
 
 1. 只用预测截止时间前至少 4 小时的完赛记录，排除当前赛事 ID、其他来源、其他联赛；历史窗口 540 天，时间权重半衰期 180 天。
 2. 至少 40 场联赛历史、双方各 6 场、相应主 / 客场各 2 场；双方最近一场历史不超过 120 天。条件不足时给出具体缺项，不填 50% 或联赛默认概率。
@@ -52,11 +52,42 @@ GitHub“公开赛程预测与报告”将逐场概率和缺项写入 Summary，
 
 ## 验证与实测
 
-回测对最近最多 80 场已完赛记录逐场重新估计，训练只使用该场开赛前至少 4 小时的更早记录。比较基准为之前赛果的平滑频率。输出三分类 Brier（平方误差之和，0–2）、自然对数 Log loss、方向命中率，同时记录跳过数与中断状态。
+回测对最近最多 80 场已完赛记录逐场重新估计。训练截止为 `kickoff - horizonHours`，历史比赛还需在此截止前至少 4 小时开赛。默认参考组为 1、24、72、168 小时；每场当前预测另外按真实 `kickoff - generatedAt` 提前量精确回放，该组优先于参考组使用计算预算。`forecast.validation.horizonHours` 是实际匹配的提前量，不用临开赛指标代替提前多日指标。比较基准为同一训练集合中之前赛果的平滑频率。
+
+输出三分类 Brier（平方误差之和，0–2）、自然对数 Log loss、方向命中率；`evaluations` 保留每场预测、实际赛果、基准、训练截止/哈希和样本，`exclusions` 保留跳过原因，`coverage` 包含评估/跳过/预算未处理数。`reliability` 为各赛果5个等宽概率区间，空区间保持null、少于20场标记不足。`uncertainty` 提供均值及模型相对基准差的近似95%区间，少于30场标记不足；这些区间假设样本独立，球队和比赛相关性可能使其过窄，不能当成投注收益置信区间。
 
 回测是当前历史修订数据上的回顾评估，无法还原过去的实际可见性。样本不足比赛会跳过，因此指标只代表可预测子集；尚无前瞻验证和可靠性校准，不能据此承诺未来胜率或收益。参数不根据这一批回测自动优化。
 
-2026-10-31 04:30 UTC 云环境实采：13 场未来赛程、370 场完赛历史，生成 9 场德甲预测，其他四联赛各 1 场因缺少历史未生成概率；严格盘口候选 0。滚动窗口中评估 63 场、跳过 17 场；模型 Brier 约 0.5490，赛果频率基准约 0.6129，模型 Log loss 约 0.9314，方向命中率 57.1%。这是单次小样本结果。
+`walkForwardBacktest` 的 `visibility: "snapshot"` 明确表示以上当前修订快照回测；`visibility: "as-observed"` 则要求训练记录的 `resultObservedAt / observedAt`（只有fetchedAt时采用它）不晚于该场预测截止，没有观测时间的训练记录排除。两种模式均排除本轮now之后才观察到的数据。只有当前快照而无过去版本时，严格模式可能没有可用验证数据；不能补写过去时间来通过验证。
+
+历史可带 `season`、`observedAt`、`resultObservedAt`、`fetchedAt`、`sourceUpdatedAt`、来源事件ID及版本/内容哈希。`observedAt` 是该记录版本首次被本系统取得的时间，不是供应商最初发布时间；未知保留未知。相同来源/联赛/双方ID/开球时间对应多个冲突赛事ID时全部隔离。`sample` 继续仅包含整数场数；新增 `sampleQuality` 展示加权场数、Kish有效样本量、当季/未知赛季样本和冷启动说明。旧赛季只有时间衰减，未虚构转会、阵容或换帅影响。
+
+### 不可覆盖预测与90分钟赛果核账接口
+
+`collector/prediction-ledger.mjs` 提供以下本地接口，持久目录必须位于应用release之外：
+
+`appendReportPredictions` 的 `report` 可传内部采集报告（`results / forecasts.model`），也可传 `predictionDocument` 生成的发布文档（`kind: "prematch-forecast-report"`、`fixtures / model`）。两种格式均须绑定 `publication.reportId`，返回 `{recorded, reused, opportunities}`；缺少赛事数组的非模拟文档明确失败，不静默返回0条。
+
+```js
+await appendReportPredictions({ directory: ledgerRoot, report, nowISO });
+await appendResultAndScore({ directory: ledgerRoot, result, nowISO });
+const evaluation = await evaluatePredictionLedger({
+  directory: ledgerRoot, nowISO, horizonHours: 24, toleranceHours: 1,
+  modelId: 'venue-poisson-v2', modelVersion: 2, source: 'openligadb', league: 'BL1',
+});
+```
+
+总控应在reportId固定后、对外发布前调用第一步，传真实登记时间；只有仍在赛前且已有训练哈希的真实预测可登记。模拟报告跳过。预测与reportId绑定，记录生成/登记时刻、训练哈希、版本及原概率，同一predictionId不同内容拒绝。回放不会在实际登记时刻之前看到该预测。完全写入并fsync的记录经原子no-replace发布，带内容摘要；读取损坏记录明确失败。该接口无任何网络或发送操作。评价接口的模型/来源/联赛筛选可选，正式比较应显式指定，避免把不同模型版本的总览误读为同一模型质量。
+
+结果需提供同源赛事/球队ID、联赛、开球时间、`FINISHED/full-time` 的90分钟比分以及真实 `resultObservedAt` 或 `observedAt`。加时/点球或未来观察结果拒绝。支持CANCELLED、POSTPONED、ABANDONED状态：取消/中止不计损失，延期等待，改期/身份变化使旧预测评分作废。重复结果保留首次存储观察时间并幂等评分；比分修订保存新版本及新评分，不改变原预测。再次收到原比分会形成新的修订，不能恢复旧版本时间。评分过程中断后，重放同结果补齐缺失评分。
+
+报告登记也保存赛前不可预测场次的 `opportunities` 与缺项。前瞻汇总按指定提前量窗口每场只选一次机会（距离目标提前量最近且不晚于目标），避免每小时预测被重复计入样本；该机会不可预测时计入skipped，不能挑选更早一次成功预测替代它。按 `nowISO` 选择当时已观察的最新结果；同观察时间存在不同结果版本时隔离，缺结果计pending。预测账本仅证明本系统曾生成并登记的预测，不能证明消息或网页实际送达；对外交付仍以该reportId的渠道回执为准。新系统尚未积累真实前瞻结果，接口和离线测试完成不等于已有前瞻质量证明。
+
+### 校准实验边界
+
+`forecast-evaluation.mjs` 的 `temporalCalibrationExperiment(rows, {fitCutoff, fit, apply})` 只消费前瞻账本记录：fit只能看在fitCutoff之前已观察到的结果，评估预测必须在fitCutoff之后生成；apply只接收概率/预测时间/提前量，不能读取留出赛果。默认至少100条拟合、30条评估，缺证据返回 `insufficient-prospective-evidence`。接口不自动调参、选择校准器或晋升模型，始终 `calibrated:false`；未来要上线校准必须另行验证跨赛季、提前量、球队相关性和留出集表现。
+
+2026-10-31 04:30 UTC 的v1临开赛口径历史实采记录：13 场未来赛程、370 场完赛历史，生成 9 场德甲预测，其他四联赛各 1 场因缺少历史未生成概率；严格盘口候选 0。滚动窗口中评估 63 场、跳过 17 场；模型 Brier 约 0.5490，赛果频率基准约 0.6129，模型 Log loss 约 0.9314，方向命中率 57.1%。这是单次小样本结果，不能作为v2各提前量或前瞻账本的验证结果。
 
 回归测试覆盖归一化与主客互换、时间泄漏、同场排除、来源与球队 ID 隔离、缺样本/过期/模拟隔离、历史冲突、比分阶段、预算、盘口失败时仍产出预测、开赛后撤下、历史更新刷新以及 HTML 输出转义。
 

@@ -30,10 +30,11 @@ concurrency:
 jobs:
   collect:
     # 主分支更新执行一次应用验收；定时采集仍需要显式开启仓库变量。
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || vars.VANTIS_COLLECTION_ENABLED == 'true'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (vars.VANTIS_COLLECTION_ENABLED == 'true' && vars.VANTIS_ECS_PRIMARY != 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
+      COLLECTOR_COMMIT: ${{ github.sha }}
       COLLECTION_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.demo && 'demo' || 'production' }}
       STATE_DIR: ${{ github.event_name == 'workflow_dispatch' && inputs.demo && '.collection-state-demo' || '.collection-state' }}
     steps:

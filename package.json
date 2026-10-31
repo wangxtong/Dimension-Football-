@@ -18,6 +18,10 @@
     "test:browser": "npm test --prefix collector/browser-runtime",
     "analyze:full": "node collector/analyze.mjs",
     "test": "node --test collector/test/*.test.mjs collector/sources/test/*.test.mjs website/test/*.test.mjs",
+    "test:website": "node --test --test-isolation=none website/test/e2e.mjs",
+    "site:build": "node website/build.mjs dist",
+    "operations:help": "node collector/operations.mjs --help",
+    "orchestrate:help": "node collector/orchestrate.mjs --help",
     "check": "node --check collector/run.mjs"
   }
 }

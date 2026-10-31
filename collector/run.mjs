@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { readJson } from './storage.mjs';
+import { readJson, atomicJson } from './storage.mjs';
 import { readPolicy, DEFAULT_POLICY, isoMillis } from './policy.mjs';
 import { runCollection } from './pipeline.mjs';
 import { collectIntegratedEvidence } from './sources/index.mjs';
@@ -11,6 +11,8 @@ import { browserRuntime } from './browser.mjs';
 import { configureEnvironmentProxy } from './network.mjs';
 import { collectManagedFixtures, readSourcePolicy, readSourceHealth, sourceHealthSnapshot } from './sources/manager.mjs';
 import { demoInput } from './demo.mjs';
+import { publicInputMetadata } from './data/coverage.mjs';
+import { createAcquisitionSnapshot, verifyAcquisitionSnapshot } from './data/acquisition-snapshot.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const HELP = `维度足球长期公开信息采集（Node.js 24+）
@@ -74,9 +76,13 @@ function reviewedEvidence(value, accepted) {
 export async function runCli(argv, {
   env = process.env, cwd = process.cwd(), clock = () => new Date().toISOString(),
   stdout = text => process.stdout.write(text), fetchImpl = fetch, signal,
+  evidenceMode = 'all', marketHorizonHours = null, fallbackHistory = [], persistAcquisition = false,
+  codeVersion = /^[a-f0-9]{40,64}$/.test(env.COLLECTOR_COMMIT || '') ? env.COLLECTOR_COMMIT : null,
 } = {}) {
   const options = parseArgs(argv);
   if (options.help) { stdout(HELP); return { help: true, exitCode: 0 }; }
+  if (!['all', 'none', 'markets'].includes(evidenceMode) || !Array.isArray(fallbackHistory)
+    || marketHorizonHours !== null && (!Number.isFinite(marketHorizonHours) || marketHorizonHours <= 0)) throw new Error('INVALID_ARGUMENT');
   if (fetchImpl === fetch && !options.demo && !options['source-status'] && !options['provider-status']) configureEnvironmentProxy(env);
   const providerPolicy = readProviderPolicy(await readJson(options['providers-config'] ? resolve(cwd, options['providers-config']) : resolve(ROOT, 'config/providers.json')));
   if (options['provider-status']) {
@@ -109,7 +115,7 @@ export async function runCli(argv, {
     return fetchImpl(url, { ...init, signal: AbortSignal.any(signals) });
   };
   const abortSignal = signal;
-  let fixtures, history = [], fixtureDiagnostics = [], poolComplete = true, simulated = !!options.demo, demo, sourceManagement = null;
+  let fixtures, history = [], fixtureDiagnostics = [], poolComplete = true, simulated = !!options.demo, demo, sourceManagement = null, coverage = [];
   const inputFile = options.input || (!simulated && env.FIXTURES_FILE);
   const deepAnalysis = options['deep-analysis'] || (!options.basic && !simulated && !inputFile
     && typeof env.API_FOOTBALL_KEY === 'string' && env.API_FOOTBALL_KEY.trim()
@@ -122,6 +128,12 @@ export async function runCli(argv, {
     if (!Array.isArray(fixtures)) throw new Error('INVALID_FIXTURE_FILE');
     poolComplete = false; // The size of a supplied pool says nothing about global/site coverage.
     fixtureDiagnostics = [{ id: 'owner-fixtures', status: 'available', code: 'INPUT_POOL_ONLY', checkedAt: nowISO, matchedCount: fixtures.length }];
+    if (input?.kind === 'public-fixture-sample') ({ fixtureDiagnostics, coverage, poolComplete } = publicInputMetadata(input));
+    else if (input?.kind === 'collection-fixture-snapshot') {
+      const snapshot = verifyAcquisitionSnapshot(input, { nowISO, policy });
+      fixtures = snapshot.fixtures; history = snapshot.history; fixtureDiagnostics = snapshot.diagnostics;
+      coverage = snapshot.coverage; poolComplete = snapshot.poolComplete;
+    }
   } else {
     const footballDataKey = [env.FOOTBALL_DATA_API_KEY, env.FOOTBALL_DATA_API_TOKEN].find(value => typeof value === 'string' && value.trim());
     const apiFootballKey = typeof env.API_FOOTBALL_KEY === 'string' && env.API_FOOTBALL_KEY.trim() ? env.API_FOOTBALL_KEY : null;
@@ -140,16 +152,34 @@ export async function runCli(argv, {
     const input = await readJson(resolve(cwd, options.history));
     history = Array.isArray(input) ? input : input?.history;
   }
+  else if (Array.isArray(history) && !history.length && fallbackHistory.length) history = fallbackHistory;
   if (!Array.isArray(history)) throw new Error('INVALID_HISTORY_FILE');
+  let prospectiveEvaluation = null;
+  try {
+    const value = await readJson(resolve(outDir, 'prospective-evaluation.json'));
+    if (value?.version !== 1 || value.kind !== 'prospective-evaluation' || !Array.isArray(value.groups)
+      || !Number.isFinite(isoMillis(value.generatedAt)) || isoMillis(value.generatedAt) > isoMillis(nowISO)) throw new Error('INVALID_PROSPECTIVE_EVALUATION');
+    prospectiveEvaluation = value;
+  } catch (error) { if (error.code !== 'ENOENT') throw error; }
   const importedEvidence = options.evidence ? reviewedEvidence(await readJson(resolve(cwd, options.evidence)), options['accept-reviewed-evidence']) : { quotes: [], signals: [] };
   const result = await runCollection({ fixtures, statePath, outDir, policy, simulated, fixtureDiagnostics, poolComplete, sourceManagement, clock, startedTick, signal,
-    importedEvidence, history, collectEvidence: simulated ? async () => structuredClone(demo.evidence)
-      : async ({ fixtures, nowISO, signal: stageSignal }) => collectIntegratedEvidence({ fixtures, nowISO, env,
+    importedEvidence, history, coverage, codeVersion, prospectiveEvaluation, collectEvidence: simulated ? async () => structuredClone(demo.evidence)
+      : evidenceMode === 'none' ? async () => ({ quotes: [], signals: [], diagnostics: [{ id: 'market-lane', status: 'pending', code: 'MARKETS_SCHEDULED_SEPARATELY', checkedAt: clock() }] })
+      : async ({ fixtures, nowISO, signal: stageSignal }) => collectIntegratedEvidence({ fixtures: marketHorizonHours === null ? fixtures
+        : fixtures.filter(row => Date.parse(row.kickoff) <= Date.parse(nowISO) + marketHorizonHours * 3600000), nowISO, env,
         providerStatePath: `${statePath}.providers.json`, providerPolicy, fetchImpl: boundedFetch(stageSignal),
         statePath: `${statePath}.crawl.json`, policy: crawlerPolicy, clock, remaining,
         browser: await browserRuntime({env, enabled: fetchImpl === fetch}),
         signal: AbortSignal.any([signal, stageSignal].filter(Boolean)) }),
   });
+  if (persistAcquisition && !simulated) {
+    const acquired = result.report.results.map(row => row.fixture);
+    const times = acquired.map(row => row.fetchedAt || row.updatedAt).filter(value => Number.isFinite(isoMillis(value)));
+    const checkedAt = times.length ? new Date(Math.min(...times.map(Date.parse))).toISOString() : nowISO;
+    await atomicJson(resolve(outDir, 'public-fixtures.json'), createAcquisitionSnapshot({ fixtures: acquired, history,
+      checkedAt, diagnostics: result.report.diagnostics.filter(row => row.id !== 'market-lane'), coverage, poolComplete: result.report.poolComplete,
+      reportId: result.report.publication.reportId, policy }));
+  }
   const allFixturesFailed = !inputFile && !simulated && fixtureDiagnostics.length > 0 && fixtureDiagnostics.every(source => !['available', 'complete'].includes(source.status));
   const exitCode = signal?.aborted || sourceManagement?.interrupted || allFixturesFailed || result.report.status === 'failed' ? 1 : 0;
   const s = result.report.summary;

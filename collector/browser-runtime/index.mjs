@@ -5,12 +5,59 @@ import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { readJson } from '../storage.mjs';
+import { CRAWLER_AGENT } from '../sources/robots.mjs';
 
 const ORIGIN = 'https://www.statarea.com', LIMIT = 1_500_000;
 const safeError = code => Object.assign(new Error(code), { code });
 export function browserTarget(url) {
   try { const u = new URL(url); return u.origin === ORIGIN && !u.username && !u.password && !u.search && !u.hash
     && /^\/predictions(?:\/date\/20\d{2}-\d{2}-\d{2}\/competition)?$/.test(u.pathname); } catch { return false; }
+}
+
+export function browserResourceTarget(value, { method = 'GET', navigation = false, resourceType } = {}) {
+  if (method !== 'GET') return false;
+  if (navigation) return browserTarget(value);
+  try {
+    const url = new URL(value);
+    // Only inert asset locations approved for page rendering. XHR/fetch, login,
+    // account endpoints and arbitrary same-origin APIs are not browser capabilities.
+    return url.origin === ORIGIN && !url.username && !url.password && !url.hash
+      && ['script', 'stylesheet'].includes(resourceType)
+      && /^\/(?:js|css|scripts|styles|assets|resources|res)\/[A-Za-z0-9_./-]+\.(?:js|css)$/.test(url.pathname)
+      && [...url.searchParams.keys()].every(key => ['v', 'ver', 'version'].includes(key));
+  } catch { return false; }
+}
+
+// Exported for offline route tests. Every allowed request must obtain a token
+// from the public crawler, which owns robots, pacing, accounting and cooldowns.
+export function createBrowserRouteHandler({ pageUrl, init, metadata, onFailure, responseForRequest }) {
+  let resourceRequests = 0;
+  return async route => {
+    const request = route.request();
+    const descriptor = { url: request.url(), method: request.method(), navigation: request.isNavigationRequest(), resourceType: request.resourceType() };
+    if (init.signal?.aborted || !browserResourceTarget(descriptor.url, descriptor)
+      || descriptor.navigation && descriptor.url !== pageUrl || resourceRequests >= 20) return route.abort();
+    try {
+      if (!init.requestPolicy?.beforeRequest || !init.requestPolicy?.afterResponse) throw safeError('browser_policy_required');
+      if (request.redirectedFrom?.()) throw safeError('redirect_blocked');
+      await init.requestPolicy.beforeRequest(descriptor);
+      resourceRequests++; metadata.browserRequests++;
+      const response = responseForRequest ? await responseForRequest(request) : await route.fetch({ maxRedirects: 0, maxRetries: 0,
+        timeout: 6000, headers: { ...await request.allHeaders(), 'user-agent': `${CRAWLER_AGENT}/1.0` } });
+      const status = typeof response.status === 'function' ? response.status() : response.status;
+      const headers = new Headers(typeof response.headers === 'function' ? response.headers() : response.headers);
+      await init.requestPolicy.afterResponse({ ...descriptor, status, headers });
+      if (status >= 300 && status < 400) throw safeError('redirect_blocked');
+      if (Number(headers.get('content-length')) > LIMIT) throw safeError('crawler_response_too_large');
+      const body = typeof response.body === 'function' ? await response.body() : response.body;
+      if (Buffer.byteLength(body) > LIMIT) throw safeError('crawler_response_too_large');
+      headers.delete('content-encoding'); headers.delete('content-length');
+      await route.fulfill({ status, headers: Object.fromEntries(headers), body });
+    } catch (error) {
+      onFailure(error);
+      await route.abort().catch(() => {});
+    }
+  };
 }
 async function executable(env, chromium) {
   const candidates = env.VANTIS_BROWSER_EXECUTABLE ? [env.VANTIS_BROWSER_EXECUTABLE]
@@ -32,7 +79,7 @@ async function authorizedState(path) {
   return data;
 }
 
-export async function createBrowserRuntime({ env = process.env, pageSetup } = {}) {
+export async function createBrowserRuntime({ env = process.env, responseForRequest } = {}) {
   if (env.VANTIS_CRAWLER_RUNTIME_DIR && !isAbsolute(env.VANTIS_CRAWLER_RUNTIME_DIR)) throw safeError('browser_runtime_path_invalid');
   const require = createRequire(env.VANTIS_CRAWLER_RUNTIME_DIR ? resolve(env.VANTIS_CRAWLER_RUNTIME_DIR, 'package.json') : import.meta.url);
   const { chromium } = require('playwright');
@@ -49,7 +96,8 @@ export async function createBrowserRuntime({ env = process.env, pageSetup } = {}
   async function fetchRendered(url, init = {}) {
     if (!browserTarget(url) || init.method && init.method !== 'GET') throw safeError('browser_target_denied');
     if (init.signal?.aborted) throw safeError('crawler_cancelled');
-    let result, failure, resourceRequests = 0;
+    if (!init.requestPolicy?.beforeRequest || !init.requestPolicy?.afterResponse) throw safeError('browser_policy_required');
+    let result, failure, policyFailure;
     // Per-call memory storage: no session cookies, raw HTML or request logs on disk.
     const config = new Configuration({ persistStorage: false, purgeOnStart: true, defaultRequestQueueId: randomUUID(),
       storageClientOptions: { persistStorage: false, writeMetadata: false } });
@@ -61,23 +109,17 @@ export async function createBrowserRuntime({ env = process.env, pageSetup } = {}
       ...(proxyUrl ? { proxyConfiguration: new ProxyConfiguration({ proxyUrls: [proxyUrl] }) } : {}),
       launchContext: { launcher: chromium, useIncognitoPages: true,
         launchOptions: { executablePath, headless: true, timeout: 10_000 } },
-      browserPoolOptions: { useFingerprints: true, maxOpenPagesPerBrowser: 1,
+      browserPoolOptions: { useFingerprints: false, maxOpenPagesPerBrowser: 1,
         prePageCreateHooks: [(_id, _controller, options) => {
-          Object.assign(options, { ignoreHTTPSErrors: false, acceptDownloads: false, serviceWorkers: 'block',
+          Object.assign(options, { ignoreHTTPSErrors: false, acceptDownloads: false, serviceWorkers: 'block', userAgent: `${CRAWLER_AGENT}/1.0`,
             ...(storageState ? { storageState } : {}) });
         }] },
       preNavigationHooks: [async ({ page }, gotoOptions) => {
         gotoOptions.waitUntil = 'domcontentloaded';
-        await page.route('**/*', async route => {
-          const request = route.request(), target = new URL(request.url());
-          if (init.signal?.aborted || target.origin !== ORIGIN || request.method() !== 'GET'
-            || ['image', 'media', 'font'].includes(request.resourceType()) || resourceRequests >= 20
-            || request.isNavigationRequest() && !browserTarget(request.url())) return route.abort();
-          resourceRequests++; metadata.browserRequests++;
-          await route.continue();
-        });
-        // Dependency injection used by browser tests to serve local fixture HTML without public traffic.
-        if (pageSetup) await pageSetup(page);
+        // Context routing also covers popups. WebSockets are not HTTP assets.
+        await page.context().route('**/*', createBrowserRouteHandler({ pageUrl: url, init, metadata, responseForRequest,
+          onFailure: error => { policyFailure ||= error; } }));
+        await page.context().routeWebSocket('**/*', socket => socket.close());
       }],
       requestHandler: async ({ page, response }) => {
         if (!response || !browserTarget(page.url())) throw safeError('browser_navigation_failed');
@@ -97,6 +139,7 @@ export async function createBrowserRuntime({ env = process.env, pageSetup } = {}
     try {
       await crawler.run([{ url, uniqueKey: randomUUID() }]);
       if (init.signal?.aborted) throw safeError('crawler_cancelled');
+      if (policyFailure) throw policyFailure;
       if (!result || failure) throw safeError(failure || 'browser_navigation_failed');
       return new Response(result.text, { status: result.status, headers: result.headers });
     } finally { init.signal?.removeEventListener('abort', stop); await crawler.browserPool.destroy(); }

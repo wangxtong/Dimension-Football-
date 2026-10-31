@@ -5,7 +5,7 @@ import {fetchFootballFixtures, fixtureLeagues} from '../fixtures.mjs';
 const nowISO = '2026-10-29T08:30:00.000Z';
 function match(league, changes = {}) {
   return {id: fixtureLeagues.indexOf(league) + 1, competition: {code: league},
-    homeTeam: {name: 'Home FC'}, awayTeam: {name: 'Away FC'},
+    homeTeam: {id: 1, name: 'Home FC'}, awayTeam: {id: 2, name: 'Away FC'},
     utcDate: '2026-10-30T18:00:00Z', status: 'TIMED', lastUpdated: '2026-10-28T10:00:00Z', ...changes};
 }
 function json(payload, status = 200, headers = {}) {
@@ -39,6 +39,8 @@ test('five authenticated official requests use explicit exclusive-date window an
   assert.equal(result.fixtures[0].fetchedAt, nowISO);
   assert.equal(result.fixtures[0].sourceUpdatedAt, '2026-10-28T10:00:00.000Z');
   assert.equal(result.fixtures[0].source, 'football-data.org');
+  assert.equal(result.fixtures[0].homeTeamId, '1');
+  assert.equal(result.fixtures[0].awayTeamId, '2');
   assert.equal(JSON.stringify(result).includes('test-token'), false);
 });
 

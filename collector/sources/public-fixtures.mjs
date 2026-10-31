@@ -1,5 +1,9 @@
 import { isoMillis } from '../policy.mjs';
 import { retryAfterMs } from './health.mjs';
+import { SourceCooldownError, withSourceCooldown } from './cooldown.mjs';
+import { withHistoryCache } from '../data/history-cache.mjs';
+import { withEventIdentity, partitionLogicalMatches } from '../data/identity.mjs';
+import { buildPublicCoverage } from '../data/coverage.mjs';
 
 // These are provider-published public endpoints, not discovered private routes.
 // 123 is TheSportsDB's documented shared free key; no secret is accepted here.
@@ -16,7 +20,7 @@ const SPORTS_LEAGUES = { PL: ['4328', 'English Premier League'], PD: ['4335', 'S
 const USER_AGENT = 'DimensionFootball-Collector/1.0 (+https://github.com/wangxtong/Dimension-Football-)';
 const DAY = 86400000;
 class PublicError extends Error {
-  constructor(code, httpStatus = null, retryMs = null) { super(code); this.code = code; this.httpStatus = httpStatus; this.retryMs = retryMs; }
+  constructor(code, httpStatus = null, retryMs = null, nextProbeAt = null) { super(code); this.code = code; this.httpStatus = httpStatus; this.retryMs = retryMs; this.nextProbeAt = nextProbeAt; }
 }
 const name = value => typeof value === 'string' && value.trim().length > 0 && value.length <= 200 && !/[\x00-\x1f\x7f]/u.test(value);
 const id = value => typeof value === 'number' ? Number.isSafeInteger(value) && value > 0 : typeof value === 'string' && /^[1-9][0-9]{0,14}$/.test(value);
@@ -68,13 +72,14 @@ async function getPublicJSON(url, { fetchImpl, signal, clock, remaining, timeout
   } catch (error) {
     if (signal?.aborted) throw new PublicError('cancelled', httpStatus);
     if (remaining() <= 0) throw new PublicError('budget_exhausted', httpStatus);
+    if (error instanceof SourceCooldownError) throw new PublicError(error.code, error.httpStatus, error.retryAfterMs, error.nextProbeAt);
     if (error instanceof PublicError) throw error;
     throw new PublicError('network_unavailable', httpStatus);
   } finally { clearTimeout(timer); controller.abort(); }
 }
 
-export function parsePublicFixtures(data, { source, league, season, nowISO, days = 7 }) {
-  if (!['openligadb', 'thesportsdb-free'].includes(source) || !Number.isFinite(isoMillis(nowISO))
+export function parsePublicFixtures(data, { source, league, season, nowISO, fetchedAt = nowISO, days = 7 }) {
+  if (!['openligadb', 'thesportsdb-free'].includes(source) || !Number.isFinite(isoMillis(nowISO)) || !Number.isFinite(isoMillis(fetchedAt))
     || !Number.isInteger(days) || days < 1 || days > 7) throw new PublicError('invalid_response');
   const rows = source === 'openligadb' ? data : data?.events;
   if (source === 'thesportsdb-free' && rows === null) return { fixtures: [], receivedCount: 0, rejectedCount: 0 };
@@ -101,18 +106,22 @@ export function parsePublicFixtures(data, { source, league, season, nowISO, days
     const scheduled = open ? row.matchIsFinished === false && Array.isArray(row.matchResults) && row.matchResults.length === 0
       : row.strStatus === 'NS' && row.strPostponed === 'no' && row.intHomeScore === null && row.intAwayScore === null;
     if (!scheduled || kickoff <= Date.parse(nowISO) || kickoff > Date.parse(nowISO) + days * DAY) continue;
-    fixtures.push({ id: `${open ? 'oldb' : 'tsdb'}-${matchId}`, league, home: home.trim(), away: away.trim(),
+    fixtures.push(withEventIdentity({ id: `${open ? 'oldb' : 'tsdb'}-${matchId}`, sourceFixtureId: String(matchId), league, home: home.trim(), away: away.trim(),
       homeTeamId: String(homeId), awayTeamId: String(awayId),
+      ...(open ? { season: String(season) } : typeof row.strSeason === 'string' && /^[A-Za-z0-9][A-Za-z0-9 ./_-]{0,79}$/.test(row.strSeason) ? { season: row.strSeason } : {}),
       kickoff: new Date(kickoff).toISOString(), status: 'SCHEDULED', source,
-      updatedAt: nowISO, fetchedAt: nowISO,
+      updatedAt: fetchedAt, fetchedAt, observedAt: fetchedAt,
       // OpenLigaDB lastUpdateDateTime has no timezone. Do not invent a UTC offset.
-      sourceUpdatedAt: null });
+      sourceUpdatedAt: null }));
   }
-  return { fixtures, receivedCount: rows.length, rejectedCount };
+  const partition = partitionLogicalMatches(fixtures);
+  return { fixtures: partition.records, receivedCount: rows.length,
+    rejectedCount: rejectedCount + partition.conflicts.reduce((sum, conflict) => sum + conflict.ids.length, 0),
+    conflicts: partition.conflicts };
 }
 
-export function parseOpenLigaHistory(data, { season, nowISO }) {
-  if (!Array.isArray(data) || data.length > 3000) throw new PublicError('invalid_response');
+export function parseOpenLigaHistory(data, { season, nowISO, observedAt = nowISO }) {
+  if (!Array.isArray(data) || data.length > 3000 || !Number.isFinite(isoMillis(nowISO)) || !Number.isFinite(isoMillis(observedAt))) throw new PublicError('invalid_response');
   const history = [], seen = new Set(); let rejectedCount = 0;
   for (const row of data) {
     if (row?.matchIsFinished !== true) continue;
@@ -120,28 +129,34 @@ export function parseOpenLigaHistory(data, { season, nowISO }) {
     const scores = Array.isArray(row.matchResults) ? row.matchResults.filter(result => result.resultTypeKind === 'After90Minutes') : [];
     const score = scores[0];
     if (row.leagueShortcut !== 'bl1' || row.leagueSeason !== season || !id(row.matchID)
-      || !id(row.team1?.teamId) || !id(row.team2?.teamId) || row.team1.teamId === row.team2.teamId
+      || !id(row.team1?.teamId) || !id(row.team2?.teamId) || String(row.team1.teamId) === String(row.team2.teamId)
       || !name(row.team1?.teamName) || !name(row.team2?.teamName) || row.team1.teamName === row.team2.teamName
       || !Number.isFinite(kickoff) || !/Z$/.test(row.matchDateTimeUTC) || kickoff + 4 * 3600000 > Date.parse(nowISO)
       || scores.length !== 1 || ![score?.pointsTeam1, score?.pointsTeam2].every(value => Number.isInteger(value) && value >= 0 && value <= 20)) {
       rejectedCount++; continue;
     }
-    if (seen.has(row.matchID)) throw new PublicError('duplicate_fixture_id');
-    seen.add(row.matchID);
-    history.push({ id: `oldb-${row.matchID}`, source: 'openligadb', league: 'BL1', kickoff: new Date(kickoff).toISOString(),
+    if (seen.has(String(row.matchID))) throw new PublicError('duplicate_fixture_id');
+    seen.add(String(row.matchID));
+    history.push(withEventIdentity({ id: `oldb-${row.matchID}`, sourceFixtureId: String(row.matchID), source: 'openligadb', league: 'BL1', season: String(season), kickoff: new Date(kickoff).toISOString(),
       home: row.team1.teamName.trim(), away: row.team2.teamName.trim(), homeTeamId: String(row.team1.teamId), awayTeamId: String(row.team2.teamId),
-      homeGoals: score.pointsTeam1, awayGoals: score.pointsTeam2, status: 'FINISHED', period: 'full-time' });
+      homeGoals: score.pointsTeam1, awayGoals: score.pointsTeam2, status: 'FINISHED', period: 'full-time',
+      observedAt, resultObservedAt: observedAt, fetchedAt: observedAt, sourceUpdatedAt: null }));
   }
-  return { history, rejectedCount };
+  const partition = partitionLogicalMatches(history);
+  return { history: partition.records, rejectedCount: rejectedCount + partition.conflicts.reduce((sum, conflict) => sum + conflict.ids.length, 0),
+    conflicts: partition.conflicts };
 }
 
-export async function fetchPublicFixtures({ nowISO = new Date().toISOString(), days = 7, fetchImpl = fetch,
-  clock = () => new Date().toISOString(), signal, remaining = () => Infinity, timeoutMs = 6000, includeHistory = false } = {}) {
+async function fetchPublicRound({ nowISO = new Date().toISOString(), days = 7, fetchImpl = fetch,
+  clock = () => new Date().toISOString(), signal, remaining = () => Infinity, timeoutMs = 6000, includeHistory = false,
+  cooldown, historyCache, historyCacheMaxAgeMs = DAY, resultsOnly = false } = {}) {
   const now = isoMillis(nowISO);
   if (!Number.isFinite(now) || !Number.isInteger(days) || days < 1 || days > 7) throw new Error('INVALID_PUBLIC_FIXTURE_WINDOW');
+  if (!Number.isSafeInteger(historyCacheMaxAgeMs) || historyCacheMaxAgeMs < 0 || historyCacheMaxAgeMs > 7 * DAY) throw new Error('INVALID_HISTORY_CACHE_WINDOW');
   const seasonOf = time => { const date = new Date(time); return date.getUTCFullYear() - (date.getUTCMonth() < 6 ? 1 : 0); };
   const seasons = [...new Set([seasonOf(now), seasonOf(now + days * DAY)])];
-  const requests = [
+  const requests = resultsOnly ? [{ source: 'openligadb', league: 'BL1', season: seasons[0], historyOnly: true,
+    url: `https://api.openligadb.de/getmatchdata/bl1/${seasons[0]}` }] : [
     ...seasons.map(season => ({ source: 'openligadb', league: 'BL1', season, url: `https://api.openligadb.de/getmatchdata/bl1/${season}` })),
     ...(includeHistory ? [{ source: 'openligadb', league: 'BL1', season: seasons[0] - 1, historyOnly: true,
       url: `https://api.openligadb.de/getmatchdata/bl1/${seasons[0] - 1}` }] : []),
@@ -150,31 +165,60 @@ export async function fetchPublicFixtures({ nowISO = new Date().toISOString(), d
   ];
   const fixtures = [], diagnostics = [], history = [];
   for (const request of requests) {
-    const common = { id: request.source, league: request.league, endpoint: request.url, checkedAt: clock() };
+    const common = { id: request.source, league: request.league, endpoint: request.url, checkedAt: clock(),
+      season: request.season === undefined ? null : String(request.season), purpose: request.historyOnly ? 'history' : 'fixtures',
+      historyRequested: includeHistory && request.source === 'openligadb' };
     try {
-      const response = await getPublicJSON(request.url, { fetchImpl, signal, clock, remaining, timeoutMs });
+      const cached = request.historyOnly && historyCacheMaxAgeMs > 0
+        ? historyCache.get(request, { nowISO: clock(), maxAgeMs: historyCacheMaxAgeMs }) : null;
+      if (cached) {
+        history.push(...cached.records);
+        diagnostics.push({ ...common, status: 'partial', code: 'history_cache_hit', cacheHit: true, fetchedAt: cached.fetchedAt,
+          httpStatus: null, responseAt: null, matchedCount: 0, receivedCount: cached.receivedCount, rejectedCount: 0,
+          historyCount: cached.records.length, historyRejectedCount: cached.rejectedCount });
+        continue;
+      }
+      const response = await getPublicJSON(request.url, { fetchImpl: (url, init) => cooldown.fetch(request.source, fetchImpl, url, init), signal, clock, remaining, timeoutMs });
+      const fetchedAt = clock();
       const parsed = request.historyOnly ? { fixtures: [], receivedCount: response.data.length, rejectedCount: 0 }
-        : parsePublicFixtures(response.data, { ...request, nowISO, days });
-      const past = includeHistory && request.source === 'openligadb' ? parseOpenLigaHistory(response.data, { season: request.season, nowISO }) : { history: [], rejectedCount: 0 };
+        : parsePublicFixtures(response.data, { ...request, nowISO, days, fetchedAt });
+      const past = includeHistory && request.source === 'openligadb' ? parseOpenLigaHistory(response.data, { season: request.season, nowISO, observedAt: fetchedAt }) : { history: [], rejectedCount: 0 };
+      if (common.historyRequested) {
+        const saved = await historyCache.put(request, past.history, { fetchedAt, receivedCount: response.data.length, rejectedCount: past.rejectedCount });
+        past.history = saved.records;
+      }
       fixtures.push(...parsed.fixtures);
       history.push(...past.history);
       diagnostics.push({ ...common, status: 'partial', code: request.source === 'openligadb' ? 'community_schedule_unverified' : 'free_tier_limited',
-        httpStatus: response.httpStatus, responseAt: response.responseAt, matchedCount: parsed.fixtures.length,
+        httpStatus: response.httpStatus, responseAt: response.responseAt, fetchedAt, cacheHit: false, matchedCount: parsed.fixtures.length,
         receivedCount: parsed.receivedCount, rejectedCount: parsed.rejectedCount, historyCount: past.history.length,
-        historyRejectedCount: past.rejectedCount, purpose: request.historyOnly ? 'history' : 'fixtures' });
+        historyRejectedCount: past.rejectedCount });
     } catch (error) {
+      if (error?.message?.startsWith('HISTORY_CACHE_') || error?.code && ['ENOSPC', 'EACCES', 'EROFS', 'EIO'].includes(error.code)) throw error;
       diagnostics.push({ ...common, status: 'unavailable', code: error instanceof PublicError ? error.code : 'invalid_response',
         httpStatus: error instanceof PublicError ? error.httpStatus : null, retryAfterMs: error instanceof PublicError ? error.retryMs : null,
+        nextProbeAt: error instanceof PublicError ? error.nextProbeAt : null,
         matchedCount: 0 });
     }
     if (signal?.aborted || remaining() <= 0) break;
   }
-  return { version: 1, kind: 'public-fixture-sample', checkedAt: nowISO, simulated: false, poolComplete: false,
-    window: { from: nowISO, to: new Date(now + days * DAY).toISOString() },
+  const window = { from: nowISO, to: new Date(now + days * DAY).toISOString() };
+  return { version: 1, kind: 'public-fixture-sample', dataSchemaVersion: 2, checkedAt: nowISO, simulated: false, poolComplete: false,
+    window, coverage: buildPublicCoverage({ diagnostics, fixtures, history, window, includeHistory }),
     sources: PUBLIC_FIXTURE_SOURCES, diagnostics, fixtures, history,
     limitations: ['公开社区赛程与免费档仅用于有限覆盖试接入，不代表五大联赛完整或实时数据。',
       'OpenLigaDB 数据按 ODbL 1.0 保留归属；TheSportsDB 公共 Key 123 仅使用官方免费端点。',
       '采集时间不冒充供应商更新时间；开赛时间与赛事状态仍需独立核验。',
       '历史比分仅支持同源、同联赛、球队 ID 匹配的基础预测；缺少历史的联赛保留缺项。',
       '本文件不包含盘口；基础模型输出与严格亚洲盘候选分别计算。'] };
+}
+
+export async function fetchPublicFixtures(options = {}) {
+  const { clock = () => new Date().toISOString(), signal, remaining = () => Infinity } = options;
+  return withSourceCooldown({ statePath: options.cooldownStatePath, clock, signal, remaining }, cooldown =>
+    withHistoryCache({ statePath: options.historyCachePath }, historyCache => fetchPublicRound({ ...options, clock, cooldown, historyCache })));
+}
+
+export async function fetchPublicResults(options = {}) {
+  return fetchPublicFixtures({ ...options, includeHistory: true, resultsOnly: true, historyCacheMaxAgeMs: 0 });
 }

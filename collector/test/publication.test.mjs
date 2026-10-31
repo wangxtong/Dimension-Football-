@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { demoInput } from '../demo.mjs';
 import { runCollection } from '../pipeline.mjs';
 import { writeReports } from '../report.mjs';
-import { publishSummary, recordArtifact, verifyPublication } from '../publication.mjs';
+import { beginPublication, publishSummary, recordArtifact, verifyPublication } from '../publication.mjs';
 
 const NOW = '2026-10-31T05:00:00.000Z';
 async function run(t) {
@@ -82,4 +82,12 @@ test('partial file generation leaves an explicit failed receipt', async t => {
   const receipt = JSON.parse(await readFile(join(out, 'publication.json'), 'utf8'));
   assert.equal(receipt.channels.files.status, 'failed');
   await assert.rejects(verifyPublication(out, receipt), { message: 'PUBLICATION_NOT_READY' });
+});
+test('publication identity includes a validated input hash when provided', async t => {
+  const r=await run(t),report={...r.report,inputHash:'a'.repeat(64)};
+  const first=await beginPublication(report,r.dir),same=await beginPublication({...report},r.dir);
+  assert.equal(first.reportId,same.reportId);
+  const revised=await beginPublication({...report,inputHash:'b'.repeat(64)},r.dir);
+  assert.notEqual(first.reportId,revised.reportId);
+  await assert.rejects(beginPublication({...report,inputHash:'invalid'},r.dir),/INVALID_REPORT_INPUT_HASH/);
 });
