@@ -211,7 +211,8 @@ class ReportServiceRestartSafetyTests(unittest.TestCase):
 class BootstrapTrustBoundaryTests(unittest.TestCase):
     def test_authorization_precedes_any_runtime_download_or_install(self):
         bootstrap = Path(__file__).with_name('bootstrap.sh').read_text()
-        auth = bootstrap.index('"$preflight_node" "$verifier" "$work/source/vantis-manifest.json"')
+        auth = bootstrap.index('"$preflight_node" "$verifier" "$work/preflight-manifest.json"')
+        self.assertLess(auth, bootstrap.index('python3 "$trusted_bundle" extract'))
         self.assertLess(auth, bootstrap.index('bash "$work/source/deploy/install-node.sh"'))
         self.assertLess(auth, bootstrap.index('bash "$work/source/deploy/install.sh"'))
         self.assertIn('verifier=/opt/vantis/deployment/release-authorization.mjs', bootstrap)
@@ -220,6 +221,35 @@ class BootstrapTrustBoundaryTests(unittest.TestCase):
         self.assertIn('SIGNED_RELEASE_APPROVAL_REQUIRED_BEFORE_RUNTIME_INSTALL', bootstrap)
         self.assertIn("stat.S_ISLNK(mode.st_mode)", bootstrap)
         self.assertIn("mode.st_mode & 0o022", bootstrap)
+
+    def test_archive_preflight_validates_sha_and_rejects_missing_duplicate_manifest(self):
+        bootstrap = Path(__file__).with_name('bootstrap.sh').read_text()
+        guard = bootstrap.split("<<'PYMANIFEST'", 1)[1].split('\\nPYMANIFEST', 1)[0]
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            path=root/'release.tar'
+            output=root/'manifest.json'
+            manifest=json.dumps({'version':1,'kind':'release','sourceCommit':'a'*40,
+                                 'toolingDigest':'b'*64,'files':{}}).encode()
+            def archive(members):
+                with tarfile.open(path,'w') as tar:
+                    for name,data in members:
+                        obj=tarfile.TarInfo(name);obj.size=len(data)
+                        tar.addfile(obj,io.BytesIO(data))
+                return hashlib.sha256(path.read_bytes()).hexdigest()
+            def preflight(sha):
+                return subprocess.run(['python3','-c',guard,str(path),sha,str(output)],
+                                      capture_output=True,text=True)
+            good=archive([('vantis-manifest.json',manifest)])
+            result=preflight(good)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(json.loads(output.read_text())['archiveSha256'],good)
+            self.assertNotEqual(preflight('0'*64).returncode,0)
+            no_manifest=archive([('other.json',manifest)])
+            self.assertNotEqual(preflight(no_manifest).returncode,0)
+            duplicate=archive([('vantis-manifest.json',manifest),
+                               ('vantis-manifest.json',manifest)])
+            self.assertNotEqual(preflight(duplicate).returncode,0)
 
     def test_direct_install_cannot_authenticate_with_candidate_script(self):
         install_script = Path(__file__).with_name('install.sh').read_text()
