@@ -29,17 +29,41 @@ export function createAcquisitionSnapshot({ fixtures, history, checkedAt, diagno
   return { ...body, snapshotHash: dataHash(body) };
 }
 
+// Keep source event/version clocks distinct from cache age. A correctly hashed
+// snapshot does not establish that its observations existed by the read cutoff.
+function possibleSnapshotClocks(row, fields, now) {
+  if (!row || typeof row !== 'object') return false;
+  for (const key of fields) {
+    if (row[key] == null) continue; // Unknown provider clocks remain unknown.
+    const stamp = canonicalTimestamp(row[key]);
+    if (!stamp || Date.parse(stamp) > now) return false;
+  }
+  if (row.fetchedAt != null) {
+    const fetched = Date.parse(row.fetchedAt);
+    // A provider update or captured result cannot happen after retrieval.
+    if (['observedAt', 'resultObservedAt', 'sourceUpdatedAt'].some(key =>
+      row[key] != null && Date.parse(row[key]) > fetched)) return false;
+  }
+  return true;
+}
+
 export function verifyAcquisitionSnapshot(input, { nowISO, maxAgeMs = 1200000, policy } = {}) {
   if (input?.version !== 1 || input.kind !== 'collection-fixture-snapshot' || input.simulated !== false
     || !canonicalTimestamp(input.checkedAt) || !canonicalTimestamp(nowISO) || !Array.isArray(input.diagnostics)
-    || !Array.isArray(input.coverage) || typeof input.poolComplete !== 'boolean') throw new Error('INVALID_ACQUISITION_SNAPSHOT');
+    || !Array.isArray(input.coverage) || !Array.isArray(input.fixtures) || !Array.isArray(input.history)
+    || typeof input.poolComplete !== 'boolean') throw new Error('INVALID_ACQUISITION_SNAPSHOT');
   const { snapshotHash, ...body } = input;
   if (!/^[a-f0-9]{64}$/.test(snapshotHash || '') || dataHash(body) !== snapshotHash) throw new Error('ACQUISITION_SNAPSHOT_CHANGED');
   const age = Date.parse(nowISO) - Date.parse(input.checkedAt);
   if (age < 0 || !Number.isSafeInteger(maxAgeMs) || age > maxAgeMs) throw new Error('FIXTURE_CACHE_EXPIRED');
-  if (input.fixtures.some(row => !canonicalTimestamp(row.fetchedAt || row.updatedAt)
-    || Date.parse(row.fetchedAt || row.updatedAt) > Date.parse(nowISO)
-    || Date.parse(nowISO) - Date.parse(row.fetchedAt || row.updatedAt) > maxAgeMs)) throw new Error('FIXTURE_CACHE_EXPIRED');
+  const now = Date.parse(nowISO);
+  if (input.fixtures.some(row => !possibleSnapshotClocks(row, ['updatedAt', 'fetchedAt', 'observedAt', 'sourceUpdatedAt'], now)
+    || !canonicalTimestamp(row.fetchedAt || row.updatedAt)
+    || now - Date.parse(row.fetchedAt || row.updatedAt) > maxAgeMs)) throw new Error('FIXTURE_CACHE_EXPIRED');
+  // History may be older than the fixture TTL, but its provenance cannot be
+  // newer than the verifying read. Reject rather than silently backdate results.
+  if (input.history.some(row => !possibleSnapshotClocks(row,
+    ['fetchedAt', 'observedAt', 'resultObservedAt', 'sourceUpdatedAt'], now))) throw new Error('INVALID_ACQUISITION_SNAPSHOT');
   const pool = prepareAcquiredPool(input.fixtures, policy), history = prepareForecastHistory(input.history);
   if (pool.conflicts.length || history.rejected || history.logicalConflicts) throw new Error('INVALID_ACQUISITION_SNAPSHOT');
   return { ...input, fixtures: pool.fixtures, history: history.matches };
