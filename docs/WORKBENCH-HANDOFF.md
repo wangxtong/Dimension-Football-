@@ -6,7 +6,7 @@ GitHub 和 Sites 已连接的能力继续由总控执行。唯一需要服务器
 
 ## 发布前置：独立签名、审批与旧版保护
 
-**A7 签名保护为 Draft，尚无 ECS 安装证据。** 正式安装前按 [ECS-SIGNED-RELEASE](ECS-SIGNED-RELEASE.md) 完成独立 CI/SHA 核对、旧版回归、离线 Ed25519 签名，并由授权管理员在 Workbench 根目录固定公钥及精确 commit 的签名 JSON/二进制签名。缺失即 BLOCKED。核对服务器已装 release.sh/sync.sh 的工具版本：旧版可能仍直接跟随 main 更新，须先由管理员暂停其自动切换、受控升级。签名只授权代码切换，不批准正式预测或 TG 消息。不得用 GitHub 权限替代 ECS 身份。
+**A7 签名保护为 Draft，尚无 ECS 安装证据。** 正式安装前按 [ECS-SIGNED-RELEASE](ECS-SIGNED-RELEASE.md) 完成独立 CI/SHA 核对、源目录逐文件校验与 filesDigest 绑定、旧版回归、离线 Ed25519 签名，并由授权管理员在 Workbench 根目录固定公钥及精确 commit 的签名 JSON/二进制签名。缺失即 BLOCKED。核对服务器已装 release.sh/sync.sh 的工具版本：旧版可能仍直接跟随 main 更新，须先由管理员暂停其自动切换、受控升级。签名只授权代码切换，不批准正式预测或 TG 消息。不得用 GitHub 权限替代 ECS 身份。
 
 ## 获取准确部署包
 
