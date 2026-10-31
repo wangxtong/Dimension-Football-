@@ -31,6 +31,10 @@ Use separate worktrees and commits. The control role integrates shared entrypoin
 ## Production target
 
 Existing ECS: instance `i-j6c4g9s2y6b5irl5gcr9`, public address `8.218.6.246`. Access identity and live service state are not yet verified. Do not modify security groups or assert SSH connectivity.
-ECS will own persistent collection, reporting and notification. Preserve Sites as the visitor entrypoint. GitHub Actions OIDC is valid only for Actions jobs, not a permanent ECS identity.
+The user requested autonomous completion without a manual Workbench handoff. Until an ECS command identity exists, the authorized interim production path is GitHub Actions with short-lived OIDC publishing into the existing Site's private R2 storage. The Site owns the shared notification claim/receipt ledger; runners must not send a second copy. Preserve Sites as the visitor entrypoint and preserve the prepared ECS deployment. GitHub Actions OIDC is valid only for Actions jobs, not a permanent ECS identity. Do not label the interim path as an ECS deployment or guarantee Actions schedule latency.
 
 Progress states: pending -> active -> review -> verified; blocked requires an exact dependency and next action. All production claims require timestamped evidence.
+
+## R1 production boundary
+
+Formal forecast release is BLOCKED. The autonomous live Site path publishes only server-redacted collection observations (schedule, coverage, true timestamps), never probabilities or market candidates. Default scheduled collection must not append forecast ledgers/replays. Research and formal promotion are separate; independently verified release authority has not been provisioned. A successful observation readback is not commercial or model release acceptance.

@@ -3,12 +3,26 @@ import { resolve } from 'node:path';
 const [output]=process.argv.slice(2);
 if(!output||process.argv.length!==3)throw Error('Usage: node website/build.mjs OUTPUT_DIRECTORY');
 const assets={};for(const name of ['index.html','style.css','app.mjs','report-schema.mjs','locale-zh.mjs'])assets['/'+name]=await readFile(new URL(name,import.meta.url),'utf8');
-const schemaSource=await readFile(new URL('report-schema.mjs',import.meta.url),'utf8');
-const feedSource=await readFile(new URL('report-feed.mjs',import.meta.url),'utf8');
-const schemaInline=schemaSource.replace(/^export /gm,'');
-const feedInline=feedSource.replace(/^import .*from '\.\/report-schema\.mjs';\n/m,'const {validateBundle}=schema;\n').replace(/^export /gm,'');
-const feedNamespace=`const REPORT_FEED=(()=>{const schema=(()=>{${schemaInline}\nreturn {validateBundle};})();\n${feedInline}\nreturn {readDashboardBundle,dashboardBundleFile,dashboardReportHash};})();`;
-const source=(await readFile(new URL('worker.mjs',import.meta.url),'utf8')).replace("import * as REPORT_FEED from './report-feed.mjs';",feedNamespace);
+// The deployed Worker is one self-contained ESM file; browser assets stay separate.
+const namespaces=new Map(),bundled=[];
+function inlineImports(source) {
+  return source.replace(/^import\s+([^;]+?)\s+from\s+['"]([^'"]+)['"];?\s*$/gm,(_,binding,path)=>{
+    const namespace=namespaces.get(path);if(!namespace)throw Error('Unbundled Worker dependency: '+path);
+    if(binding.startsWith('* as '))return `const ${binding.slice(5).trim()}=${namespace};`;
+    if(!binding.trim().startsWith('{'))throw Error('Unsupported Worker import');
+    return `const ${binding.replace(/\s+as\s+/g,': ')}=${namespace};`;
+  });
+}
+for(const name of ['report-schema','locale-zh','github-oidc','release-policy','hosted-publications','telegram-presentation','hosted-notifications','report-feed']) {
+  const text=await readFile(new URL(name+'.mjs',import.meta.url),'utf8');
+  const exported=[...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|class)\s+([A-Za-z_$][\w$]*)/gm)].map(m=>m[1]);
+  const body=inlineImports(text).replace(/^export\s+/gm,'');
+  if(/^import\s/m.test(body)||exported.length===0)throw Error('Invalid Worker module: '+name);
+  const namespace='__module_'+name.replaceAll('-','_');
+  bundled.push(`const ${namespace}=(()=>{${body}\nreturn {${exported.join(',')}};})();`);
+  namespaces.set('./'+name+'.mjs',namespace);
+}
+const source=bundled.join('\n')+'\n'+inlineImports(await readFile(new URL('worker.mjs',import.meta.url),'utf8'));
 const manifest=JSON.parse(await readFile(new URL('.openai/hosting.json',import.meta.url),'utf8'));
 if(manifest.static||!manifest.project_id)throw Error('Worker hosting manifest required');
 await mkdir(resolve(output,'server'),{recursive:true});await mkdir(resolve(output,'.openai'),{recursive:true});

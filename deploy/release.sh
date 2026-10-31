@@ -17,8 +17,9 @@ release=/opt/vantis/releases/$release_id
 link=/opt/vantis/.current-$release_id
 trap '[[ ! -d "$stage" ]] || rm -rf -- "$stage"; [[ ! -L "$link" ]] || rm -f -- "$link"' EXIT
 mkdir "$stage"
-# Verified archive contains only runtime/source allowlisted files; infrastructure remains separate.
-cp -R "$source_dir/collector" "$source_dir/config" "$source_dir/website" "$source_dir/package.json" "$stage/"
+# Copy only individually verified runtime files. Test/helper directories are
+# rejected even when an older or manually constructed manifest includes them.
+python3 /opt/vantis/deployment/bundle.py copy-runtime "$source_dir" "$stage" >/dev/null
 cp "$source_dir/deploy/release-contract.json" "$stage/.release-contract.json"
 python3 - "$source_dir/vantis-manifest.json" "$stage" <<'PYMETA'
 import json,sys

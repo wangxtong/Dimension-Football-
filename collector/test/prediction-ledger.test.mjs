@@ -5,11 +5,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { appendPrediction, appendReportPredictions, appendResultAndScore, evaluatePredictionLedger } from '../prediction-ledger.mjs';
 import { summarizeEvaluations, temporalCalibrationExperiment } from '../forecast-evaluation.mjs';
+import { digest } from '../policy.mjs';
 
 const NOW = '2026-10-31T12:00:00.000Z', kickoff = '2026-11-01T12:00:00.000Z', finished = '2026-11-01T14:00:00.000Z';
 const fixture = { id: 'event-1', source: 'openligadb', league: 'BL1', homeTeamId: '1', awayTeamId: '2', kickoff, season: '2026' };
 const forecast = { fixtureId: fixture.id, status: 'forecast', generatedAt: NOW, trainingCutoff: NOW,
-  trainingHash: 'a'.repeat(64), probabilities: { home: .6, draw: .2, away: .2 } };
+  trainingHash: 'a'.repeat(64), probabilities: { home: .6, draw: .2, away: .2 }, freshness: { validUntil: '2026-10-31T13:00:00.000Z' } };
 const input = { fixture, forecast, model: { id: 'venue-poisson-v2', version: 2, calibrated: false }, reportId: 'b'.repeat(64), nowISO: NOW };
 const result = { ...fixture, status: 'FINISHED', period: 'full-time', homeGoals: 2, awayGoals: 0, resultObservedAt: finished };
 async function workspace(t) { const directory = await mkdtemp(join(tmpdir(), 'forecast-ledger-')); t.after(() => rm(directory, { recursive: true, force: true })); return directory; }
@@ -115,13 +116,50 @@ test('live coverage counts unavailable fixtures and does not cherry-pick an earl
 test('calibration adapter only fits past prospective outcomes and hides test labels from apply', () => {
   const fitCutoff = '2026-10-01T00:00:00.000Z';
   const row = { provenance: 'prospective-ledger', probabilities: forecast.probabilities, actual: 'home', generatedAt: '2026-09-01T00:00:00.000Z',
-    kickoff: '2026-09-02T00:00:00.000Z', resultObservedAt: '2026-09-02T03:00:00.000Z' };
+    recordedAt: '2026-09-01T00:00:00.000Z', validUntil: '2026-09-01T01:00:00.000Z', trainingCutoff: '2026-09-01T00:00:00.000Z',
+    source: 'openligadb', league: 'BL1', model: input.model, modelHash: digest(input.model),
+    predictionId: 'a'.repeat(64), reportId: input.reportId, trainingHash: forecast.trainingHash, resultVersionId: 'c'.repeat(64),
+    kickoff: '2026-09-02T00:00:00.000Z', resultObservedAt: '2026-09-02T03:00:00.000Z', resultRecordedAt: '2026-09-02T03:00:00.000Z' };
   const training = Array.from({ length: 100 }, (_, i) => ({ ...row, fixtureId: `train-${i}` }));
-  const evaluation = Array.from({ length: 30 }, (_, i) => ({ ...row, fixtureId: `test-${i}`, generatedAt: '2026-10-02T00:00:00.000Z', kickoff: '2026-10-03T00:00:00.000Z', resultObservedAt: '2026-10-03T03:00:00.000Z' }));
-  const delayed = { ...row, fixtureId: 'delayed-result', resultObservedAt: '2026-10-04T00:00:00.000Z' };
-  const options = { fitCutoff, fit: rows => { assert.equal(rows.length, 100); assert.ok(rows.every(row => row.fixtureId.startsWith('train-'))); return {}; },
+  const evaluation = Array.from({ length: 30 }, (_, i) => ({ ...row, fixtureId: `test-${i}`, generatedAt: '2026-10-02T00:00:00.000Z',
+    recordedAt: '2026-10-02T00:00:00.000Z', validUntil: '2026-10-02T01:00:00.000Z',
+    kickoff: '2026-10-03T00:00:00.000Z', resultObservedAt: '2026-10-03T03:00:00.000Z', resultRecordedAt: '2026-10-03T03:00:00.000Z' }));
+  const delayed = { ...row, fixtureId: 'delayed-result', resultRecordedAt: '2026-10-04T00:00:00.000Z' };
+  const options = { fitCutoff, cohort: { modelId: input.model.id, modelVersion: 2, modelHash: digest(input.model), source: 'openligadb', league: 'BL1', horizonHours: 24, toleranceHours: 1 },
+    fit: rows => { assert.equal(rows.length, 100); assert.ok(rows.every(row => row.fixtureId.startsWith('train-'))); return {}; },
     apply: (_, features) => { assert.ok(!('actual' in features)); return features.probabilities; } };
   const result = temporalCalibrationExperiment([...training, ...evaluation, delayed], options);
   assert.equal(result.status, 'research-evaluation-only'); assert.equal(result.calibrated, false);
   assert.equal(temporalCalibrationExperiment(evaluation, options).status, 'insufficient-prospective-evidence');
+  assert.throws(() => temporalCalibrationExperiment([...training, training[0], ...evaluation], options), /DUPLICATE_CALIBRATION_FIXTURE/);
+  assert.equal(temporalCalibrationExperiment([...training, ...evaluation].map(row => ({ ...row, provenance: 'revised-snapshot-retrospective' })), options).status, 'insufficient-prospective-evidence');
+});
+
+test('actual registration lead time and expiry govern frozen evaluation', async t => {
+  const directory = await workspace(t), recorded = '2026-10-31T12:30:00.000Z';
+  await appendPrediction({ directory, ...input, nowISO: recorded });
+  await appendResultAndScore({ directory, result, nowISO: finished });
+  assert.equal((await evaluatePredictionLedger({ directory, nowISO: finished, horizonHours: 24 })).coverage.evaluated, 0);
+  const actual = await evaluatePredictionLedger({ directory, nowISO: finished, horizonHours: 23, toleranceHours: 1 });
+  assert.equal(actual.coverage.evaluated, 1); assert.equal(actual.evaluations[0].horizonHours, 23.5);
+  await assert.rejects(appendPrediction({ directory, ...input, nowISO: forecast.freshness.validUntil }), /INVALID_PREDICTION_RECORD/);
+});
+
+test('result backfill is not visible before its actual ledger registration time', async t => {
+  const directory = await workspace(t); await appendPrediction({ directory, ...input });
+  await appendResultAndScore({ directory, result, nowISO: '2026-11-02T14:00:00.000Z' });
+  const past = await evaluatePredictionLedger({ directory, nowISO: finished, horizonHours: 24 });
+  assert.equal(past.coverage.evaluated, 0); assert.equal(past.coverage.pending, 1);
+});
+
+test('mixed model configurations cannot produce a pooled headline score', async t => {
+  const directory = await workspace(t); await appendPrediction({ directory, ...input });
+  await appendResultAndScore({ directory, result, nowISO: finished });
+  const other = { ...fixture, id: 'second-event' };
+  await appendPrediction({ directory, ...input, fixture: other, forecast: { ...forecast, fixtureId: other.id }, model: { ...input.model, version: 3 } });
+  await appendResultAndScore({ directory, result: { ...result, id: other.id }, nowISO: finished });
+  const mixed = await evaluatePredictionLedger({ directory, nowISO: finished, horizonHours: 24 });
+  assert.equal(mixed.assessmentStatus, 'blocked-mixed-cohorts'); assert.equal(mixed.metrics, null);
+  const isolated = await evaluatePredictionLedger({ directory, nowISO: finished, horizonHours: 24, modelId: input.model.id, modelVersion: 2 });
+  assert.equal(isolated.coverage.evaluated, 1); assert.ok(isolated.metrics);
 });

@@ -77,15 +77,25 @@ const evaluation = await evaluatePredictionLedger({
 });
 ```
 
-总控应在reportId固定后、对外发布前调用第一步，传真实登记时间；只有仍在赛前且已有训练哈希的真实预测可登记。模拟报告跳过。预测与reportId绑定，记录生成/登记时刻、训练哈希、版本及原概率，同一predictionId不同内容拒绝。回放不会在实际登记时刻之前看到该预测。完全写入并fsync的记录经原子no-replace发布，带内容摘要；读取损坏记录明确失败。该接口无任何网络或发送操作。评价接口的模型/来源/联赛筛选可选，正式比较应显式指定，避免把不同模型版本的总览误读为同一模型质量。
+总控应在reportId固定后、对外发布前调用第一步，传真实登记时间；只有仍在赛前、未超过预测有效期及生成后1小时、已有训练哈希的真实预测可登记。模拟报告跳过。v2预测记录与reportId绑定，冻结生成/登记时刻、训练哈希、完整模型配置摘要`modelHash`、`validUntil`及原概率，同一predictionId不同内容拒绝。`horizonHours`按开球减实际登记时刻计算，生成口径另存`generationHorizonHours`；登记延迟不能冒充更早的预测。回放不会在实际登记时刻之前看到该预测。完全写入并fsync的记录经原子no-replace发布，带内容摘要；读取损坏记录明确失败。该接口无任何网络或发送操作。评价接口可额外传`modelHash: digest(FORECAST_MODEL)`锁定完整配置；混合模型版本、配置、来源或联赛时返回`blocked-mixed-cohorts`且不输出混合质量指标。
 
-结果需提供同源赛事/球队ID、联赛、开球时间、`FINISHED/full-time` 的90分钟比分以及真实 `resultObservedAt` 或 `observedAt`。加时/点球或未来观察结果拒绝。支持CANCELLED、POSTPONED、ABANDONED状态：取消/中止不计损失，延期等待，改期/身份变化使旧预测评分作废。重复结果保留首次存储观察时间并幂等评分；比分修订保存新版本及新评分，不改变原预测。再次收到原比分会形成新的修订，不能恢复旧版本时间。评分过程中断后，重放同结果补齐缺失评分。
+结果需提供同源赛事/球队ID、联赛、开球时间、`FINISHED/full-time` 的90分钟比分以及真实 `resultObservedAt` 或 `observedAt`。加时/点球或未来观察结果拒绝。支持CANCELLED、POSTPONED、ABANDONED状态：取消/中止不计损失，延期等待，改期/身份变化使旧预测评分作废。结果另存实际`recordedAt`；较晚入账的历史比分在较早的回放时点不可见。重复结果保留首次存储观察时间和登记时间并幂等评分；比分修订保存新版本及新评分，不改变原预测。再次收到原比分会形成新的修订，不能恢复旧版本时间。评分过程中断后，重放同结果补齐缺失评分。
 
-报告登记也保存赛前不可预测场次的 `opportunities` 与缺项。前瞻汇总按指定提前量窗口每场只选一次机会（距离目标提前量最近且不晚于目标），避免每小时预测被重复计入样本；该机会不可预测时计入skipped，不能挑选更早一次成功预测替代它。按 `nowISO` 选择当时已观察的最新结果；同观察时间存在不同结果版本时隔离，缺结果计pending。预测账本仅证明本系统曾生成并登记的预测，不能证明消息或网页实际送达；对外交付仍以该reportId的渠道回执为准。新系统尚未积累真实前瞻结果，接口和离线测试完成不等于已有前瞻质量证明。
+报告登记也保存赛前不可预测场次的 `opportunities` 与缺项。前瞻汇总按指定实际登记提前量窗口每场只选一次机会（距离目标提前量最近且不晚于目标），避免每小时预测被重复计入样本；该机会不可预测时计入skipped，不能挑选更早一次成功预测替代它。按 `nowISO` 选择当时已观察且已登记的最新结果；同观察时间存在不同结果版本时隔离，缺结果计pending。旧账本缺少模型配置/有效期/结果登记时间时保留原文件，不补写过去证据，不计入严格前瞻质量样本。内容摘要不能独立证明外部发布时间或训练输入当时已可见；对外交付仍以该reportId的渠道回执为准。新系统尚未积累真实前瞻结果，接口和离线测试完成不等于已有前瞻质量证明。
+
+### 机器可读模型准备度
+
+```sh
+node collector/model-readiness.mjs --ledger /persistent/reports/forecast-ledger --horizon-hours 24 --tolerance-hours 1
+```
+
+只读接口`buildModelReadiness({directory, nowISO, model, horizonHours, toleranceHours, sourceByLeague})`与CLI输出`kind: "model-readiness"`。默认检查当前`FORECAST_MODEL`与1–2小时登记提前量；可分别检查1、24、72、168小时窗口，不能把多个窗口相加。CLI正常生成`BLOCKED`报告退出码为2，参数错误为1；不写账本、不联网。五大联赛分别报告当前配置、单一来源、固定提前量下已结算冻结样本及距200场下限的缺口，另列未结算及旧元数据记录。不同来源没有经过审核的跨源赛事映射时禁止合并；函数调用可显式选择各联赛来源。账本损坏时样本/缺口为null，不能把未知证据报成0场正常检查。
+
+每联赛200场只是下限。当前`calibrated:false`明确阻止发布；即使样本达到下限或配置自称已校准，缺少严格过去拟合、后续独立评估、同场冻结基准比较和训练输入可见性证明，仍为`releaseGate: "BLOCKED"`、`canRelease:false`。此诊断器尚未实现这些发布证据的审核，不能自动晋升模型。370场历史训练、63场回顾评估或未结算预测都不算前瞻结果，不从中生成未来胜率承诺。
 
 ### 校准实验边界
 
-`forecast-evaluation.mjs` 的 `temporalCalibrationExperiment(rows, {fitCutoff, fit, apply})` 只消费前瞻账本记录：fit只能看在fitCutoff之前已观察到的结果，评估预测必须在fitCutoff之后生成；apply只接收概率/预测时间/提前量，不能读取留出赛果。默认至少100条拟合、30条评估，缺证据返回 `insufficient-prospective-evidence`。接口不自动调参、选择校准器或晋升模型，始终 `calibrated:false`；未来要上线校准必须另行验证跨赛季、提前量、球队相关性和留出集表现。
+`forecast-evaluation.mjs` 的 `temporalCalibrationExperiment(rows, {fitCutoff, fit, apply, cohort})` 只消费元数据完整的前瞻账本记录。`cohort`必须指定`modelId/modelVersion/modelHash/source/league/horizonHours/toleranceHours`；同场重复拒绝，回顾记录及不符配置/时效的记录排除。fit只能看在fitCutoff之前实际入账的结果，评估预测必须在fitCutoff之后实际登记；仅早期观察时间不能让后入账比分进入训练。apply只接收概率/生成及登记时间/实际提前量，不能读取留出赛果。默认至少100条拟合、30条评估是研究接口的最低条件，不能替代每联赛200场发布下限；缺证据返回 `insufficient-prospective-evidence`。接口不自动调参、选择校准器或晋升模型，始终 `calibrated:false`；未来要上线校准必须另行验证跨赛季、提前量、球队相关性和留出集表现。
 
 2026-10-31 04:30 UTC 的v1临开赛口径历史实采记录：13 场未来赛程、370 场完赛历史，生成 9 场德甲预测，其他四联赛各 1 场因缺少历史未生成概率；严格盘口候选 0。滚动窗口中评估 63 场、跳过 17 场；模型 Brier 约 0.5490，赛果频率基准约 0.6129，模型 Log loss 约 0.9314，方向命中率 57.1%。这是单次小样本结果，不能作为v2各提前量或前瞻账本的验证结果。
 

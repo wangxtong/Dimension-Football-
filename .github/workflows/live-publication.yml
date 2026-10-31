@@ -1,0 +1,80 @@
+name: 持久采集与网站发布（Sites 主执行端）
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'observations 只更新真实赛程；research 仅离线研究，预测发布仍 BLOCKED'
+        type: choice
+        default: observations
+        options: [observations, research]
+  # GitHub schedules are best effort; five minutes is a target, not an SLA.
+  schedule:
+    - cron: '*/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'collector/**'
+      - 'config/**'
+      - 'website/report-schema.mjs'
+      - '.github/workflows/live-publication.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  # Serialize with the existing archive workflow and its pre-upgrade runs.
+  group: dimension-football-public-sample
+  cancel-in-progress: false
+
+jobs:
+  live:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      COLLECTOR_COMMIT: ${{ github.sha }}
+      # Collection/state can advance; publication requires the reviewed report gate.
+      RELEASE_GATE: BLOCKED
+      HOSTED_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observations' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: 恢复持久状态、分层采集并核验原站点（最多 3 分钟）
+        run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-live" --budget-minutes 3 --mode "$HOSTED_MODE"
+      - name: 保留本轮采集与运行证据
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: live-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/dimension-live/
+            !${{ runner.temp }}/dimension-live/**/*.lock
+            !${{ runner.temp }}/dimension-live/**/*.env
+            !${{ runner.temp }}/dimension-live/**/.env*
+            !${{ runner.temp }}/dimension-live/**/*secret*
+            !${{ runner.temp }}/dimension-live/**/*credential*
+            !${{ runner.temp }}/dimension-live/**/*token*
+          include-hidden-files: false
+          if-no-files-found: warn
+          retention-days: 90
+      - name: 说明运行与交付边界
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Sites 持久采集与发布
+
+          RELEASE_GATE=BLOCKED：默认只采集公开赛程，网站仅刷新已去除预测与盘口候选的观测投影；不创建预测账本、不发布正式预测、不发送通知。
+          调度目标为每 5 分钟；GitHub 排队、并发与上游预算可能导致延迟。
+          公开赛程仅到 15 分钟采集周期才请求；未到期保持原始观测时间，不把缓存标为刚更新。
+          状态来自原 Sites 的持久存储，以 revision 做条件更新；冲突或超限会停止，不使用空状态替代失败恢复。
+          当前通知入口受独立门禁阻断，runner 与 Sites 均不发送自动预测。
+          本轮采集与运行记录保留为 90 天附件；仅手动 research 模式生成完整回测。R2 保存观察报告与当前状态，既有预测账本不删除。
+          网站成功仅以同 reportId、同报告摘要、hosted/available 实际回读为准；本工作流不表示 ECS 已部署。
+          EOF

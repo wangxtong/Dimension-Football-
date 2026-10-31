@@ -22,12 +22,16 @@ export function createPredictionRecord({ fixture, forecast, model, reportId, now
     || !time(forecast.generatedAt) || isoMillis(forecast.generatedAt) >= isoMillis(fixture.kickoff)
     || !time(forecast.trainingCutoff) || isoMillis(forecast.trainingCutoff) > isoMillis(forecast.generatedAt)
     || !hash(forecast.trainingHash) || !hash(reportId) || !token(model?.id) || !Number.isSafeInteger(model.version)
-    || !time(nowISO) || isoMillis(nowISO) < isoMillis(forecast.generatedAt) || isoMillis(nowISO) >= isoMillis(fixture.kickoff)) throw new Error('INVALID_PREDICTION_RECORD');
-  const record = { version: 1, kind: 'prediction', ...identity(fixture), reportId,
+    || !time(nowISO) || isoMillis(nowISO) < isoMillis(forecast.generatedAt) || isoMillis(nowISO) >= isoMillis(fixture.kickoff)
+    || !time(forecast.freshness?.validUntil) || isoMillis(nowISO) >= isoMillis(forecast.freshness.validUntil)
+    || isoMillis(nowISO) - isoMillis(forecast.generatedAt) >= 3600000) throw new Error('INVALID_PREDICTION_RECORD');
+  const record = { version: 2, kind: 'prediction', ...identity(fixture), reportId,
     model: { id: model.id, version: model.version, calibrated: model.calibrated === true },
+    modelHash: digest(model), validUntil: forecast.freshness.validUntil,
     generatedAt: new Date(isoMillis(forecast.generatedAt)).toISOString(), recordedAt: new Date(isoMillis(nowISO)).toISOString(), trainingCutoff: forecast.trainingCutoff,
     trainingHash: forecast.trainingHash, probabilities: Object.fromEntries(['home', 'draw', 'away'].map(key => [key, forecast.probabilities[key]])),
-    horizonHours: (isoMillis(fixture.kickoff) - isoMillis(forecast.generatedAt)) / 3600000 };
+    generationHorizonHours: (isoMillis(fixture.kickoff) - isoMillis(forecast.generatedAt)) / 3600000,
+    horizonHours: (isoMillis(fixture.kickoff) - isoMillis(nowISO)) / 3600000, horizonBasis: 'recordedAt' };
   return { ...record, predictionId: digest([record.source, record.fixtureId, record.model, record.generatedAt]) };
 }
 
@@ -88,18 +92,19 @@ async function append(directory, id, record, equivalent = (a, b) => digest(a) ==
 export async function appendPrediction({ directory, fixture, forecast, model, reportId, nowISO }) {
   const record = createPredictionRecord({ fixture, forecast, model, reportId, nowISO });
   return append(join(directory, eventId(record), 'predictions'), record.predictionId, record,
-    (a, b) => digest({ ...a, recordedAt: null }) === digest({ ...b, recordedAt: null }));
+    (a, b) => digest({ ...a, recordedAt: null, horizonHours: null }) === digest({ ...b, recordedAt: null, horizonHours: null }));
 }
 
 export async function appendResultAndScore({ directory, result, nowISO }) {
   let version = createResultVersion(result);
   if (!time(nowISO) || isoMillis(version.resultObservedAt) > isoMillis(nowISO)) throw new Error('FUTURE_RESULT_OBSERVATION');
+  version = { ...version, recordedAt: nowISO };
   const root = join(directory, eventId(version));
   const previous = (await records(join(root, 'results'))).sort((a, b) => isoMillis(b.resultObservedAt) - isoMillis(a.resultObservedAt))[0];
   if (previous?.contentHash === version.contentHash && isoMillis(previous.resultObservedAt) <= isoMillis(version.resultObservedAt)) version = previous;
   // Re-polling an unchanged result keeps its first stored observation time.
   const stored = await append(join(root, 'results'), version.resultVersionId, version,
-    (a, b) => a.resultVersionId === b.resultVersionId && digest({ ...a, resultObservedAt: null, sourceRevisionId: null }) === digest({ ...b, resultObservedAt: null, sourceRevisionId: null }));
+    (a, b) => a.resultVersionId === b.resultVersionId && digest({ ...a, resultObservedAt: null, sourceRevisionId: null, recordedAt: null }) === digest({ ...b, resultObservedAt: null, sourceRevisionId: null, recordedAt: null }));
   const scores = [];
   for (const prediction of await records(join(root, 'predictions'))) {
     const score = scorePredictionRecord(prediction, stored.record);
@@ -130,36 +135,72 @@ export async function appendReportPredictions({ directory, report, nowISO }) {
     if (![f?.id, f?.source, f?.league].every(token) || !time(f?.kickoff) || !time(generatedAt)
       || isoMillis(generatedAt) > isoMillis(nowISO) || isoMillis(nowISO) >= isoMillis(f.kickoff)) continue;
     const opportunity = { version: 1, kind: 'opportunity', source: f.source, fixtureId: f.id, league: f.league,
-      kickoff: f.kickoff, generatedAt, recordedAt: nowISO, reportId, horizonHours: (isoMillis(f.kickoff) - isoMillis(generatedAt)) / 3600000,
+      kickoff: f.kickoff, generatedAt, recordedAt: nowISO, reportId, horizonHours: (isoMillis(f.kickoff) - isoMillis(nowISO)) / 3600000,
+      generationHorizonHours: (isoMillis(f.kickoff) - isoMillis(generatedAt)) / 3600000, horizonBasis: 'recordedAt',
       model: token(model?.id) ? { id: model.id, version: model.version } : null,
+      modelHash: token(model?.id) ? digest(model) : null,
       status: predictionId ? 'forecast' : 'unavailable', predictionId, reasons: row.forecast?.reasons || ['FORECAST_MISSING'] };
     await append(join(directory, eventId(opportunity), 'opportunities'), digest([reportId, f.source, f.id]), opportunity,
-      (a, b) => digest({ ...a, recordedAt: null }) === digest({ ...b, recordedAt: null }));
+      (a, b) => digest({ ...a, recordedAt: null, horizonHours: null }) === digest({ ...b, recordedAt: null, horizonHours: null }));
     result.opportunities++;
   }
   return result;
 }
 
+export function frozenPredictionIssues(row) {
+  if (!row || typeof row !== 'object') return ['INVALID_PREDICTION_METADATA'];
+  const issues = [];
+  if (row?.kind !== 'prediction' || !validProbabilities(row.probabilities) || !hash(row.predictionId) || !hash(row.reportId)
+    || !hash(row.trainingHash) || !token(row.model?.id) || !Number.isSafeInteger(row.model.version)
+    || !['source', 'fixtureId', 'league', 'homeTeamId', 'awayTeamId'].every(key => token(row[key]))
+    || row.homeTeamId === row.awayTeamId) issues.push('INVALID_PREDICTION_METADATA');
+  if (!time(row.generatedAt) || !time(row.recordedAt) || !time(row.kickoff) || !time(row.trainingCutoff)
+    || isoMillis(row.trainingCutoff) > isoMillis(row.generatedAt) || isoMillis(row.generatedAt) > isoMillis(row.recordedAt)
+    || isoMillis(row.recordedAt) >= isoMillis(row.kickoff)) issues.push('PREDICTION_NOT_FROZEN_PREMATCH');
+  if (!time(row.validUntil) || isoMillis(row.recordedAt) >= isoMillis(row.validUntil)
+    || isoMillis(row.recordedAt) - isoMillis(row.generatedAt) >= 3600000) issues.push('PREDICTION_FRESHNESS_UNVERIFIED');
+  if (!hash(row.modelHash)) issues.push('MODEL_CONFIGURATION_NOT_FROZEN');
+  return issues;
+}
+
+/** Reads only the existing ledger. A missing root is distinguishable from an empty ledger. */
+export async function readPredictionLedger({ directory }) {
+  let names; try { names = await readdir(directory); } catch (failure) { if (failure.code === 'ENOENT') return { exists: false, events: [] }; throw failure; }
+  const events = [];
+  for (const key of names.filter(hash).sort()) {
+    const root = join(directory, key);
+    const [predictions, opportunities, results] = await Promise.all(['predictions', 'opportunities', 'results'].map(kind => records(join(root, kind))));
+    if ([...predictions, ...opportunities, ...results].some(row => eventId(row) !== key)) throw new Error('LEDGER_EVENT_IDENTITY_MISMATCH');
+    events.push({ key, predictions, opportunities, results });
+  }
+  return { exists: true, events };
+}
+
 /** One prediction per fixture per lead-time window, preventing hourly pseudo-replication. */
-export async function evaluatePredictionLedger({ directory, nowISO, horizonHours = 1, toleranceHours = 1, modelId, modelVersion, source, league }) {
+export async function evaluatePredictionLedger({ directory, nowISO, horizonHours = 1, toleranceHours = 1, modelId, modelVersion, modelHash, source, league, ledger }) {
   if (!time(nowISO) || !Number.isFinite(horizonHours) || horizonHours < 0 || !Number.isFinite(toleranceHours)
     || toleranceHours < 0 || toleranceHours > 24 || [modelId, source, league].some(value => value !== undefined && !token(value))
-    || modelVersion !== undefined && !Number.isSafeInteger(modelVersion)) throw new Error('INVALID_LEDGER_EVALUATION');
-  let events; try { events = await readdir(directory); } catch (error) { if (error.code === 'ENOENT') events = []; else throw error; }
-  const evaluations = [], exclusions = []; let eligible = 0, pending = 0;
-  for (const event of events.filter(hash)) {
-    const root = join(directory, event);
+    || modelVersion !== undefined && !Number.isSafeInteger(modelVersion) || modelHash !== undefined && !hash(modelHash)) throw new Error('INVALID_LEDGER_EVALUATION');
+  const snapshot = ledger || await readPredictionLedger({ directory });
+  const evaluations = [], exclusions = [], cohorts = new Set(); let eligible = 0, pending = 0;
+  for (const event of snapshot.events) {
+    const lead = row => (isoMillis(row.kickoff) - isoMillis(row.recordedAt)) / 3600000;
     const withinWindow = row => isoMillis(row.generatedAt) <= isoMillis(nowISO) && isoMillis(row.recordedAt) <= isoMillis(nowISO)
-      && row.horizonHours >= horizonHours && row.horizonHours <= horizonHours + toleranceHours
+      && lead(row) >= horizonHours && lead(row) <= horizonHours + toleranceHours
       && (modelId === undefined || row.model?.id === modelId) && (modelVersion === undefined || row.model?.version === modelVersion)
+      && (modelHash === undefined || row.modelHash === modelHash)
       && (source === undefined || row.source === source) && (league === undefined || row.league === league);
-    const order = (a, b) => a.horizonHours - b.horizonHours || (a.predictionId || a.reportId).localeCompare(b.predictionId || b.reportId);
-    const predictions = (await records(join(root, 'predictions'))).filter(withinWindow).sort(order);
-    const opportunity = (await records(join(root, 'opportunities'))).filter(withinWindow).sort(order)[0];
+    const order = (a, b) => lead(a) - lead(b) || (a.predictionId || a.reportId).localeCompare(b.predictionId || b.reportId);
+    const predictions = event.predictions.filter(withinWindow).sort(order);
+    for (const row of predictions) cohorts.add(JSON.stringify([row.model?.id, row.model?.version, row.modelHash || 'unknown', row.source, row.league]));
+    const opportunity = event.opportunities.filter(withinWindow).sort(order)[0];
     const prediction = opportunity ? predictions.find(row => row.predictionId === opportunity.predictionId) : predictions[0];
     if (!prediction && !opportunity) continue; eligible++;
     if (!prediction) { exclusions.push({ fixtureId: opportunity.fixtureId, reason: opportunity.status === 'unavailable' ? 'FORECAST_UNAVAILABLE' : 'PREDICTION_RECORD_MISSING', reasons: opportunity.reasons }); continue; }
-    const versions = (await records(join(root, 'results'))).filter(row => isoMillis(row.resultObservedAt) <= isoMillis(nowISO))
+    const issues = frozenPredictionIssues(prediction);
+    if (issues.length) { exclusions.push({ predictionId: prediction.predictionId, reason: 'UNVERIFIED_FROZEN_PREDICTION', reasons: issues }); continue; }
+    const versions = event.results.filter(row => isoMillis(row.resultObservedAt) <= isoMillis(nowISO)
+      && time(row.recordedAt) && isoMillis(row.recordedAt) <= isoMillis(nowISO))
       .sort((a, b) => isoMillis(b.resultObservedAt) - isoMillis(a.resultObservedAt) || a.resultVersionId.localeCompare(b.resultVersionId));
     if (!versions.length) { pending++; continue; }
     // Equal observation times with different outcomes have no trustworthy ordering.
@@ -167,9 +208,12 @@ export async function evaluatePredictionLedger({ directory, nowISO, horizonHours
     const result = versions[0], score = scorePredictionRecord(prediction, result);
     if (score.status === 'pending-postponed') { pending++; continue; }
     if (score.status !== 'scored') { exclusions.push({ predictionId: prediction.predictionId, reason: score.status }); continue; }
-    evaluations.push({ ...prediction, actual: score.actual, resultVersionId: result.resultVersionId,
-      resultObservedAt: result.resultObservedAt, provenance: 'prospective-ledger' });
+    evaluations.push({ ...prediction, horizonHours: lead(prediction), horizonBasis: 'recordedAt', actual: score.actual, resultVersionId: result.resultVersionId,
+      resultObservedAt: result.resultObservedAt, resultRecordedAt: result.recordedAt, provenance: 'prospective-ledger' });
   }
-  return { horizonHours, toleranceHours, filters: { modelId: modelId ?? null, modelVersion: modelVersion ?? null, source: source ?? null, league: league ?? null }, evaluations, exclusions,
-    ...summarizeEvaluations(evaluations, { eligible, skipped: exclusions.length, pending }) };
+  const assessment = summarizeEvaluations(evaluations, { eligible, skipped: exclusions.length, pending });
+  const mixed = cohorts.size > 1;
+  return { horizonHours, toleranceHours, horizonBasis: 'recordedAt', assessmentStatus: mixed ? 'blocked-mixed-cohorts' : 'single-cohort', cohorts: [...cohorts].map(JSON.parse),
+    filters: { modelId: modelId ?? null, modelVersion: modelVersion ?? null, modelHash: modelHash ?? null, source: source ?? null, league: league ?? null }, evaluations, exclusions,
+    ...assessment, ...(mixed ? { metrics: null, reliability: null, uncertainty: null } : {}) };
 }

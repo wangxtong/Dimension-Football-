@@ -114,7 +114,8 @@ test('built website: login cookie, classifications, keyboard navigation, stable 
   assert.equal(await page.getByRole('tab', { name: '严格候选', exact: true }).getAttribute('aria-selected'), 'true');
   assert.match(await page.locator('#cards').textContent(), /严格主队/);
   await page.keyboard.press('End'); assert.match(await page.locator('#cards').textContent(), /缺项主队/);
-  await page.keyboard.press('Home'); assert.equal(await page.locator('[data-fixture-id="analysis"] details').evaluate(node => node.open), true);
+  await page.keyboard.press('Home'); assert.equal(await page.getByRole('tab', {name:'联赛赛程',exact:true}).getAttribute('aria-selected'),'true');
+  await page.keyboard.press('ArrowRight'); assert.equal(await page.locator('[data-fixture-id="analysis"] details').evaluate(node => node.open), true);
   state.serverNow += 43200001;
   await page.getByRole('button', { name: '刷新报告 ↻' }).click();
   await page.waitForURL('**/login'); assert.equal(await page.getByRole('heading', { name: '登录预测看板' }).count(), 1);
@@ -267,4 +268,26 @@ test('built Worker: upstream failure serves an explicitly labelled compressed bo
   await page.waitForFunction(() => document.querySelector('#count-analysis').textContent === '0');
   assert.equal(await page.locator('#count-missing').textContent(), '3');
   assert.match(await page.locator('#warning').textContent(), /预测已过期/);
+});
+
+
+test('built website: Telegram links survive login and expose mobile league and delivery sections', { timeout: 60000 }, async t => {
+  const { page, origin } = await dashboard(t);
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(origin+'/?view=missing#missing');
+  await page.getByLabel('用户名').fill(auth.username); await page.getByLabel('密码').fill(password);
+  await page.getByRole('button',{name:'登录看板 →'}).click();
+  await page.waitForFunction(()=>document.querySelector('#count-fixtures')?.textContent==='3');
+  assert.equal(await page.getByRole('tab',{name:'暂不可评估',exact:true}).getAttribute('aria-selected'),'true');
+  assert.equal(await page.locator('.league-card').count(),5);
+  await page.locator('.section-nav a[href="#schedule"]').click();
+  await page.waitForFunction(()=>document.querySelector('#tab-schedule').getAttribute('aria-selected')==='true');
+  assert.equal(await page.getByRole('tab',{name:'联赛赛程',exact:true}).getAttribute('aria-selected'),'true');
+  assert.equal(await page.locator('#cards .card').count(),3);
+  assert.equal(await page.locator('#cards .probabilities').count(),0);
+  await page.locator('.section-nav a[href="#status"]').click();
+  await page.waitForFunction(()=>document.activeElement?.id==='status');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.goto(origin+'/?view=https%3A%2F%2Fexample.test#bad');
+  assert.equal(new URL(page.url()).origin,origin);
 });

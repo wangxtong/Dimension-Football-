@@ -1,4 +1,5 @@
 import { validateBundle } from './report-schema.mjs';
+import { loadHostedBundle } from './hosted-publications.mjs';
 
 const MAX_FEED_BYTES = 4_000_000;
 async function feedText(body, limit = MAX_FEED_BYTES) {
@@ -29,7 +30,13 @@ export async function dashboardReportHash(report) {
 }
 export async function readDashboardBundle(env, { fetchImpl = fetch, now = Date.now() } = {}) {
   let bundle = null, failure = null, mode = 'bootstrap';
-  if (env.REPORTS_ORIGIN) {
+  if (env.HOSTED_PUBLICATION_ENABLED === 'true') {
+    try {
+      const hosted = await loadHostedBundle(env, { now });
+      if (hosted) { bundle = validateBundle(hosted); mode = 'hosted'; }
+    } catch { failure = 'HOSTED_REPORT_UNAVAILABLE'; }
+  }
+  if (!bundle && env.REPORTS_ORIGIN && env.HOSTED_PUBLICATION_ENABLED !== 'true') {
     let origin;
     try {
       origin = new URL(env.REPORTS_ORIGIN);

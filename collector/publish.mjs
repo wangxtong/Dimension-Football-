@@ -4,6 +4,7 @@ import { readJson } from './storage.mjs';
 import { configureEnvironmentProxy } from './network.mjs';
 import { publishWebsite, publishWebsiteReceipt, publishTelegram, publishGitHubArchive, publishAll } from './delivery.mjs';
 import { fileURLToPath } from 'node:url';
+import { requireGreenForecastDelivery } from './publication-release-gate.mjs';
 
 export { publishAll } from './delivery.mjs';
 
@@ -12,6 +13,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 try {
   if (!directory || !['summary', 'artifact', 'website', 'website-receipt', 'telegram', 'archive', 'all'].includes(mode) || process.argv.length !== 4) throw new Error('INVALID_ARGUMENT');
   const out = resolve(directory);
+  if (['website','website-receipt','telegram','all'].includes(mode))
+    await requireGreenForecastDelivery(out);
   if (['website', 'website-receipt', 'telegram', 'archive', 'all'].includes(mode)) {
     configureEnvironmentProxy(process.env);
     const config = await readJson(new URL('../config/delivery.json', import.meta.url));
@@ -27,5 +30,10 @@ try {
   console.log(JSON.stringify({ reportId: receipt.reportId, channel: mode, status: receipt.channels[mode === 'summary' ? 'githubSummary' : 'githubArtifact'].status }));
   if (['failed', 'unknown'].includes(receipt.channels[mode === 'summary' ? 'githubSummary' : 'githubArtifact'].status)) process.exitCode = 1;
   }
-} catch { console.error('PUBLICATION_FAILED: see publication.json for the recorded outcome'); process.exitCode = 1; }
+} catch (error) {
+  if (error.code === 'RELEASE_GATE_BLOCKED')
+    console.error(JSON.stringify({ code:'RELEASE_GATE_BLOCKED', ...error.releaseGate }));
+  else console.error('PUBLICATION_FAILED: see publication.json for the recorded outcome');
+  process.exitCode = 1;
+}
 }

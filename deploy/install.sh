@@ -42,13 +42,18 @@ if [[ ! -e /etc/vantis/source-mode ]]; then printf 'artifact\n' > /etc/vantis/so
 printf '%s\n' "$node_bin" > /etc/vantis/.node-path.new
 chown root:vantis /etc/vantis/.node-path.new;chmod 0640 /etc/vantis/.node-path.new
 mv -T /etc/vantis/.node-path.new /etc/vantis/node-path
-# Tests never inherit provider/notification secrets or run as root.
+# Full regression tests run against the exact source SHA in CI; the runtime
+# archive deliberately contains no tests/module mocks. Installation validates
+# runtime syntax and the inert entrypoint without production secrets or root.
 chown -R root:root "$source_dir"
 find "$source_dir" -type d -exec chmod 0755 {} +
 find "$source_dir" -type f -exec chmod 0644 {} +
-mapfile -d '' -t tests < <(find "$source_dir/collector/test" "$source_dir/collector/sources/test" "$source_dir/website/test" -name '*.test.mjs' -type f -print0)
-(( ${#tests[@]} > 0 )) || die 'TESTS_MISSING'
-(cd "$source_dir" && timeout 300s runuser -u vantis-check -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent TMPDIR=/tmp "$node_bin" --test "${tests[@]}") >/dev/null 2>&1 || die 'SOURCE_TESTS_FAILED'
+mapfile -d '' -t modules < <(find "$source_dir/collector" "$source_dir/website" -name '*.mjs' -type f -print0)
+(( ${#modules[@]} > 0 )) || die 'RUNTIME_MODULES_MISSING'
+for module in "${modules[@]}"; do
+  timeout 10s runuser -u vantis-check -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent TMPDIR=/tmp "$node_bin" --check "$module" >/dev/null 2>&1 || die 'RUNTIME_SYNTAX_FAILED'
+done
+timeout 30s runuser -u vantis-check -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/nonexistent TMPDIR=/tmp "$node_bin" "$source_dir/collector/orchestrate.mjs" --help >/dev/null 2>&1 || die 'ENTRYPOINT_HELP_FAILED'
 python3 "$source_dir/deploy/bundle.py" verify-directory "$source_dir" >/dev/null
 runuser -u vantis -- "$node_bin" --env-file=/etc/vantis/collector.env "$source_dir/collector/operations.mjs" self-check \
   --root /var/lib/vantis --release "$source_dir" --config /etc/vantis/operations.json || die 'CAPABILITY_OR_ENTRYPOINT_CHECK_FAILED'
