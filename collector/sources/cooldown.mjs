@@ -66,6 +66,12 @@ export async function withSourceCooldown({ statePath, clock = () => new Date().t
           if (statePath) await atomicJson(statePath, state);
           throw new SourceCooldownError(code, response.status, delay, nextProbeAt);
         }
+        // A genuine successful probe closes an expired circuit. Retaining the
+        // old 429/503 evidence would falsely report a recovered source as blocked.
+        if (response.ok && previous) {
+          delete state.sources[id];
+          if (statePath) await atomicJson(statePath, state);
+        }
         return response;
       };
       // Queue the check as well as the request: parallel callers cannot race past
