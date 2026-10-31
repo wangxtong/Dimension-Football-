@@ -17,7 +17,7 @@
     "crawler:doctor": "node collector/browser.mjs",
     "test:browser": "npm test --prefix collector/browser-runtime",
     "analyze:full": "node collector/analyze.mjs",
-    "test": "node --test collector/test/*.test.mjs collector/sources/test/*.test.mjs website/test/*.test.mjs",
+    "test": "node --test collector/test/*.test.mjs collector/sources/test/*.test.mjs website/test/*.test.mjs deploy/test/*.test.mjs",
     "check": "node --check collector/run.mjs"
   }
 }
