@@ -1,7 +1,7 @@
 {
   "version": 1,
   "kind": "prematch-forecast-report",
-  "generatedAt": "2026-11-01T07:31:46.322Z",
+  "generatedAt": "2026-11-01T15:07:21.122Z",
   "simulated": false,
   "model": {
     "id": "venue-poisson-v2",
@@ -37,14 +37,14 @@
       "source": "openligadb",
       "league": "BL1",
       "method": "chronological-walk-forward",
-      "horizonHours": 6.971359722222222,
+      "horizonHours": 1.3839447222222223,
       "visibility": "snapshot",
       "evaluated": 63,
       "skipped": 17,
       "interrupted": false,
       "metrics": {
-        "brier": 0.5901100925764918,
-        "logLoss": 0.9888913184236967,
+        "brier": 0.5901112952924009,
+        "logLoss": 0.9888950280469567,
         "accuracy": 0.49206349206349204,
         "baselineBrier": 0.6292904779268965,
         "baselineLogLoss": 1.0435344087179563
@@ -70,7 +70,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 19,
-            "meanProbability": 0.3362894622334438,
+            "meanProbability": 0.33633926939799563,
             "observedFrequency": 0.3684210526315789,
             "status": "insufficient-bin-sample"
           },
@@ -78,7 +78,7 @@
             "lower": 0.4,
             "upper": 0.6,
             "count": 26,
-            "meanProbability": 0.4806467686976536,
+            "meanProbability": 0.48064768484218884,
             "observedFrequency": 0.46153846153846156,
             "status": "descriptive"
           },
@@ -86,7 +86,7 @@
             "lower": 0.6,
             "upper": 0.8,
             "count": 17,
-            "meanProbability": 0.653491591027005,
+            "meanProbability": 0.6534338356240852,
             "observedFrequency": 0.6470588235294118,
             "status": "insufficient-bin-sample"
           },
@@ -94,7 +94,7 @@
             "lower": 0.8,
             "upper": 1,
             "count": 1,
-            "meanProbability": 0.8062090754632342,
+            "meanProbability": 0.8061149241680635,
             "observedFrequency": 1,
             "status": "insufficient-bin-sample"
           }
@@ -104,7 +104,7 @@
             "lower": 0,
             "upper": 0.2,
             "count": 17,
-            "meanProbability": 0.17711391585008066,
+            "meanProbability": 0.1771330922337665,
             "observedFrequency": 0.23529411764705882,
             "status": "insufficient-bin-sample"
           },
@@ -112,7 +112,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 46,
-            "meanProbability": 0.22632713716037484,
+            "meanProbability": 0.22632791730413465,
             "observedFrequency": 0.1956521739130435,
             "status": "descriptive"
           },
@@ -146,7 +146,7 @@
             "lower": 0,
             "upper": 0.2,
             "count": 18,
-            "meanProbability": 0.1581032899804329,
+            "meanProbability": 0.15814378969126525,
             "observedFrequency": 0.1111111111111111,
             "status": "insufficient-bin-sample"
           },
@@ -154,7 +154,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 33,
-            "meanProbability": 0.3124773786671575,
+            "meanProbability": 0.31247184855099003,
             "observedFrequency": 0.36363636363636365,
             "status": "descriptive"
           },
@@ -162,7 +162,7 @@
             "lower": 0.4,
             "upper": 0.6,
             "count": 12,
-            "meanProbability": 0.46821004283422063,
+            "meanProbability": 0.4681431637644991,
             "observedFrequency": 0.4166666666666667,
             "status": "insufficient-bin-sample"
           },
@@ -188,19 +188,19 @@
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.5901100925764918,
-          "lower": 0.512738016874329,
-          "upper": 0.6674821682786547
+          "estimate": 0.5901112952924009,
+          "lower": 0.5127506533577197,
+          "upper": 0.6674719372270821
         },
         "logLoss": {
-          "estimate": 0.9888913184236967,
-          "lower": 0.8794827635901715,
-          "upper": 1.098299873257222
+          "estimate": 0.9888950280469567,
+          "lower": 0.8795029625996093,
+          "upper": 1.0982870934943043
         },
         "pairedBrierDifference": {
-          "estimate": -0.039180385350404925,
-          "lower": -0.09084246972035377,
-          "upper": 0.012481699019543921
+          "estimate": -0.039179182634495636,
+          "lower": -0.09082540281997155,
+          "upper": 0.012467037550980276
         },
         "limitations": [
           "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -219,196 +219,14 @@
       "source": "openligadb",
       "league": "BL1",
       "method": "chronological-walk-forward",
-      "horizonHours": 8.971359722222223,
+      "horizonHours": 124.38394472222222,
       "visibility": "snapshot",
       "evaluated": 63,
       "skipped": 17,
       "interrupted": false,
       "metrics": {
-        "brier": 0.5901096641077576,
-        "logLoss": 0.9888899934433363,
-        "accuracy": 0.49206349206349204,
-        "baselineBrier": 0.6292904779268965,
-        "baselineLogLoss": 1.0435344087179563
-      },
-      "coverage": {
-        "eligible": 80,
-        "evaluated": 63,
-        "skipped": 17,
-        "pending": 0,
-        "rate": 0.7875
-      },
-      "reliability": {
-        "home": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 19,
-            "meanProbability": 0.3362716361773764,
-            "observedFrequency": 0.3684210526315789,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 26,
-            "meanProbability": 0.4806464403921795,
-            "observedFrequency": 0.46153846153846156,
-            "status": "descriptive"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 17,
-            "meanProbability": 0.6535122606793395,
-            "observedFrequency": 0.6470588235294118,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 1,
-            "meanProbability": 0.806242766654334,
-            "observedFrequency": 1,
-            "status": "insufficient-bin-sample"
-          }
-        ],
-        "draw": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 17,
-            "meanProbability": 0.17710705243314373,
-            "observedFrequency": 0.23529411764705882,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 46,
-            "meanProbability": 0.22632685775788855,
-            "observedFrequency": 0.1956521739130435,
-            "status": "descriptive"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ],
-        "away": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 18,
-            "meanProbability": 0.15808879672153314,
-            "observedFrequency": 0.1111111111111111,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 33,
-            "meanProbability": 0.31247935803926974,
-            "observedFrequency": 0.36363636363636365,
-            "status": "descriptive"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 12,
-            "meanProbability": 0.4682339799766882,
-            "observedFrequency": 0.4166666666666667,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ]
-      },
-      "uncertainty": {
-        "method": "normal-approximation-mean-95pct",
-        "status": "approximate-small-sample",
-        "brier": {
-          "estimate": 0.5901096641077576,
-          "lower": 0.5127334958659487,
-          "upper": 0.6674858323495664
-        },
-        "logLoss": {
-          "estimate": 0.9888899934433363,
-          "lower": 0.8794755362266864,
-          "upper": 1.0983044506599862
-        },
-        "pairedBrierDifference": {
-          "estimate": -0.039180813819138974,
-          "lower": -0.09084857615503489,
-          "upper": 0.012486948516756934
-        },
-        "limitations": [
-          "Intervals assume independent observations; match and team dependence can understate uncertainty.",
-          "Reliability bins describe this sample and do not establish calibration."
-        ]
-      },
-      "status": "evaluated-small-sample",
-      "limitations": [
-        "回测使用开赛时间减去指定提前量为截点，仅用此前至少 4 小时的完赛比分。",
-        "当前修订快照回顾评估，不能还原当时可见性，未做概率校准。",
-        "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
-      ],
-      "purpose": "actual-publication-horizon"
-    },
-    {
-      "source": "openligadb",
-      "league": "BL1",
-      "method": "chronological-walk-forward",
-      "horizonHours": 131.97135972222222,
-      "visibility": "snapshot",
-      "evaluated": 63,
-      "skipped": 17,
-      "interrupted": false,
-      "metrics": {
-        "brier": 0.589962142868165,
-        "logLoss": 0.988645858653591,
+        "brier": 0.5899637788069306,
+        "logLoss": 0.9886508911684417,
         "accuracy": 0.49206349206349204,
         "baselineBrier": 0.6295327099475728,
         "baselineLogLoss": 1.0438681431646386
@@ -434,7 +252,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 20,
-            "meanProbability": 0.3384981167703559,
+            "meanProbability": 0.338563447764484,
             "observedFrequency": 0.35,
             "status": "descriptive"
           },
@@ -442,7 +260,7 @@
             "lower": 0.4,
             "upper": 0.6,
             "count": 25,
-            "meanProbability": 0.48422077904735317,
+            "meanProbability": 0.4842183351948029,
             "observedFrequency": 0.48,
             "status": "descriptive"
           },
@@ -450,7 +268,7 @@
             "lower": 0.6,
             "upper": 0.8,
             "count": 17,
-            "meanProbability": 0.6549276881414547,
+            "meanProbability": 0.6548492915407741,
             "observedFrequency": 0.6470588235294118,
             "status": "insufficient-bin-sample"
           },
@@ -458,7 +276,7 @@
             "lower": 0.8,
             "upper": 1,
             "count": 1,
-            "meanProbability": 0.8093017628475604,
+            "meanProbability": 0.8091733983374557,
             "observedFrequency": 1,
             "status": "insufficient-bin-sample"
           }
@@ -468,7 +286,7 @@
             "lower": 0,
             "upper": 0.2,
             "count": 17,
-            "meanProbability": 0.17661158917465997,
+            "meanProbability": 0.17663774391784,
             "observedFrequency": 0.23529411764705882,
             "status": "insufficient-bin-sample"
           },
@@ -476,7 +294,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 46,
-            "meanProbability": 0.22627864006037138,
+            "meanProbability": 0.22628002485990417,
             "observedFrequency": 0.1956521739130435,
             "status": "descriptive"
           },
@@ -510,7 +328,7 @@
             "lower": 0,
             "upper": 0.2,
             "count": 18,
-            "meanProbability": 0.15706131756048367,
+            "meanProbability": 0.15711640813834402,
             "observedFrequency": 0.1111111111111111,
             "status": "insufficient-bin-sample"
           },
@@ -518,7 +336,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 33,
-            "meanProbability": 0.31242478129302714,
+            "meanProbability": 0.31241835565077425,
             "observedFrequency": 0.36363636363636365,
             "status": "descriptive"
           },
@@ -526,7 +344,7 @@
             "lower": 0.4,
             "upper": 0.6,
             "count": 12,
-            "meanProbability": 0.4694258141376548,
+            "meanProbability": 0.46933645309875166,
             "observedFrequency": 0.4166666666666667,
             "status": "insufficient-bin-sample"
           },
@@ -552,19 +370,19 @@
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.589962142868165,
-          "lower": 0.5122838085393546,
-          "upper": 0.6676404771969753
+          "estimate": 0.5899637788069306,
+          "lower": 0.5123011570538231,
+          "upper": 0.6676264005600382
         },
         "logLoss": {
-          "estimate": 0.988645858653591,
-          "lower": 0.8787983830943137,
-          "upper": 1.0984933342128684
+          "estimate": 0.9886508911684417,
+          "lower": 0.8788261028210467,
+          "upper": 1.0984756795158368
         },
         "pairedBrierDifference": {
-          "estimate": -0.03957056707940775,
-          "lower": -0.0916500919180711,
-          "upper": 0.01250895775925559
+          "estimate": -0.039568931140642465,
+          "lower": -0.09162703402414893,
+          "upper": 0.012489171742864007
         },
         "limitations": [
           "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -583,17 +401,17 @@
       "source": "openligadb",
       "league": "BL1",
       "method": "chronological-walk-forward",
-      "horizonHours": 150.97135972222222,
+      "horizonHours": 143.38394472222222,
       "visibility": "snapshot",
       "evaluated": 63,
       "skipped": 17,
       "interrupted": false,
       "metrics": {
-        "brier": 0.5898763969006232,
-        "logLoss": 0.9885328102827637,
+        "brier": 0.5899285908523614,
+        "logLoss": 0.9886323401015062,
         "accuracy": 0.5079365079365079,
-        "baselineBrier": 0.6297093267999786,
-        "baselineLogLoss": 1.0440153597106554
+        "baselineBrier": 0.6297212865635792,
+        "baselineLogLoss": 1.0440657034155605
       },
       "coverage": {
         "eligible": 80,
@@ -616,7 +434,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 20,
-            "meanProbability": 0.3379676429880248,
+            "meanProbability": 0.3380008868645524,
             "observedFrequency": 0.35,
             "status": "descriptive"
           },
@@ -624,7 +442,7 @@
             "lower": 0.4,
             "upper": 0.6,
             "count": 25,
-            "meanProbability": 0.48400600772794616,
+            "meanProbability": 0.4840220976851951,
             "observedFrequency": 0.48,
             "status": "descriptive"
           },
@@ -632,7 +450,7 @@
             "lower": 0.6,
             "upper": 0.8,
             "count": 17,
-            "meanProbability": 0.6549935984554971,
+            "meanProbability": 0.6549637985500422,
             "observedFrequency": 0.6470588235294118,
             "status": "insufficient-bin-sample"
           },
@@ -640,7 +458,7 @@
             "lower": 0.8,
             "upper": 1,
             "count": 1,
-            "meanProbability": 0.8109148322858333,
+            "meanProbability": 0.8090824434149646,
             "observedFrequency": 1,
             "status": "insufficient-bin-sample"
           }
@@ -650,7 +468,7 @@
             "lower": 0,
             "upper": 0.2,
             "count": 18,
-            "meanProbability": 0.17783197113427635,
+            "meanProbability": 0.17788628205050697,
             "observedFrequency": 0.2777777777777778,
             "status": "insufficient-bin-sample"
           },
@@ -658,7 +476,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 45,
-            "meanProbability": 0.22680120150406075,
+            "meanProbability": 0.2268050810307036,
             "observedFrequency": 0.17777777777777778,
             "status": "descriptive"
           },
@@ -692,7 +510,7 @@
             "lower": 0,
             "upper": 0.2,
             "count": 18,
-            "meanProbability": 0.15693168756406373,
+            "meanProbability": 0.15702638124810087,
             "observedFrequency": 0.1111111111111111,
             "status": "insufficient-bin-sample"
           },
@@ -700,7 +518,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 32,
-            "meanProbability": 0.31012285518736704,
+            "meanProbability": 0.31008489680298074,
             "observedFrequency": 0.375,
             "status": "descriptive"
           },
@@ -708,7 +526,7 @@
             "lower": 0.4,
             "upper": 0.6,
             "count": 13,
-            "meanProbability": 0.46453535775099736,
+            "meanProbability": 0.46450688602780055,
             "observedFrequency": 0.38461538461538464,
             "status": "insufficient-bin-sample"
           },
@@ -734,19 +552,19 @@
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.5898763969006232,
-          "lower": 0.5121586083970798,
-          "upper": 0.6675941854041666
+          "estimate": 0.5899285908523614,
+          "lower": 0.5122171046463432,
+          "upper": 0.6676400770583796
         },
         "logLoss": {
-          "estimate": 0.9885328102827637,
-          "lower": 0.8786123344667405,
-          "upper": 1.098453286098787
+          "estimate": 0.9886323401015062,
+          "lower": 0.8787203031511294,
+          "upper": 1.098544377051883
         },
         "pairedBrierDifference": {
-          "estimate": -0.03983292989935537,
-          "lower": -0.0922438557119988,
-          "upper": 0.012577995913288072
+          "estimate": -0.03979269571121775,
+          "lower": -0.09212557095184745,
+          "upper": 0.01254017952941195
         },
         "limitations": [
           "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -765,14 +583,14 @@
       "source": "openligadb",
       "league": "BL1",
       "method": "chronological-walk-forward",
-      "horizonHours": 153.97135972222222,
+      "horizonHours": 146.38394472222222,
       "visibility": "snapshot",
       "evaluated": 63,
       "skipped": 17,
       "interrupted": false,
       "metrics": {
-        "brier": 0.5898756792248037,
-        "logLoss": 0.9885307696321025,
+        "brier": 0.5898774989723559,
+        "logLoss": 0.9885359372508793,
         "accuracy": 0.5079365079365079,
         "baselineBrier": 0.6297093267999786,
         "baselineLogLoss": 1.0440153597106554
@@ -798,7 +616,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 20,
-            "meanProbability": 0.3379417324004328,
+            "meanProbability": 0.3380072692416301,
             "observedFrequency": 0.35,
             "status": "descriptive"
           },
@@ -806,7 +624,7 @@
             "lower": 0.4,
             "upper": 0.6,
             "count": 25,
-            "meanProbability": 0.4840067963629105,
+            "meanProbability": 0.4840048006446789,
             "observedFrequency": 0.48,
             "status": "descriptive"
           },
@@ -814,7 +632,7 @@
             "lower": 0.6,
             "upper": 0.8,
             "count": 17,
-            "meanProbability": 0.6550243229686464,
+            "meanProbability": 0.654946607609723,
             "observedFrequency": 0.6470588235294118,
             "status": "insufficient-bin-sample"
           },
@@ -822,7 +640,7 @@
             "lower": 0.8,
             "upper": 1,
             "count": 1,
-            "meanProbability": 0.8109665096096601,
+            "meanProbability": 0.8108357856313628,
             "observedFrequency": 1,
             "status": "insufficient-bin-sample"
           }
@@ -832,7 +650,7 @@
             "lower": 0,
             "upper": 0.2,
             "count": 18,
-            "meanProbability": 0.17782182292839852,
+            "meanProbability": 0.17784749088782226,
             "observedFrequency": 0.2777777777777778,
             "status": "insufficient-bin-sample"
           },
@@ -840,7 +658,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 45,
-            "meanProbability": 0.22680074071668868,
+            "meanProbability": 0.2268019057987414,
             "observedFrequency": 0.17777777777777778,
             "status": "descriptive"
           },
@@ -874,7 +692,7 @@
             "lower": 0,
             "upper": 0.2,
             "count": 18,
-            "meanProbability": 0.15690993827831368,
+            "meanProbability": 0.15696495352026024,
             "observedFrequency": 0.1111111111111111,
             "status": "insufficient-bin-sample"
           },
@@ -882,7 +700,7 @@
             "lower": 0.2,
             "upper": 0.4,
             "count": 32,
-            "meanProbability": 0.31012542629590745,
+            "meanProbability": 0.3101189234074434,
             "observedFrequency": 0.375,
             "status": "descriptive"
           },
@@ -890,7 +708,7 @@
             "lower": 0.4,
             "upper": 0.6,
             "count": 13,
-            "meanProbability": 0.46456898210777536,
+            "meanProbability": 0.46448393651744124,
             "observedFrequency": 0.38461538461538464,
             "status": "insufficient-bin-sample"
           },
@@ -916,19 +734,19 @@
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.5898756792248037,
-          "lower": 0.5121516871767287,
-          "upper": 0.6675996712728787
+          "estimate": 0.5898774989723559,
+          "lower": 0.5121691970649586,
+          "upper": 0.6675858008797532
         },
         "logLoss": {
-          "estimate": 0.9885307696321025,
-          "lower": 0.8786013013507774,
-          "upper": 1.0984602379134276
+          "estimate": 0.9885359372508793,
+          "lower": 0.8786292122769677,
+          "upper": 1.098442662224791
         },
         "pairedBrierDifference": {
-          "estimate": -0.03983364757517476,
-          "lower": -0.09225302991092238,
-          "upper": 0.012585734760572849
+          "estimate": -0.03983182782762259,
+          "lower": -0.09222982094907578,
+          "upper": 0.012566165293830596
         },
         "limitations": [
           "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -944,21 +762,27 @@
       "purpose": "actual-publication-horizon"
     },
     {
-      "source": "thesportsdb-free",
-      "league": "SA",
+      "source": "openligadb",
+      "league": "BL1",
       "method": "chronological-walk-forward",
-      "horizonHours": 1,
+      "horizonHours": 167.38394472222222,
       "visibility": "snapshot",
-      "evaluated": 0,
-      "skipped": 0,
+      "evaluated": 60,
+      "skipped": 20,
       "interrupted": false,
-      "metrics": null,
+      "metrics": {
+        "brier": 0.5942034699614394,
+        "logLoss": 0.9935124350397835,
+        "accuracy": 0.5,
+        "baselineBrier": 0.6305952759589536,
+        "baselineLogLoss": 1.0446632843139447
+      },
       "coverage": {
-        "eligible": 0,
-        "evaluated": 0,
-        "skipped": 0,
+        "eligible": 80,
+        "evaluated": 60,
+        "skipped": 20,
         "pending": 0,
-        "rate": null
+        "rate": 0.75
       },
       "reliability": {
         "home": [
@@ -973,33 +797,33 @@
           {
             "lower": 0.2,
             "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
+            "count": 20,
+            "meanProbability": 0.3390780711407455,
+            "observedFrequency": 0.35,
+            "status": "descriptive"
           },
           {
             "lower": 0.4,
             "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
+            "count": 22,
+            "meanProbability": 0.48058234290673063,
+            "observedFrequency": 0.45454545454545453,
+            "status": "descriptive"
           },
           {
             "lower": 0.6,
             "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
+            "count": 17,
+            "meanProbability": 0.6514783859416374,
+            "observedFrequency": 0.6470588235294118,
             "status": "insufficient-bin-sample"
           },
           {
             "lower": 0.8,
             "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
+            "count": 1,
+            "meanProbability": 0.8107984109809755,
+            "observedFrequency": 1,
             "status": "insufficient-bin-sample"
           }
         ],
@@ -1007,18 +831,18 @@
           {
             "lower": 0,
             "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
+            "count": 16,
+            "meanProbability": 0.17611598580654736,
+            "observedFrequency": 0.25,
             "status": "insufficient-bin-sample"
           },
           {
             "lower": 0.2,
             "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
+            "count": 44,
+            "meanProbability": 0.22580482149579542,
+            "observedFrequency": 0.18181818181818182,
+            "status": "descriptive"
           },
           {
             "lower": 0.4,
@@ -1049,25 +873,25 @@
           {
             "lower": 0,
             "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
+            "count": 17,
+            "meanProbability": 0.15697532671223138,
+            "observedFrequency": 0.11764705882352941,
             "status": "insufficient-bin-sample"
           },
           {
             "lower": 0.2,
             "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
+            "count": 31,
+            "meanProbability": 0.3131372912415172,
+            "observedFrequency": 0.3870967741935484,
+            "status": "descriptive"
           },
           {
             "lower": 0.4,
             "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
+            "count": 12,
+            "meanProbability": 0.4692159633277904,
+            "observedFrequency": 0.4166666666666667,
             "status": "insufficient-bin-sample"
           },
           {
@@ -1090,514 +914,34 @@
       },
       "uncertainty": {
         "method": "normal-approximation-mean-95pct",
-        "status": "insufficient-sample",
-        "brier": null,
-        "logLoss": null,
-        "pairedBrierDifference": null,
+        "status": "approximate-small-sample",
+        "brier": {
+          "estimate": 0.5942034699614394,
+          "lower": 0.5146084811667218,
+          "upper": 0.673798458756157
+        },
+        "logLoss": {
+          "estimate": 0.9935124350397835,
+          "lower": 0.881056747726453,
+          "upper": 1.105968122353114
+        },
+        "pairedBrierDifference": {
+          "estimate": -0.03639180599751421,
+          "lower": -0.09050124283317357,
+          "upper": 0.017717630838145156
+        },
         "limitations": [
           "Intervals assume independent observations; match and team dependence can understate uncertainty.",
           "Reliability bins describe this sample and do not establish calibration."
         ]
       },
-      "status": "insufficient-validation",
+      "status": "evaluated-small-sample",
       "limitations": [
         "回测使用开赛时间减去指定提前量为截点，仅用此前至少 4 小时的完赛比分。",
         "当前修订快照回顾评估，不能还原当时可见性，未做概率校准。",
         "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
       ],
-      "purpose": "reference-horizon"
-    },
-    {
-      "source": "thesportsdb-free",
-      "league": "SA",
-      "method": "chronological-walk-forward",
-      "horizonHours": 24,
-      "visibility": "snapshot",
-      "evaluated": 0,
-      "skipped": 0,
-      "interrupted": false,
-      "metrics": null,
-      "coverage": {
-        "eligible": 0,
-        "evaluated": 0,
-        "skipped": 0,
-        "pending": 0,
-        "rate": null
-      },
-      "reliability": {
-        "home": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ],
-        "draw": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ],
-        "away": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ]
-      },
-      "uncertainty": {
-        "method": "normal-approximation-mean-95pct",
-        "status": "insufficient-sample",
-        "brier": null,
-        "logLoss": null,
-        "pairedBrierDifference": null,
-        "limitations": [
-          "Intervals assume independent observations; match and team dependence can understate uncertainty.",
-          "Reliability bins describe this sample and do not establish calibration."
-        ]
-      },
-      "status": "insufficient-validation",
-      "limitations": [
-        "回测使用开赛时间减去指定提前量为截点，仅用此前至少 4 小时的完赛比分。",
-        "当前修订快照回顾评估，不能还原当时可见性，未做概率校准。",
-        "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
-      ],
-      "purpose": "reference-horizon"
-    },
-    {
-      "source": "thesportsdb-free",
-      "league": "SA",
-      "method": "chronological-walk-forward",
-      "horizonHours": 72,
-      "visibility": "snapshot",
-      "evaluated": 0,
-      "skipped": 0,
-      "interrupted": false,
-      "metrics": null,
-      "coverage": {
-        "eligible": 0,
-        "evaluated": 0,
-        "skipped": 0,
-        "pending": 0,
-        "rate": null
-      },
-      "reliability": {
-        "home": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ],
-        "draw": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ],
-        "away": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ]
-      },
-      "uncertainty": {
-        "method": "normal-approximation-mean-95pct",
-        "status": "insufficient-sample",
-        "brier": null,
-        "logLoss": null,
-        "pairedBrierDifference": null,
-        "limitations": [
-          "Intervals assume independent observations; match and team dependence can understate uncertainty.",
-          "Reliability bins describe this sample and do not establish calibration."
-        ]
-      },
-      "status": "insufficient-validation",
-      "limitations": [
-        "回测使用开赛时间减去指定提前量为截点，仅用此前至少 4 小时的完赛比分。",
-        "当前修订快照回顾评估，不能还原当时可见性，未做概率校准。",
-        "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
-      ],
-      "purpose": "reference-horizon"
-    },
-    {
-      "source": "thesportsdb-free",
-      "league": "SA",
-      "method": "chronological-walk-forward",
-      "horizonHours": 168,
-      "visibility": "snapshot",
-      "evaluated": 0,
-      "skipped": 0,
-      "interrupted": false,
-      "metrics": null,
-      "coverage": {
-        "eligible": 0,
-        "evaluated": 0,
-        "skipped": 0,
-        "pending": 0,
-        "rate": null
-      },
-      "reliability": {
-        "home": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ],
-        "draw": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ],
-        "away": [
-          {
-            "lower": 0,
-            "upper": 0.2,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.2,
-            "upper": 0.4,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.4,
-            "upper": 0.6,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.6,
-            "upper": 0.8,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          },
-          {
-            "lower": 0.8,
-            "upper": 1,
-            "count": 0,
-            "meanProbability": null,
-            "observedFrequency": null,
-            "status": "insufficient-bin-sample"
-          }
-        ]
-      },
-      "uncertainty": {
-        "method": "normal-approximation-mean-95pct",
-        "status": "insufficient-sample",
-        "brier": null,
-        "logLoss": null,
-        "pairedBrierDifference": null,
-        "limitations": [
-          "Intervals assume independent observations; match and team dependence can understate uncertainty.",
-          "Reliability bins describe this sample and do not establish calibration."
-        ]
-      },
-      "status": "insufficient-validation",
-      "limitations": [
-        "回测使用开赛时间减去指定提前量为截点，仅用此前至少 4 小时的完赛比分。",
-        "当前修订快照回顾评估，不能还原当时可见性，未做概率校准。",
-        "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
-      ],
-      "purpose": "reference-horizon"
+      "purpose": "actual-publication-horizon"
     },
     {
       "source": "thesportsdb-free",
@@ -4294,14 +3638,670 @@
         "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
       ],
       "purpose": "reference-horizon"
+    },
+    {
+      "source": "thesportsdb-free",
+      "league": "SA",
+      "method": "chronological-walk-forward",
+      "horizonHours": 1,
+      "visibility": "snapshot",
+      "evaluated": 0,
+      "skipped": 0,
+      "interrupted": false,
+      "metrics": null,
+      "coverage": {
+        "eligible": 0,
+        "evaluated": 0,
+        "skipped": 0,
+        "pending": 0,
+        "rate": null
+      },
+      "reliability": {
+        "home": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ],
+        "draw": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ],
+        "away": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ]
+      },
+      "uncertainty": {
+        "method": "normal-approximation-mean-95pct",
+        "status": "insufficient-sample",
+        "brier": null,
+        "logLoss": null,
+        "pairedBrierDifference": null,
+        "limitations": [
+          "Intervals assume independent observations; match and team dependence can understate uncertainty.",
+          "Reliability bins describe this sample and do not establish calibration."
+        ]
+      },
+      "status": "insufficient-validation",
+      "limitations": [
+        "回测使用开赛时间减去指定提前量为截点，仅用此前至少 4 小时的完赛比分。",
+        "当前修订快照回顾评估，不能还原当时可见性，未做概率校准。",
+        "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
+      ],
+      "purpose": "reference-horizon"
+    },
+    {
+      "source": "thesportsdb-free",
+      "league": "SA",
+      "method": "chronological-walk-forward",
+      "horizonHours": 24,
+      "visibility": "snapshot",
+      "evaluated": 0,
+      "skipped": 0,
+      "interrupted": false,
+      "metrics": null,
+      "coverage": {
+        "eligible": 0,
+        "evaluated": 0,
+        "skipped": 0,
+        "pending": 0,
+        "rate": null
+      },
+      "reliability": {
+        "home": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ],
+        "draw": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ],
+        "away": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ]
+      },
+      "uncertainty": {
+        "method": "normal-approximation-mean-95pct",
+        "status": "insufficient-sample",
+        "brier": null,
+        "logLoss": null,
+        "pairedBrierDifference": null,
+        "limitations": [
+          "Intervals assume independent observations; match and team dependence can understate uncertainty.",
+          "Reliability bins describe this sample and do not establish calibration."
+        ]
+      },
+      "status": "insufficient-validation",
+      "limitations": [
+        "回测使用开赛时间减去指定提前量为截点，仅用此前至少 4 小时的完赛比分。",
+        "当前修订快照回顾评估，不能还原当时可见性，未做概率校准。",
+        "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
+      ],
+      "purpose": "reference-horizon"
+    },
+    {
+      "source": "thesportsdb-free",
+      "league": "SA",
+      "method": "chronological-walk-forward",
+      "horizonHours": 72,
+      "visibility": "snapshot",
+      "evaluated": 0,
+      "skipped": 0,
+      "interrupted": false,
+      "metrics": null,
+      "coverage": {
+        "eligible": 0,
+        "evaluated": 0,
+        "skipped": 0,
+        "pending": 0,
+        "rate": null
+      },
+      "reliability": {
+        "home": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ],
+        "draw": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ],
+        "away": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ]
+      },
+      "uncertainty": {
+        "method": "normal-approximation-mean-95pct",
+        "status": "insufficient-sample",
+        "brier": null,
+        "logLoss": null,
+        "pairedBrierDifference": null,
+        "limitations": [
+          "Intervals assume independent observations; match and team dependence can understate uncertainty.",
+          "Reliability bins describe this sample and do not establish calibration."
+        ]
+      },
+      "status": "insufficient-validation",
+      "limitations": [
+        "回测使用开赛时间减去指定提前量为截点，仅用此前至少 4 小时的完赛比分。",
+        "当前修订快照回顾评估，不能还原当时可见性，未做概率校准。",
+        "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
+      ],
+      "purpose": "reference-horizon"
+    },
+    {
+      "source": "thesportsdb-free",
+      "league": "SA",
+      "method": "chronological-walk-forward",
+      "horizonHours": 168,
+      "visibility": "snapshot",
+      "evaluated": 0,
+      "skipped": 0,
+      "interrupted": false,
+      "metrics": null,
+      "coverage": {
+        "eligible": 0,
+        "evaluated": 0,
+        "skipped": 0,
+        "pending": 0,
+        "rate": null
+      },
+      "reliability": {
+        "home": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ],
+        "draw": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ],
+        "away": [
+          {
+            "lower": 0,
+            "upper": 0.2,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.4,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.6,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.8,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          },
+          {
+            "lower": 0.8,
+            "upper": 1,
+            "count": 0,
+            "meanProbability": null,
+            "observedFrequency": null,
+            "status": "insufficient-bin-sample"
+          }
+        ]
+      },
+      "uncertainty": {
+        "method": "normal-approximation-mean-95pct",
+        "status": "insufficient-sample",
+        "brier": null,
+        "logLoss": null,
+        "pairedBrierDifference": null,
+        "limitations": [
+          "Intervals assume independent observations; match and team dependence can understate uncertainty.",
+          "Reliability bins describe this sample and do not establish calibration."
+        ]
+      },
+      "status": "insufficient-validation",
+      "limitations": [
+        "回测使用开赛时间减去指定提前量为截点，仅用此前至少 4 小时的完赛比分。",
+        "当前修订快照回顾评估，不能还原当时可见性，未做概率校准。",
+        "Brier 为三分类平方误差之和；越低越好。基准为此前赛果频率，不表示投注收益。"
+      ],
+      "purpose": "reference-horizon"
     }
   ],
   "backtestDetails": {
     "availability": "collector-output",
-    "file": "collection-20261101T073146Z.json",
-    "reportId": "e541ec0487829321212c9c95d84a4790888baa7c0f0f284a6e72745e728902c6",
+    "file": "collection-20261101T150721Z.json",
+    "reportId": "315a176d5ae37b2130dc00a6e6264e52f479aee078d136914ec2f7d8930aa1e6",
     "jsonPointer": "/forecasts/backtests",
-    "sha256": "abeffd9687ae4468f62a7fd23b7adaa69f0524d55b48e480f452bfa0d879aa77",
+    "sha256": "f81fe1ce92d90bbc2ecd34edade0c3485f50f8fefa5890f4130101c932d2279b",
     "hashEncoding": "JSON.stringify/UTF-8"
   },
   "coverage": [
@@ -4319,8 +4319,8 @@
       "historyFrom": "2025-08-22T18:30:00.000Z",
       "historyTo": "2026-10-31T17:30:00.000Z",
       "window": {
-        "from": "2026-11-01T07:31:41.173Z",
-        "to": "2026-11-08T07:31:41.173Z"
+        "from": "2026-11-01T15:06:56.168Z",
+        "to": "2026-11-08T15:06:56.168Z"
       },
       "diagnostics": [
         {
@@ -4328,7 +4328,7 @@
           "league": "BL1",
           "code": "community_schedule_unverified",
           "status": "partial",
-          "checkedAt": "2026-11-01T07:31:41.197Z",
+          "checkedAt": "2026-11-01T15:06:56.198Z",
           "purpose": "fixtures",
           "historyRequested": false,
           "season": "2026",
@@ -4338,8 +4338,8 @@
           "inputCount": 306,
           "receivedCount": 306,
           "rejectedCount": 0,
-          "responseAt": "2026-11-01T07:31:41.000Z",
-          "fetchedAt": "2026-11-01T07:31:41.911Z",
+          "responseAt": "2026-11-01T15:06:56.000Z",
+          "fetchedAt": "2026-11-01T15:06:56.720Z",
           "nextProbeAt": null,
           "httpStatus": 200,
           "retryAfterMs": null
@@ -4349,7 +4349,7 @@
           "league": "BL1",
           "code": "community_schedule_unverified",
           "status": "partial",
-          "checkedAt": "2026-11-01T07:31:41.197Z",
+          "checkedAt": "2026-11-01T15:06:56.198Z",
           "purpose": "history",
           "historyRequested": true,
           "season": "2026",
@@ -4360,8 +4360,8 @@
           "receivedCount": 0,
           "historyCount": 70,
           "historyRejectedCount": 0,
-          "responseAt": "2026-11-01T07:31:41.000Z",
-          "fetchedAt": "2026-11-01T07:31:41.911Z",
+          "responseAt": "2026-11-01T15:06:56.000Z",
+          "fetchedAt": "2026-11-01T15:06:56.720Z",
           "nextProbeAt": null,
           "httpStatus": 200,
           "retryAfterMs": null
@@ -4369,24 +4369,23 @@
         {
           "id": "openligadb",
           "league": "BL1",
-          "code": "history_cache_hit",
+          "code": "community_schedule_unverified",
           "status": "partial",
-          "checkedAt": "2026-11-01T07:31:42.107Z",
+          "checkedAt": "2026-11-01T15:06:56.748Z",
           "purpose": "history",
           "historyRequested": true,
           "season": "2025",
-          "cacheHit": true,
+          "cacheHit": false,
           "matchedCount": 0,
-          "stage": "history-cache",
+          "stage": "history",
           "inputCount": 306,
           "receivedCount": 306,
-          "rejectedCount": 0,
           "historyCount": 306,
           "historyRejectedCount": 0,
-          "responseAt": null,
-          "fetchedAt": "2026-10-31T12:27:17.559Z",
+          "responseAt": "2026-11-01T15:06:56.000Z",
+          "fetchedAt": "2026-11-01T15:06:57.036Z",
           "nextProbeAt": null,
-          "httpStatus": null,
+          "httpStatus": 200,
           "retryAfterMs": null
         }
       ],
@@ -4406,8 +4405,8 @@
       "historyFrom": null,
       "historyTo": null,
       "window": {
-        "from": "2026-11-01T07:31:41.173Z",
-        "to": "2026-11-08T07:31:41.173Z"
+        "from": "2026-11-01T15:06:56.168Z",
+        "to": "2026-11-08T15:06:56.168Z"
       },
       "diagnostics": [
         {
@@ -4415,7 +4414,7 @@
           "league": "PL",
           "code": "free_tier_limited",
           "status": "partial",
-          "checkedAt": "2026-11-01T07:31:42.108Z",
+          "checkedAt": "2026-11-01T15:06:57.107Z",
           "purpose": "fixtures",
           "historyRequested": false,
           "season": null,
@@ -4425,8 +4424,8 @@
           "inputCount": 1,
           "receivedCount": 1,
           "rejectedCount": 0,
-          "responseAt": "2026-11-01T07:31:42.000Z",
-          "fetchedAt": "2026-11-01T07:31:42.384Z",
+          "responseAt": "2026-11-01T15:06:57.000Z",
+          "fetchedAt": "2026-11-01T15:06:57.351Z",
           "nextProbeAt": null,
           "httpStatus": 200,
           "retryAfterMs": null
@@ -4448,8 +4447,8 @@
       "historyFrom": null,
       "historyTo": null,
       "window": {
-        "from": "2026-11-01T07:31:41.173Z",
-        "to": "2026-11-08T07:31:41.173Z"
+        "from": "2026-11-01T15:06:56.168Z",
+        "to": "2026-11-08T15:06:56.168Z"
       },
       "diagnostics": [
         {
@@ -4457,7 +4456,7 @@
           "league": "PD",
           "code": "free_tier_limited",
           "status": "partial",
-          "checkedAt": "2026-11-01T07:31:42.385Z",
+          "checkedAt": "2026-11-01T15:06:57.352Z",
           "purpose": "fixtures",
           "historyRequested": false,
           "season": null,
@@ -4467,8 +4466,8 @@
           "inputCount": 1,
           "receivedCount": 1,
           "rejectedCount": 0,
-          "responseAt": "2026-11-01T07:31:42.000Z",
-          "fetchedAt": "2026-11-01T07:31:42.570Z",
+          "responseAt": "2026-11-01T15:06:57.000Z",
+          "fetchedAt": "2026-11-01T15:06:57.476Z",
           "nextProbeAt": null,
           "httpStatus": 200,
           "retryAfterMs": null
@@ -4490,8 +4489,8 @@
       "historyFrom": null,
       "historyTo": null,
       "window": {
-        "from": "2026-11-01T07:31:41.173Z",
-        "to": "2026-11-08T07:31:41.173Z"
+        "from": "2026-11-01T15:06:56.168Z",
+        "to": "2026-11-08T15:06:56.168Z"
       },
       "diagnostics": [
         {
@@ -4499,7 +4498,7 @@
           "league": "SA",
           "code": "free_tier_limited",
           "status": "partial",
-          "checkedAt": "2026-11-01T07:31:42.570Z",
+          "checkedAt": "2026-11-01T15:06:57.477Z",
           "purpose": "fixtures",
           "historyRequested": false,
           "season": null,
@@ -4509,8 +4508,8 @@
           "inputCount": 1,
           "receivedCount": 1,
           "rejectedCount": 0,
-          "responseAt": "2026-11-01T07:31:42.000Z",
-          "fetchedAt": "2026-11-01T07:31:42.752Z",
+          "responseAt": "2026-11-01T15:06:57.000Z",
+          "fetchedAt": "2026-11-01T15:06:57.621Z",
           "nextProbeAt": null,
           "httpStatus": 200,
           "retryAfterMs": null
@@ -4532,8 +4531,8 @@
       "historyFrom": null,
       "historyTo": null,
       "window": {
-        "from": "2026-11-01T07:31:41.173Z",
-        "to": "2026-11-08T07:31:41.173Z"
+        "from": "2026-11-01T15:06:56.168Z",
+        "to": "2026-11-08T15:06:56.168Z"
       },
       "diagnostics": [
         {
@@ -4541,7 +4540,7 @@
           "league": "FL1",
           "code": "free_tier_limited",
           "status": "partial",
-          "checkedAt": "2026-11-01T07:31:42.752Z",
+          "checkedAt": "2026-11-01T15:06:57.621Z",
           "purpose": "fixtures",
           "historyRequested": false,
           "season": null,
@@ -4551,8 +4550,8 @@
           "inputCount": 1,
           "receivedCount": 1,
           "rejectedCount": 0,
-          "responseAt": "2026-11-01T07:31:42.000Z",
-          "fetchedAt": "2026-11-01T07:31:42.930Z",
+          "responseAt": "2026-11-01T15:06:57.000Z",
+          "fetchedAt": "2026-11-01T15:06:57.762Z",
           "nextProbeAt": null,
           "httpStatus": 200,
           "retryAfterMs": null
@@ -4566,14 +4565,14 @@
       "id": "openligadb",
       "status": "partial",
       "code": "community_schedule_unverified",
-      "checkedAt": "2026-11-01T07:31:41.197Z",
+      "checkedAt": "2026-11-01T15:06:56.198Z",
       "league": "BL1",
       "httpStatus": 200,
-      "responseAt": "2026-11-01T07:31:41.000Z",
+      "responseAt": "2026-11-01T15:06:56.000Z",
       "matchedCount": 8,
       "receivedCount": 306,
       "rejectedCount": 0,
-      "fetchedAt": "2026-11-01T07:31:41.911Z",
+      "fetchedAt": "2026-11-01T15:06:56.720Z",
       "purpose": "fixtures",
       "historyRequested": false,
       "cacheHit": false,
@@ -4583,15 +4582,15 @@
       "id": "openligadb",
       "status": "partial",
       "code": "community_schedule_unverified",
-      "checkedAt": "2026-11-01T07:31:41.197Z",
+      "checkedAt": "2026-11-01T15:06:56.198Z",
       "league": "BL1",
       "httpStatus": 200,
-      "responseAt": "2026-11-01T07:31:41.000Z",
+      "responseAt": "2026-11-01T15:06:56.000Z",
       "matchedCount": 0,
       "receivedCount": 0,
       "historyCount": 70,
       "historyRejectedCount": 0,
-      "fetchedAt": "2026-11-01T07:31:41.911Z",
+      "fetchedAt": "2026-11-01T15:06:56.720Z",
       "purpose": "history",
       "historyRequested": true,
       "cacheHit": false,
@@ -4600,34 +4599,33 @@
     {
       "id": "openligadb",
       "status": "partial",
-      "code": "history_cache_hit",
-      "checkedAt": "2026-11-01T07:31:42.107Z",
+      "code": "community_schedule_unverified",
+      "checkedAt": "2026-11-01T15:06:56.748Z",
       "league": "BL1",
-      "httpStatus": null,
-      "responseAt": null,
+      "httpStatus": 200,
+      "responseAt": "2026-11-01T15:06:56.000Z",
       "matchedCount": 0,
       "receivedCount": 306,
-      "rejectedCount": 0,
       "historyCount": 306,
       "historyRejectedCount": 0,
-      "fetchedAt": "2026-10-31T12:27:17.559Z",
+      "fetchedAt": "2026-11-01T15:06:57.036Z",
       "purpose": "history",
       "historyRequested": true,
-      "cacheHit": true,
+      "cacheHit": false,
       "season": "2025"
     },
     {
       "id": "thesportsdb-free",
       "status": "partial",
       "code": "free_tier_limited",
-      "checkedAt": "2026-11-01T07:31:42.108Z",
+      "checkedAt": "2026-11-01T15:06:57.107Z",
       "league": "PL",
       "httpStatus": 200,
-      "responseAt": "2026-11-01T07:31:42.000Z",
+      "responseAt": "2026-11-01T15:06:57.000Z",
       "matchedCount": 1,
       "receivedCount": 1,
       "rejectedCount": 0,
-      "fetchedAt": "2026-11-01T07:31:42.384Z",
+      "fetchedAt": "2026-11-01T15:06:57.351Z",
       "purpose": "fixtures",
       "historyRequested": false,
       "cacheHit": false
@@ -4636,14 +4634,14 @@
       "id": "thesportsdb-free",
       "status": "partial",
       "code": "free_tier_limited",
-      "checkedAt": "2026-11-01T07:31:42.385Z",
+      "checkedAt": "2026-11-01T15:06:57.352Z",
       "league": "PD",
       "httpStatus": 200,
-      "responseAt": "2026-11-01T07:31:42.000Z",
+      "responseAt": "2026-11-01T15:06:57.000Z",
       "matchedCount": 1,
       "receivedCount": 1,
       "rejectedCount": 0,
-      "fetchedAt": "2026-11-01T07:31:42.570Z",
+      "fetchedAt": "2026-11-01T15:06:57.476Z",
       "purpose": "fixtures",
       "historyRequested": false,
       "cacheHit": false
@@ -4652,14 +4650,14 @@
       "id": "thesportsdb-free",
       "status": "partial",
       "code": "free_tier_limited",
-      "checkedAt": "2026-11-01T07:31:42.570Z",
+      "checkedAt": "2026-11-01T15:06:57.477Z",
       "league": "SA",
       "httpStatus": 200,
-      "responseAt": "2026-11-01T07:31:42.000Z",
+      "responseAt": "2026-11-01T15:06:57.000Z",
       "matchedCount": 1,
       "receivedCount": 1,
       "rejectedCount": 0,
-      "fetchedAt": "2026-11-01T07:31:42.752Z",
+      "fetchedAt": "2026-11-01T15:06:57.621Z",
       "purpose": "fixtures",
       "historyRequested": false,
       "cacheHit": false
@@ -4668,14 +4666,14 @@
       "id": "thesportsdb-free",
       "status": "partial",
       "code": "free_tier_limited",
-      "checkedAt": "2026-11-01T07:31:42.752Z",
+      "checkedAt": "2026-11-01T15:06:57.621Z",
       "league": "FL1",
       "httpStatus": 200,
-      "responseAt": "2026-11-01T07:31:42.000Z",
+      "responseAt": "2026-11-01T15:06:57.000Z",
       "matchedCount": 1,
       "receivedCount": 1,
       "rejectedCount": 0,
-      "fetchedAt": "2026-11-01T07:31:42.930Z",
+      "fetchedAt": "2026-11-01T15:06:57.762Z",
       "purpose": "fixtures",
       "historyRequested": false,
       "cacheHit": false
@@ -4684,7 +4682,7 @@
       "id": "m88",
       "status": "unavailable",
       "code": "robots_denied",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4699,7 +4697,7 @@
       "id": "12bet",
       "status": "unavailable",
       "code": "robots_denied",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4714,7 +4712,7 @@
       "id": "sbobet",
       "status": "unavailable",
       "code": "robots_denied",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4729,7 +4727,7 @@
       "id": "singbet",
       "status": "unavailable",
       "code": "authorization_required",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4740,7 +4738,7 @@
       "id": "ibc",
       "status": "unavailable",
       "code": "authorization_required",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4750,20 +4748,20 @@
     {
       "id": "tiantian",
       "status": "pending",
-      "code": "no_free_prematch_signals",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "code": "prediction_format_not_verified",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": 200,
-      "responseAt": "2026-11-01T07:31:46.000Z",
+      "responseAt": "2026-11-01T15:07:01.000Z",
       "matchedCount": 0,
-      "parsedCount": 0,
-      "fetchedAt": "2026-11-01T07:31:44.185Z"
+      "parsedCount": 2,
+      "fetchedAt": "2026-11-01T15:06:58.850Z"
     },
     {
       "id": "forebet",
       "status": "restricted",
       "code": "authorization_required",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4773,7 +4771,7 @@
       "id": "footymetrics",
       "status": "restricted",
       "code": "authorization_required",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4783,7 +4781,7 @@
       "id": "tactix",
       "status": "restricted",
       "code": "authorization_required",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4793,7 +4791,7 @@
       "id": "golsinyali",
       "status": "restricted",
       "code": "authorization_required",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4803,7 +4801,7 @@
       "id": "fotmob",
       "status": "restricted",
       "code": "authorization_required",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
       "httpStatus": null,
       "responseAt": null,
@@ -4812,32 +4810,45 @@
     {
       "id": "statarea",
       "status": "unavailable",
-      "code": "authorization_required",
-      "checkedAt": "2026-11-01T07:31:44.185Z",
+      "code": "crawler_response_too_large",
+      "checkedAt": "2026-11-01T15:06:58.850Z",
       "league": null,
-      "httpStatus": 200,
+      "httpStatus": null,
       "responseAt": null,
       "matchedCount": 0,
       "parsedCount": 0,
-      "fetchedAt": "2026-11-01T07:31:44.185Z"
+      "fetchedAt": "2026-11-01T15:06:58.850Z"
+    },
+    {
+      "id": "macauslot",
+      "status": "partial",
+      "code": "public_snapshot_partial_coverage",
+      "checkedAt": "2026-11-01T15:07:21.015Z",
+      "league": null,
+      "httpStatus": 200,
+      "responseAt": "2026-11-01T15:07:19.000Z",
+      "matchedCount": 1,
+      "parsedCount": 195,
+      "sourceUpdatedAt": "2026-11-01T15:06:11.000Z",
+      "scheduleUpdatedAt": "2026-11-01T15:06:11.000Z"
     },
     {
       "id": "hkjc",
       "status": "partial",
       "code": "public_live_snapshot_partial_coverage",
-      "checkedAt": "2026-11-01T07:31:45.030Z",
+      "checkedAt": "2026-11-01T15:06:59.521Z",
       "league": null,
       "httpStatus": 200,
-      "responseAt": "2026-11-01T07:31:45.000Z",
-      "matchedCount": 6,
-      "parsedCount": 76
+      "responseAt": "2026-11-01T15:06:59.000Z",
+      "matchedCount": 3,
+      "parsedCount": 60
     }
   ],
   "replay": {
     "manifest": "run-manifest.json",
     "inputs": "run-inputs.json",
-    "archive": "replays/e541ec0487829321212c9c95d84a4790888baa7c0f0f284a6e72745e728902c6",
-    "inputHash": "cd372a0a0556d134ca512975eb49f03726d3f0a28d34bd9090d33ff0622cfb8f",
+    "archive": "replays/315a176d5ae37b2130dc00a6e6264e52f479aee078d136914ec2f7d8930aa1e6",
+    "inputHash": "289bcf795b29a65ab745ccf1a358c51ec2b89b3fd0450f88aa09ad7893fded06",
     "status": "version-bound"
   },
   "predictionLedger": {
@@ -4874,7 +4885,7 @@
     }
   ],
   "publication": {
-    "reportId": "e541ec0487829321212c9c95d84a4790888baa7c0f0f284a6e72745e728902c6",
+    "reportId": "315a176d5ae37b2130dc00a6e6264e52f479aee078d136914ec2f7d8930aa1e6",
     "receipt": "publication.json",
     "target": "repository-report-files",
     "externalDelivery": "see-receipt",
@@ -4882,229 +4893,51 @@
   },
   "categories": {
     "analysis": [
-      "oldb-83223",
       "oldb-83221",
       "oldb-83234",
       "oldb-83228",
       "oldb-83229",
       "oldb-83233",
       "oldb-83236",
-      "oldb-83230"
+      "oldb-83230",
+      "oldb-83235"
     ],
     "strictCandidates": [],
     "unassessable": [
-      "tsdb-2482237",
-      "tsdb-2506275",
-      "tsdb-2489538",
-      "tsdb-2494082"
+      "tsdb-2506278",
+      "tsdb-2489535",
+      "tsdb-2494082",
+      "tsdb-2482236"
     ]
   },
   "categoryMeaning": "analysis/unassessable partition the pool; strictCandidates is a separate independently gated market view",
   "fixtures": [
     {
       "fixture": {
-        "id": "tsdb-2482237",
-        "league": "SA",
-        "home": "Como",
-        "away": "Venezia",
-        "kickoff": "2026-11-01T11:30:00.000Z",
-        "source": "thesportsdb-free",
-        "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:42.752Z",
-        "homeTeamId": "134243",
-        "awayTeamId": "134234",
-        "observedAt": "2026-11-01T07:31:42.752Z",
-        "fetchedAt": "2026-11-01T07:31:42.752Z",
-        "sourceUpdatedAt": null,
-        "season": "2026-2027",
-        "canonicalMatchId": "evt_f39784e9665a8b18dbaf4e59ecb899ef37dee096583879fe0ef6542ae49330f6",
-        "identityRevision": "4cecfa5748753f32333f2f4e37ec7ca4deb5e2737d61c7fd913f09f187e21347",
-        "revisionId": "b73795791c37cf75928d9069fc8ff74f154eaef5589ce42af2ed7140504b8bab",
-        "recordHash": "91daf8e3265741321a1cee11491d8de987aea38b6c8077d43c4471dab3ffaa10",
-        "sourceFixtureId": "2482237",
-        "identityScope": "source"
-      },
-      "forecast": {
-        "fixtureId": "tsdb-2482237",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
-        "status": "unavailable",
-        "reasons": [
-          "HISTORY_UNAVAILABLE",
-          "HOME_HISTORY_INSUFFICIENT",
-          "AWAY_HISTORY_INSUFFICIENT",
-          "VENUE_HISTORY_INSUFFICIENT"
-        ],
-        "sample": {
-          "league": 0,
-          "home": 0,
-          "away": 0,
-          "homeVenue": 0,
-          "awayVenue": 0
-        },
-        "sampleQuality": {
-          "weighted": {
-            "league": {
-              "weightedMatches": 0,
-              "effectiveMatches": 0
-            },
-            "home": {
-              "weightedMatches": 0,
-              "effectiveMatches": 0
-            },
-            "away": {
-              "weightedMatches": 0,
-              "effectiveMatches": 0
-            },
-            "homeVenue": {
-              "weightedMatches": 0,
-              "effectiveMatches": 0
-            },
-            "awayVenue": {
-              "weightedMatches": 0,
-              "effectiveMatches": 0
-            }
-          },
-          "season": "2026-2027",
-          "currentSeason": {
-            "league": 0,
-            "home": 0,
-            "away": 0,
-            "homeVenue": 0,
-            "awayVenue": 0
-          },
-          "unknownSeason": 0,
-          "coldStart": {
-            "status": "limited-current-season",
-            "notes": [
-              "Cross-season history is time-decayed; roster, transfer and managerial changes are not modeled.",
-              "Promoted teams are not assigned invented same-league history."
-            ]
-          }
-        },
-        "horizonHours": 3.971359722222222,
-        "validation": null,
-        "completeness": {
-          "scope": "baseline-required-checks-not-global-coverage",
-          "passed": 2,
-          "total": 8,
-          "checks": {
-            "teamIdentity": true,
-            "leagueHistory": false,
-            "homeHistory": false,
-            "awayHistory": false,
-            "venueHistory": false,
-            "teamRecency": false,
-            "prematchFreshness": true,
-            "backtest": false
-          },
-          "enrichmentMissing": [
-            "injuries",
-            "lineups",
-            "odds"
-          ],
-          "globalCoverage": "unknown"
-        },
-        "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:42.752Z",
-          "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
-          "maximumAgeMinutes": 60
-        }
-      },
-      "marketCandidate": {
-        "status": "avoid",
-        "reasons": [
-          "PRICE_OR_HANDICAP_OUTSIDE_POLICY"
-        ],
-        "candidate": null,
-        "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
-          "scope": "market-only",
-          "quoteGroups": [
-            "hkjc-first-party"
-          ],
-          "requiredQuoteGroups": 2,
-          "pairedQuoteCount": 2,
-          "verifiedOpeningCount": 0,
-          "blockers": [
-            "PRICE_OR_HANDICAP_OUTSIDE_POLICY",
-            "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING",
-            "TRUE_OPENING_RECORD_MISSING"
-          ],
-          "sourceIssues": [],
-          "matchingMarkets": [],
-          "quotes": [
-            {
-              "sourceId": "hkjc",
-              "bookmaker": "HKJC",
-              "providerMatchId": "50078782",
-              "providerPoolId": "2046910006",
-              "market": "asian-handicap",
-              "period": "full-time",
-              "selection": "home",
-              "handicap": -1.75,
-              "decimalOdds": 2.03,
-              "observedAt": "2026-11-01T07:31:45.030Z",
-              "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
-              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
-              "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
-              "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 30
-            },
-            {
-              "sourceId": "hkjc",
-              "bookmaker": "HKJC",
-              "providerMatchId": "50078782",
-              "providerPoolId": "2046910006",
-              "market": "asian-handicap",
-              "period": "full-time",
-              "selection": "away",
-              "handicap": 1.75,
-              "decimalOdds": 1.78,
-              "observedAt": "2026-11-01T07:31:45.030Z",
-              "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
-              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
-              "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
-              "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 30
-            }
-          ]
-        }
-      }
-    },
-    {
-      "fixture": {
-        "id": "tsdb-2506275",
+        "id": "tsdb-2506278",
         "league": "PD",
-        "home": "Getafe",
-        "away": "Sevilla",
-        "kickoff": "2026-11-01T13:00:00.000Z",
+        "home": "Racing de Santander",
+        "away": "Real Madrid",
+        "kickoff": "2026-11-01T15:15:00.000Z",
         "source": "thesportsdb-free",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:42.570Z",
-        "homeTeamId": "133731",
-        "awayTeamId": "133735",
-        "observedAt": "2026-11-01T07:31:42.570Z",
-        "fetchedAt": "2026-11-01T07:31:42.570Z",
+        "updatedAt": "2026-11-01T15:06:57.476Z",
+        "homeTeamId": "133726",
+        "awayTeamId": "133738",
+        "observedAt": "2026-11-01T15:06:57.476Z",
+        "fetchedAt": "2026-11-01T15:06:57.476Z",
         "sourceUpdatedAt": null,
         "season": "2026-2027",
-        "canonicalMatchId": "evt_6e4a193505903acc4c6fbd4c4b23045d15f3b10ff4cba00356eec3213ae9a689",
-        "identityRevision": "3131b3290507b29e6cb0f88f76f5e64eb616415c4d59c77ef0a6344b45190706",
-        "revisionId": "d74c0e666152454c8d3edee5a6b156e9e71f10108b45eb189a4d3fe19744d274",
-        "recordHash": "016a8da0a1753016fbeaa2f07c006da86cc45ba3403f0c893dae685e49a3dd86",
-        "sourceFixtureId": "2506275",
+        "canonicalMatchId": "evt_f46bc40703992781352a52410a8711613f7978145aaf34ed03c086d4e24df784",
+        "identityRevision": "05543f1b88d0de68fb6f966541d0918562c9d0cef25ef74f3ae02fafa21c6fc6",
+        "revisionId": "6893b33aafefdfc7c71ffffbd2038ad2d6cfb30e492f7671c460766eb9833ac4",
+        "recordHash": "79d5402f9bce86c3679850215f1ac0d919e0f4b5b91c92d33eb492a19d712a00",
+        "sourceFixtureId": "2506278",
         "identityScope": "source"
       },
       "forecast": {
-        "fixtureId": "tsdb-2506275",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "fixtureId": "tsdb-2506278",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "unavailable",
         "reasons": [
           "HISTORY_UNAVAILABLE",
@@ -5159,7 +4992,7 @@
             ]
           }
         },
-        "horizonHours": 5.471359722222222,
+        "horizonHours": 0.13394472222222223,
         "validation": null,
         "completeness": {
           "scope": "baseline-required-checks-not-global-coverage",
@@ -5183,115 +5016,67 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:42.570Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:57.476Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T15:15:00.000Z",
           "maximumAgeMinutes": 60
         }
       },
       "marketCandidate": {
         "status": "source_insufficient",
         "reasons": [
-          "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING"
+          "NO_FRESH_COMPLETE_ASIAN_MARKET",
+          "LATEST_MARKET_UNAVAILABLE"
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
-          "quoteGroups": [
-            "hkjc-first-party"
-          ],
+          "quoteGroups": [],
           "requiredQuoteGroups": 2,
-          "pairedQuoteCount": 2,
+          "pairedQuoteCount": 0,
           "verifiedOpeningCount": 0,
           "blockers": [
+            "LATEST_MARKET_UNAVAILABLE",
+            "NO_FRESH_COMPLETE_ASIAN_MARKET",
             "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING",
             "TRUE_OPENING_RECORD_MISSING"
           ],
-          "sourceIssues": [],
-          "matchingMarkets": [
-            {
-              "selection": "home",
-              "handicap": 0.25,
-              "quoteGroups": [
-                "hkjc-first-party"
-              ],
-              "verifiedTrajectoryCount": 0,
-              "crossChecked": false
-            }
+          "sourceIssues": [
+            "LATEST_MARKET_UNAVAILABLE"
           ],
-          "quotes": [
-            {
-              "sourceId": "hkjc",
-              "bookmaker": "HKJC",
-              "providerMatchId": "50078786",
-              "providerPoolId": "2047041006",
-              "market": "asian-handicap",
-              "period": "full-time",
-              "selection": "home",
-              "handicap": 0.25,
-              "decimalOdds": 1.8,
-              "observedAt": "2026-11-01T07:31:45.030Z",
-              "sourceUpdatedAt": "2026-10-30T11:30:03.751Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
-              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
-              "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
-              "providerPoolUpdatedAt": "2026-10-30T11:30:03.751Z",
-              "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 30
-            },
-            {
-              "sourceId": "hkjc",
-              "bookmaker": "HKJC",
-              "providerMatchId": "50078786",
-              "providerPoolId": "2047041006",
-              "market": "asian-handicap",
-              "period": "full-time",
-              "selection": "away",
-              "handicap": -0.25,
-              "decimalOdds": 2.01,
-              "observedAt": "2026-11-01T07:31:45.030Z",
-              "sourceUpdatedAt": "2026-10-30T11:30:03.751Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
-              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
-              "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
-              "providerPoolUpdatedAt": "2026-10-30T11:30:03.751Z",
-              "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 30
-            }
-          ]
+          "matchingMarkets": [],
+          "quotes": []
         }
       }
     },
     {
       "fixture": {
-        "id": "tsdb-2489538",
+        "id": "tsdb-2489535",
         "league": "FL1",
-        "home": "Strasbourg",
-        "away": "Auxerre",
-        "kickoff": "2026-11-01T14:00:00.000Z",
+        "home": "Lyon",
+        "away": "Angers",
+        "kickoff": "2026-11-01T16:15:00.000Z",
         "source": "thesportsdb-free",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:42.930Z",
-        "homeTeamId": "133882",
-        "awayTeamId": "134788",
-        "observedAt": "2026-11-01T07:31:42.930Z",
-        "fetchedAt": "2026-11-01T07:31:42.930Z",
+        "updatedAt": "2026-11-01T15:06:57.762Z",
+        "homeTeamId": "133713",
+        "awayTeamId": "134709",
+        "observedAt": "2026-11-01T15:06:57.762Z",
+        "fetchedAt": "2026-11-01T15:06:57.762Z",
         "sourceUpdatedAt": null,
         "season": "2026-2027",
-        "canonicalMatchId": "evt_f22d84d32110e565b851619fd91fa63f47d3391d44912729c624ed0f6010b108",
-        "identityRevision": "cbe3fb867519729472c10e58c9aadedb44ed2690d75debbc89c103b6fb69b7c2",
-        "revisionId": "fa7d781ec3602e503303b8b477ce492afb25faedc3029eb400b52e1b982983d9",
-        "recordHash": "e0e2b4d6528e4b61f86ab6c3035907fd51b9430158c9ec306860acaa182866e9",
-        "sourceFixtureId": "2489538",
+        "canonicalMatchId": "evt_5476abc880cbf8300f8d46166f7c7ea9e186928a81e59c6d4aa46e859d0dba28",
+        "identityRevision": "9df8b89290a51bd3dbd2abe0e5239159baf29ea7593f62c27262ece6fee8dc53",
+        "revisionId": "71d26e7a998b82dcc626a0dfa2e9a629063165a568a77c54f2df93a713c31106",
+        "recordHash": "cbb6568a55171138c2a2ca5835a5ad2c50ea5906984065e839e9dca7dcd299b1",
+        "sourceFixtureId": "2489535",
         "identityScope": "source"
       },
       "forecast": {
-        "fixtureId": "tsdb-2489538",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "fixtureId": "tsdb-2489535",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "unavailable",
         "reasons": [
           "HISTORY_UNAVAILABLE",
@@ -5346,7 +5131,7 @@
             ]
           }
         },
-        "horizonHours": 6.471359722222222,
+        "horizonHours": 1.1339447222222223,
         "validation": null,
         "completeness": {
           "scope": "baseline-required-checks-not-global-coverage",
@@ -5370,356 +5155,38 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:42.930Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:57.762Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T16:06:57.799Z",
           "maximumAgeMinutes": 60
         }
       },
       "marketCandidate": {
         "status": "source_insufficient",
         "reasons": [
-          "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING"
+          "NO_FRESH_COMPLETE_ASIAN_MARKET",
+          "LATEST_MARKET_UNAVAILABLE"
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
-          "quoteGroups": [
-            "hkjc-first-party"
-          ],
+          "quoteGroups": [],
           "requiredQuoteGroups": 2,
-          "pairedQuoteCount": 2,
+          "pairedQuoteCount": 0,
           "verifiedOpeningCount": 0,
           "blockers": [
+            "LATEST_MARKET_UNAVAILABLE",
+            "NO_FRESH_COMPLETE_ASIAN_MARKET",
             "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING",
             "TRUE_OPENING_RECORD_MISSING"
           ],
-          "sourceIssues": [],
-          "matchingMarkets": [
-            {
-              "selection": "away",
-              "handicap": 0.75,
-              "quoteGroups": [
-                "hkjc-first-party"
-              ],
-              "verifiedTrajectoryCount": 0,
-              "crossChecked": false
-            }
+          "sourceIssues": [
+            "LATEST_MARKET_UNAVAILABLE"
           ],
-          "quotes": [
-            {
-              "sourceId": "hkjc",
-              "bookmaker": "HKJC",
-              "providerMatchId": "50078799",
-              "providerPoolId": "2047423006",
-              "market": "asian-handicap",
-              "period": "full-time",
-              "selection": "home",
-              "handicap": -0.75,
-              "decimalOdds": 1.98,
-              "observedAt": "2026-11-01T07:31:45.030Z",
-              "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
-              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
-              "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
-              "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 30
-            },
-            {
-              "sourceId": "hkjc",
-              "bookmaker": "HKJC",
-              "providerMatchId": "50078799",
-              "providerPoolId": "2047423006",
-              "market": "asian-handicap",
-              "period": "full-time",
-              "selection": "away",
-              "handicap": 0.75,
-              "decimalOdds": 1.82,
-              "observedAt": "2026-11-01T07:31:45.030Z",
-              "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
-              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
-              "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
-              "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 30
-            }
-          ]
-        }
-      }
-    },
-    {
-      "fixture": {
-        "id": "oldb-83223",
-        "league": "BL1",
-        "home": "1. FC Union Berlin",
-        "away": "1. FC Köln",
-        "kickoff": "2026-11-01T14:30:00.000Z",
-        "source": "openligadb",
-        "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:41.911Z",
-        "homeTeamId": "80",
-        "awayTeamId": "65",
-        "observedAt": "2026-11-01T07:31:41.911Z",
-        "fetchedAt": "2026-11-01T07:31:41.911Z",
-        "sourceUpdatedAt": null,
-        "season": "2026",
-        "canonicalMatchId": "evt_1770d8493019911d9896d5f1ddf752a83eea769db35e80739dcad799db3fa9bc",
-        "identityRevision": "38e8f6a3fb385a06768f7855ce9d90cd9e5f4a0851ad8b38f4f26ac38bb3cb40",
-        "revisionId": "3609580f73754973b1717205d8879b9660f2e8853fe5d0985eaa1980300ce6a7",
-        "recordHash": "439da5ce10f51e7297f3bdc50179b2faf671a1689405187842b764337b5b5d2d",
-        "sourceFixtureId": "83223",
-        "identityScope": "source"
-      },
-      "forecast": {
-        "fixtureId": "oldb-83223",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
-        "status": "forecast",
-        "reasons": [],
-        "probabilities": {
-          "home": 0.49969851900505025,
-          "draw": 0.23734546465951836,
-          "away": 0.26295601633543136
-        },
-        "selection": "home",
-        "expectedGoals": {
-          "home": 1.7260011929881538,
-          "away": 1.1885229950956206
-        },
-        "topScores": [
-          {
-            "home": 1,
-            "away": 1,
-            "probability": 0.11124664133850695
-          },
-          {
-            "home": 2,
-            "away": 1,
-            "probability": 0.09600591783309415
-          },
-          {
-            "home": 1,
-            "away": 0,
-            "probability": 0.09360074798515514
-          }
-        ],
-        "sample": {
-          "league": 376,
-          "home": 41,
-          "away": 41,
-          "homeVenue": 21,
-          "awayVenue": 20
-        },
-        "sampleQuality": {
-          "weighted": {
-            "league": {
-              "weightedMatches": 164.35307116,
-              "effectiveMatches": 292.31492635
-            },
-            "home": {
-              "weightedMatches": 17.46427264,
-              "effectiveMatches": 32.207251
-            },
-            "away": {
-              "weightedMatches": 17.46789751,
-              "effectiveMatches": 32.20019854
-            },
-            "homeVenue": {
-              "weightedMatches": 9.09464235,
-              "effectiveMatches": 16.31035435
-            },
-            "awayVenue": {
-              "weightedMatches": 8.22237521,
-              "effectiveMatches": 15.70930084
-            }
-          },
-          "season": "2026",
-          "currentSeason": {
-            "league": 70,
-            "home": 7,
-            "away": 7,
-            "homeVenue": 4,
-            "awayVenue": 3
-          },
-          "unknownSeason": 0,
-          "coldStart": {
-            "status": "current-season-sample-present",
-            "notes": [
-              "Cross-season history is time-decayed; roster, transfer and managerial changes are not modeled.",
-              "Promoted teams are not assigned invented same-league history."
-            ]
-          }
-        },
-        "strength": {
-          "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9096731329947187,
-          "leagueAwayGoals": 1.4298028577394855,
-          "homeAttack": 0.847741678238405,
-          "homeDefenceConceding": 1.0174824431146705,
-          "awayAttack": 0.8169669803394785,
-          "awayDefenceConceding": 1.066150508040383
-        },
-        "trainingCutoff": "2026-11-01T07:31:43.105Z",
-        "newestTrainingKickoff": "2026-10-31T17:30:00.000Z",
-        "trainingHash": "3eb9696d7a648bc7fee4b53df096546325cad25d028e58a753db4408738d56d7",
-        "confidence": "uncalibrated-baseline",
-        "limitations": [
-          "仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。",
-          "基线概率尚未校准，不代表亚洲盘赢盘概率。"
-        ],
-        "horizonHours": 6.971359722222222,
-        "validation": {
-          "status": "evaluated-small-sample",
-          "horizonHours": 6.971359722222222,
-          "selection": "exact-publication-lead-time",
-          "visibility": "snapshot",
-          "evaluated": 63,
-          "skipped": 17,
-          "metrics": {
-            "brier": 0.5901100925764918,
-            "logLoss": 0.9888913184236967,
-            "accuracy": 0.49206349206349204,
-            "baselineBrier": 0.6292904779268965,
-            "baselineLogLoss": 1.0435344087179563
-          },
-          "coverage": {
-            "eligible": 80,
-            "evaluated": 63,
-            "skipped": 17,
-            "pending": 0,
-            "rate": 0.7875
-          },
-          "uncertainty": {
-            "method": "normal-approximation-mean-95pct",
-            "status": "approximate-small-sample",
-            "brier": {
-              "estimate": 0.5901100925764918,
-              "lower": 0.512738016874329,
-              "upper": 0.6674821682786547
-            },
-            "logLoss": {
-              "estimate": 0.9888913184236967,
-              "lower": 0.8794827635901715,
-              "upper": 1.098299873257222
-            },
-            "pairedBrierDifference": {
-              "estimate": -0.039180385350404925,
-              "lower": -0.09084246972035377,
-              "upper": 0.012481699019543921
-            },
-            "limitations": [
-              "Intervals assume independent observations; match and team dependence can understate uncertainty.",
-              "Reliability bins describe this sample and do not establish calibration."
-            ]
-          }
-        },
-        "completeness": {
-          "scope": "baseline-required-checks-not-global-coverage",
-          "passed": 8,
-          "total": 8,
-          "checks": {
-            "teamIdentity": true,
-            "leagueHistory": true,
-            "homeHistory": true,
-            "awayHistory": true,
-            "venueHistory": true,
-            "teamRecency": true,
-            "prematchFreshness": true,
-            "backtest": true
-          },
-          "enrichmentMissing": [
-            "injuries",
-            "lineups",
-            "odds"
-          ],
-          "globalCoverage": "unknown"
-        },
-        "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:41.911Z",
-          "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
-          "maximumAgeMinutes": 60
-        }
-      },
-      "marketCandidate": {
-        "status": "source_insufficient",
-        "reasons": [
-          "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING"
-        ],
-        "candidate": null,
-        "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
-          "scope": "market-only",
-          "quoteGroups": [
-            "hkjc-first-party"
-          ],
-          "requiredQuoteGroups": 2,
-          "pairedQuoteCount": 2,
-          "verifiedOpeningCount": 0,
-          "blockers": [
-            "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING",
-            "TRUE_OPENING_RECORD_MISSING"
-          ],
-          "sourceIssues": [],
-          "matchingMarkets": [
-            {
-              "selection": "away",
-              "handicap": 0,
-              "quoteGroups": [
-                "hkjc-first-party"
-              ],
-              "verifiedTrajectoryCount": 0,
-              "crossChecked": false
-            }
-          ],
-          "quotes": [
-            {
-              "sourceId": "hkjc",
-              "bookmaker": "HKJC",
-              "providerMatchId": "50078846",
-              "providerPoolId": "2048931006",
-              "market": "asian-handicap",
-              "period": "full-time",
-              "selection": "home",
-              "handicap": 0,
-              "decimalOdds": 1.96,
-              "observedAt": "2026-11-01T07:31:45.030Z",
-              "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
-              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
-              "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
-              "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 30
-            },
-            {
-              "sourceId": "hkjc",
-              "bookmaker": "HKJC",
-              "providerMatchId": "50078846",
-              "providerPoolId": "2048931006",
-              "market": "asian-handicap",
-              "period": "full-time",
-              "selection": "away",
-              "handicap": 0,
-              "decimalOdds": 1.84,
-              "observedAt": "2026-11-01T07:31:45.030Z",
-              "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
-              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
-              "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
-              "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "freshnessBasis": "publisher-live-snapshot",
-              "cacheMaxAgeSeconds": 30
-            }
-          ]
+          "matchingMarkets": [],
+          "quotes": []
         }
       }
     },
@@ -5732,11 +5199,11 @@
         "kickoff": "2026-11-01T16:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:41.911Z",
+        "updatedAt": "2026-11-01T15:06:56.720Z",
         "homeTeamId": "91",
         "awayTeamId": "100",
-        "observedAt": "2026-11-01T07:31:41.911Z",
-        "fetchedAt": "2026-11-01T07:31:41.911Z",
+        "observedAt": "2026-11-01T15:06:56.720Z",
+        "fetchedAt": "2026-11-01T15:06:56.720Z",
         "sourceUpdatedAt": null,
         "season": "2026",
         "canonicalMatchId": "evt_135504a433c997badaf06bc612616da89c533a4d3f0bfe67462435f5dfe16c31",
@@ -5748,34 +5215,34 @@
       },
       "forecast": {
         "fixtureId": "oldb-83221",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.5023079384877894,
-          "draw": 0.23191280974097056,
-          "away": 0.26577925177124
+          "home": 0.5023011754413814,
+          "draw": 0.23190688375612245,
+          "away": 0.2657919408024961
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.7904264822362674,
-          "away": 1.243645019394742
+          "home": 1.7904957072578316,
+          "away": 1.2437464002567598
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.10714512527333844
+            "probability": 0.10713972241974166
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09591773486595377
+            "probability": 0.09591660653467154
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.08615410635864881
+            "probability": 0.08614273970772793
           }
         ],
         "sample": {
@@ -5788,23 +5255,23 @@
         "sampleQuality": {
           "weighted": {
             "league": {
-              "weightedMatches": 164.35307116,
+              "weightedMatches": 164.15310843,
               "effectiveMatches": 292.31492635
             },
             "home": {
-              "weightedMatches": 17.46658485,
+              "weightedMatches": 17.44533385,
               "effectiveMatches": 32.19299085
             },
             "away": {
-              "weightedMatches": 17.5444802,
+              "weightedMatches": 17.52313443,
               "effectiveMatches": 32.27054533
             },
             "homeVenue": {
-              "weightedMatches": 8.37781068,
+              "weightedMatches": 8.36761769,
               "effectiveMatches": 15.964914
             },
             "awayVenue": {
-              "weightedMatches": 9.30098611,
+              "weightedMatches": 9.28966992,
               "effectiveMatches": 16.47473872
             }
           },
@@ -5827,32 +5294,32 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9096731329947187,
-          "leagueAwayGoals": 1.4298028577394855,
-          "homeAttack": 0.8893499161742717,
-          "homeDefenceConceding": 1.1102092628131413,
-          "awayAttack": 0.7834574735087838,
-          "awayDefenceConceding": 1.054204307287997
+          "leagueHomeGoals": 1.9096731329947163,
+          "leagueAwayGoals": 1.4298028577394857,
+          "homeAttack": 0.889406135995194,
+          "homeDefenceConceding": 1.110153266967453,
+          "awayAttack": 0.7835608608968695,
+          "awayDefenceConceding": 1.054178427652047
         },
-        "trainingCutoff": "2026-11-01T07:31:43.105Z",
+        "trainingCutoff": "2026-11-01T15:06:57.799Z",
         "newestTrainingKickoff": "2026-10-31T17:30:00.000Z",
-        "trainingHash": "3eb9696d7a648bc7fee4b53df096546325cad25d028e58a753db4408738d56d7",
+        "trainingHash": "f663312d848870376df1faf910b8bc313553aaea2cd3a53879170ac3ffb20142",
         "confidence": "uncalibrated-baseline",
         "limitations": [
           "仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。",
           "基线概率尚未校准，不代表亚洲盘赢盘概率。"
         ],
-        "horizonHours": 8.971359722222223,
+        "horizonHours": 1.3839447222222223,
         "validation": {
           "status": "evaluated-small-sample",
-          "horizonHours": 8.971359722222223,
+          "horizonHours": 1.3839447222222223,
           "selection": "exact-publication-lead-time",
           "visibility": "snapshot",
           "evaluated": 63,
           "skipped": 17,
           "metrics": {
-            "brier": 0.5901096641077576,
-            "logLoss": 0.9888899934433363,
+            "brier": 0.5901112952924009,
+            "logLoss": 0.9888950280469567,
             "accuracy": 0.49206349206349204,
             "baselineBrier": 0.6292904779268965,
             "baselineLogLoss": 1.0435344087179563
@@ -5868,19 +5335,19 @@
             "method": "normal-approximation-mean-95pct",
             "status": "approximate-small-sample",
             "brier": {
-              "estimate": 0.5901096641077576,
-              "lower": 0.5127334958659487,
-              "upper": 0.6674858323495664
+              "estimate": 0.5901112952924009,
+              "lower": 0.5127506533577197,
+              "upper": 0.6674719372270821
             },
             "logLoss": {
-              "estimate": 0.9888899934433363,
-              "lower": 0.8794755362266864,
-              "upper": 1.0983044506599862
+              "estimate": 0.9888950280469567,
+              "lower": 0.8795029625996093,
+              "upper": 1.0982870934943043
             },
             "pairedBrierDifference": {
-              "estimate": -0.039180813819138974,
-              "lower": -0.09084857615503489,
-              "upper": 0.012486948516756934
+              "estimate": -0.039179182634495636,
+              "lower": -0.09082540281997155,
+              "upper": 0.012467037550980276
             },
             "limitations": [
               "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -5910,10 +5377,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:41.911Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:56.720Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T16:06:57.799Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -5924,13 +5391,14 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
           "quoteGroups": [
-            "hkjc-first-party"
+            "hkjc-first-party",
+            "macauslot-official"
           ],
           "requiredQuoteGroups": 2,
-          "pairedQuoteCount": 2,
+          "pairedQuoteCount": 4,
           "verifiedOpeningCount": 0,
           "blockers": [
             "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING",
@@ -5942,13 +5410,51 @@
               "selection": "home",
               "handicap": -1,
               "quoteGroups": [
-                "hkjc-first-party"
+                "macauslot-official"
               ],
               "verifiedTrajectoryCount": 0,
               "crossChecked": false
             }
           ],
           "quotes": [
+            {
+              "sourceId": "macauslot",
+              "provider": "macauslot-official",
+              "bookmaker": "Macau SLOT",
+              "providerMatchId": "2072791872890142722",
+              "providerPoolId": "2115338257833066498",
+              "market": "asian-handicap",
+              "period": "full-time",
+              "selection": "home",
+              "handicap": -1,
+              "decimalOdds": 1.8199999999999998,
+              "observedAt": "2026-11-01T15:07:21.015Z",
+              "sourceUpdatedAt": "2026-11-01T15:06:11.000Z",
+              "validUntil": "2026-11-01T15:11:11.000Z",
+              "evidenceUrl": "https://www.macauslot.com/content/page/soccer/odds/all.html?sport=1&lang=cn",
+              "verificationMethod": "automatic",
+              "sourceAsOf": "2026-11-01T15:07:19.000Z",
+              "freshnessBasis": "publisher-file-last-modified"
+            },
+            {
+              "sourceId": "macauslot",
+              "provider": "macauslot-official",
+              "bookmaker": "Macau SLOT",
+              "providerMatchId": "2072791872890142722",
+              "providerPoolId": "2115338257833066498",
+              "market": "asian-handicap",
+              "period": "full-time",
+              "selection": "away",
+              "handicap": 1,
+              "decimalOdds": 2.02,
+              "observedAt": "2026-11-01T15:07:21.015Z",
+              "sourceUpdatedAt": "2026-11-01T15:06:11.000Z",
+              "validUntil": "2026-11-01T15:11:11.000Z",
+              "evidenceUrl": "https://www.macauslot.com/content/page/soccer/odds/all.html?sport=1&lang=cn",
+              "verificationMethod": "automatic",
+              "sourceAsOf": "2026-11-01T15:07:19.000Z",
+              "freshnessBasis": "publisher-file-last-modified"
+            },
             {
               "sourceId": "hkjc",
               "bookmaker": "HKJC",
@@ -5957,14 +5463,14 @@
               "market": "asian-handicap",
               "period": "full-time",
               "selection": "home",
-              "handicap": -1,
-              "decimalOdds": 1.84,
-              "observedAt": "2026-11-01T07:31:45.030Z",
+              "handicap": -1.25,
+              "decimalOdds": 1.99,
+              "observedAt": "2026-11-01T15:06:59.521Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
+              "validUntil": "2026-11-01T15:11:59.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
+              "sourceAsOf": "2026-11-01T15:06:59.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
               "cacheMaxAgeSeconds": 30
@@ -5977,14 +5483,14 @@
               "market": "asian-handicap",
               "period": "full-time",
               "selection": "away",
-              "handicap": 1,
-              "decimalOdds": 1.96,
-              "observedAt": "2026-11-01T07:31:45.030Z",
+              "handicap": 1.25,
+              "decimalOdds": 1.81,
+              "observedAt": "2026-11-01T15:06:59.521Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
+              "validUntil": "2026-11-01T15:11:59.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
+              "sourceAsOf": "2026-11-01T15:06:59.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
               "cacheMaxAgeSeconds": 30
@@ -6002,11 +5508,11 @@
         "kickoff": "2026-11-01T16:30:00.000Z",
         "source": "thesportsdb-free",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:42.384Z",
+        "updatedAt": "2026-11-01T15:06:57.351Z",
         "homeTeamId": "133602",
         "awayTeamId": "133604",
-        "observedAt": "2026-11-01T07:31:42.384Z",
-        "fetchedAt": "2026-11-01T07:31:42.384Z",
+        "observedAt": "2026-11-01T15:06:57.351Z",
+        "fetchedAt": "2026-11-01T15:06:57.351Z",
         "sourceUpdatedAt": null,
         "season": "2026-2027",
         "canonicalMatchId": "evt_2a9fa01a0ae44489fbc8e6c86a2ee22a374c1e87940d5b71ce3b71e95f67c5e9",
@@ -6018,7 +5524,7 @@
       },
       "forecast": {
         "fixtureId": "tsdb-2494082",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "unavailable",
         "reasons": [
           "HISTORY_UNAVAILABLE",
@@ -6073,7 +5579,7 @@
             ]
           }
         },
-        "horizonHours": 8.971359722222223,
+        "horizonHours": 1.3839447222222223,
         "validation": null,
         "completeness": {
           "scope": "baseline-required-checks-not-global-coverage",
@@ -6097,10 +5603,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:42.384Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:57.351Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T16:06:57.799Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -6111,7 +5617,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
           "quoteGroups": [
             "hkjc-first-party"
@@ -6120,14 +5626,17 @@
           "pairedQuoteCount": 2,
           "verifiedOpeningCount": 0,
           "blockers": [
+            "LATEST_MARKET_UNAVAILABLE",
             "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING",
             "TRUE_OPENING_RECORD_MISSING"
           ],
-          "sourceIssues": [],
+          "sourceIssues": [
+            "LATEST_MARKET_UNAVAILABLE"
+          ],
           "matchingMarkets": [
             {
-              "selection": "home",
-              "handicap": 0.25,
+              "selection": "away",
+              "handicap": 0,
               "quoteGroups": [
                 "hkjc-first-party"
               ],
@@ -6144,14 +5653,14 @@
               "market": "asian-handicap",
               "period": "full-time",
               "selection": "home",
-              "handicap": 0.25,
-              "decimalOdds": 1.75,
-              "observedAt": "2026-11-01T07:31:45.030Z",
+              "handicap": 0,
+              "decimalOdds": 1.99,
+              "observedAt": "2026-11-01T15:06:59.521Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
+              "validUntil": "2026-11-01T15:11:59.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
+              "sourceAsOf": "2026-11-01T15:06:59.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
               "freshnessBasis": "publisher-live-snapshot",
               "cacheMaxAgeSeconds": 30
@@ -6164,15 +5673,205 @@
               "market": "asian-handicap",
               "period": "full-time",
               "selection": "away",
-              "handicap": -0.25,
-              "decimalOdds": 2.07,
-              "observedAt": "2026-11-01T07:31:45.030Z",
+              "handicap": 0,
+              "decimalOdds": 1.81,
+              "observedAt": "2026-11-01T15:06:59.521Z",
               "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
-              "validUntil": "2026-11-01T07:36:45.000Z",
+              "validUntil": "2026-11-01T15:11:59.000Z",
               "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
               "verificationMethod": "automatic",
-              "sourceAsOf": "2026-11-01T07:31:45.000Z",
+              "sourceAsOf": "2026-11-01T15:06:59.000Z",
               "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
+              "freshnessBasis": "publisher-live-snapshot",
+              "cacheMaxAgeSeconds": 30
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fixture": {
+        "id": "tsdb-2482236",
+        "league": "SA",
+        "home": "Lecce",
+        "away": "Genoa",
+        "kickoff": "2026-11-01T17:00:00.000Z",
+        "source": "thesportsdb-free",
+        "status": "SCHEDULED",
+        "updatedAt": "2026-11-01T15:06:57.621Z",
+        "homeTeamId": "133678",
+        "awayTeamId": "133675",
+        "observedAt": "2026-11-01T15:06:57.621Z",
+        "fetchedAt": "2026-11-01T15:06:57.621Z",
+        "sourceUpdatedAt": null,
+        "season": "2026-2027",
+        "canonicalMatchId": "evt_429785d6e64f99063308c290b452e0ee2c1bb09c331841aef92c3dfeedb4699d",
+        "identityRevision": "dfa70546d0d8ce32d8b5d771506601f5e0222af056faee3d81dcabd9efa0d029",
+        "revisionId": "5ef969e67b1e9f0c92a276eded6cd71aed7218244120ed2f1953344da4117c76",
+        "recordHash": "2611e9f11c39989b4227a3fcfd1637aeacd975374594fd03afcb384d9fa2a8d7",
+        "sourceFixtureId": "2482236",
+        "identityScope": "source"
+      },
+      "forecast": {
+        "fixtureId": "tsdb-2482236",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
+        "status": "unavailable",
+        "reasons": [
+          "HISTORY_UNAVAILABLE",
+          "HOME_HISTORY_INSUFFICIENT",
+          "AWAY_HISTORY_INSUFFICIENT",
+          "VENUE_HISTORY_INSUFFICIENT"
+        ],
+        "sample": {
+          "league": 0,
+          "home": 0,
+          "away": 0,
+          "homeVenue": 0,
+          "awayVenue": 0
+        },
+        "sampleQuality": {
+          "weighted": {
+            "league": {
+              "weightedMatches": 0,
+              "effectiveMatches": 0
+            },
+            "home": {
+              "weightedMatches": 0,
+              "effectiveMatches": 0
+            },
+            "away": {
+              "weightedMatches": 0,
+              "effectiveMatches": 0
+            },
+            "homeVenue": {
+              "weightedMatches": 0,
+              "effectiveMatches": 0
+            },
+            "awayVenue": {
+              "weightedMatches": 0,
+              "effectiveMatches": 0
+            }
+          },
+          "season": "2026-2027",
+          "currentSeason": {
+            "league": 0,
+            "home": 0,
+            "away": 0,
+            "homeVenue": 0,
+            "awayVenue": 0
+          },
+          "unknownSeason": 0,
+          "coldStart": {
+            "status": "limited-current-season",
+            "notes": [
+              "Cross-season history is time-decayed; roster, transfer and managerial changes are not modeled.",
+              "Promoted teams are not assigned invented same-league history."
+            ]
+          }
+        },
+        "horizonHours": 1.8839447222222223,
+        "validation": null,
+        "completeness": {
+          "scope": "baseline-required-checks-not-global-coverage",
+          "passed": 2,
+          "total": 8,
+          "checks": {
+            "teamIdentity": true,
+            "leagueHistory": false,
+            "homeHistory": false,
+            "awayHistory": false,
+            "venueHistory": false,
+            "teamRecency": false,
+            "prematchFreshness": true,
+            "backtest": false
+          },
+          "enrichmentMissing": [
+            "injuries",
+            "lineups",
+            "odds"
+          ],
+          "globalCoverage": "unknown"
+        },
+        "freshness": {
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:57.621Z",
+          "fixtureSourceUpdatedAt": null,
+          "validUntil": "2026-11-01T16:06:57.799Z",
+          "maximumAgeMinutes": 60
+        }
+      },
+      "marketCandidate": {
+        "status": "source_insufficient",
+        "reasons": [
+          "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING"
+        ],
+        "candidate": null,
+        "readiness": {
+          "checkedAt": "2026-11-01T15:07:21.122Z",
+          "scope": "market-only",
+          "quoteGroups": [
+            "hkjc-first-party"
+          ],
+          "requiredQuoteGroups": 2,
+          "pairedQuoteCount": 2,
+          "verifiedOpeningCount": 0,
+          "blockers": [
+            "LATEST_MARKET_UNAVAILABLE",
+            "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING",
+            "TRUE_OPENING_RECORD_MISSING"
+          ],
+          "sourceIssues": [
+            "LATEST_MARKET_UNAVAILABLE"
+          ],
+          "matchingMarkets": [
+            {
+              "selection": "home",
+              "handicap": 0.25,
+              "quoteGroups": [
+                "hkjc-first-party"
+              ],
+              "verifiedTrajectoryCount": 0,
+              "crossChecked": false
+            }
+          ],
+          "quotes": [
+            {
+              "sourceId": "hkjc",
+              "bookmaker": "HKJC",
+              "providerMatchId": "50078821",
+              "providerPoolId": "2048157006",
+              "market": "asian-handicap",
+              "period": "full-time",
+              "selection": "home",
+              "handicap": 0.25,
+              "decimalOdds": 1.77,
+              "observedAt": "2026-11-01T15:06:59.521Z",
+              "sourceUpdatedAt": "2026-10-30T11:30:03.751Z",
+              "validUntil": "2026-11-01T15:11:59.000Z",
+              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
+              "verificationMethod": "automatic",
+              "sourceAsOf": "2026-11-01T15:06:59.000Z",
+              "providerPoolUpdatedAt": "2026-10-30T11:30:03.751Z",
+              "freshnessBasis": "publisher-live-snapshot",
+              "cacheMaxAgeSeconds": 30
+            },
+            {
+              "sourceId": "hkjc",
+              "bookmaker": "HKJC",
+              "providerMatchId": "50078821",
+              "providerPoolId": "2048157006",
+              "market": "asian-handicap",
+              "period": "full-time",
+              "selection": "away",
+              "handicap": -0.25,
+              "decimalOdds": 2.05,
+              "observedAt": "2026-11-01T15:06:59.521Z",
+              "sourceUpdatedAt": "2026-10-30T11:30:03.751Z",
+              "validUntil": "2026-11-01T15:11:59.000Z",
+              "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
+              "verificationMethod": "automatic",
+              "sourceAsOf": "2026-11-01T15:06:59.000Z",
+              "providerPoolUpdatedAt": "2026-10-30T11:30:03.751Z",
               "freshnessBasis": "publisher-live-snapshot",
               "cacheMaxAgeSeconds": 30
             }
@@ -6189,11 +5888,11 @@
         "kickoff": "2026-11-06T19:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:41.911Z",
+        "updatedAt": "2026-11-01T15:06:56.720Z",
         "homeTeamId": "100",
         "awayTeamId": "87",
-        "observedAt": "2026-11-01T07:31:41.911Z",
-        "fetchedAt": "2026-11-01T07:31:41.911Z",
+        "observedAt": "2026-11-01T15:06:56.720Z",
+        "fetchedAt": "2026-11-01T15:06:56.720Z",
         "sourceUpdatedAt": null,
         "season": "2026",
         "canonicalMatchId": "evt_3ddafe8f38c5a5e93d51d4e95e2b668917a63d632660997cb19bab484cf66c46",
@@ -6205,34 +5904,34 @@
       },
       "forecast": {
         "fixtureId": "oldb-83234",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.49124800092242393,
-          "draw": 0.23625985673890962,
-          "away": 0.2724921423386664
+          "home": 0.4912529758145115,
+          "draw": 0.23625020561429072,
+          "away": 0.2724968185711979
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.7341513505884947,
-          "away": 1.234261260892175
+          "home": 1.7342644682225803,
+          "away": 1.2343578164466387
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.10998384022052936
+            "probability": 0.1099765573805535
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.0953643125306701
+            "probability": 0.09536421790126785
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.08910904336495865
+            "probability": 0.08909617285621796
           }
         ],
         "sample": {
@@ -6245,23 +5944,23 @@
         "sampleQuality": {
           "weighted": {
             "league": {
-              "weightedMatches": 164.35307116,
+              "weightedMatches": 164.15310843,
               "effectiveMatches": 292.31492635
             },
             "home": {
-              "weightedMatches": 17.5444802,
+              "weightedMatches": 17.52313443,
               "effectiveMatches": 32.27054533
             },
             "away": {
-              "weightedMatches": 18.46860519,
+              "weightedMatches": 18.44613507,
               "effectiveMatches": 32.54869721
             },
             "homeVenue": {
-              "weightedMatches": 8.24349409,
+              "weightedMatches": 8.23346451,
               "effectiveMatches": 15.84993019
             },
             "awayVenue": {
-              "weightedMatches": 9.23766245,
+              "weightedMatches": 9.22642331,
               "effectiveMatches": 16.52384212
             }
           },
@@ -6284,32 +5983,32 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9096731329947187,
-          "leagueAwayGoals": 1.4298028577394855,
-          "homeAttack": 0.8236365889564724,
-          "homeDefenceConceding": 1.0373340795703618,
-          "awayAttack": 0.8321704525521895,
-          "awayDefenceConceding": 1.1025348578606016
+          "leagueHomeGoals": 1.9096731329947163,
+          "leagueAwayGoals": 1.4298028577394857,
+          "homeAttack": 0.8237270414077473,
+          "homeDefenceConceding": 1.0373149318401538,
+          "awayAttack": 0.8322509149550756,
+          "awayDefenceConceding": 1.1024856996452073
         },
-        "trainingCutoff": "2026-11-01T07:31:43.105Z",
+        "trainingCutoff": "2026-11-01T15:06:57.799Z",
         "newestTrainingKickoff": "2026-10-31T17:30:00.000Z",
-        "trainingHash": "3eb9696d7a648bc7fee4b53df096546325cad25d028e58a753db4408738d56d7",
+        "trainingHash": "f663312d848870376df1faf910b8bc313553aaea2cd3a53879170ac3ffb20142",
         "confidence": "uncalibrated-baseline",
         "limitations": [
           "仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。",
           "基线概率尚未校准，不代表亚洲盘赢盘概率。"
         ],
-        "horizonHours": 131.97135972222222,
+        "horizonHours": 124.38394472222222,
         "validation": {
           "status": "evaluated-small-sample",
-          "horizonHours": 131.97135972222222,
+          "horizonHours": 124.38394472222222,
           "selection": "exact-publication-lead-time",
           "visibility": "snapshot",
           "evaluated": 63,
           "skipped": 17,
           "metrics": {
-            "brier": 0.589962142868165,
-            "logLoss": 0.988645858653591,
+            "brier": 0.5899637788069306,
+            "logLoss": 0.9886508911684417,
             "accuracy": 0.49206349206349204,
             "baselineBrier": 0.6295327099475728,
             "baselineLogLoss": 1.0438681431646386
@@ -6325,19 +6024,19 @@
             "method": "normal-approximation-mean-95pct",
             "status": "approximate-small-sample",
             "brier": {
-              "estimate": 0.589962142868165,
-              "lower": 0.5122838085393546,
-              "upper": 0.6676404771969753
+              "estimate": 0.5899637788069306,
+              "lower": 0.5123011570538231,
+              "upper": 0.6676264005600382
             },
             "logLoss": {
-              "estimate": 0.988645858653591,
-              "lower": 0.8787983830943137,
-              "upper": 1.0984933342128684
+              "estimate": 0.9886508911684417,
+              "lower": 0.8788261028210467,
+              "upper": 1.0984756795158368
             },
             "pairedBrierDifference": {
-              "estimate": -0.03957056707940775,
-              "lower": -0.0916500919180711,
-              "upper": 0.01250895775925559
+              "estimate": -0.039568931140642465,
+              "lower": -0.09162703402414893,
+              "upper": 0.012489171742864007
             },
             "limitations": [
               "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -6367,10 +6066,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:41.911Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:56.720Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T16:06:57.799Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -6382,7 +6081,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
           "quoteGroups": [],
           "requiredQuoteGroups": 2,
@@ -6411,11 +6110,11 @@
         "kickoff": "2026-11-07T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:41.911Z",
+        "updatedAt": "2026-11-01T15:06:56.720Z",
         "homeTeamId": "7",
         "awayTeamId": "198",
-        "observedAt": "2026-11-01T07:31:41.911Z",
-        "fetchedAt": "2026-11-01T07:31:41.911Z",
+        "observedAt": "2026-11-01T15:06:56.720Z",
+        "fetchedAt": "2026-11-01T15:06:56.720Z",
         "sourceUpdatedAt": null,
         "season": "2026",
         "canonicalMatchId": "evt_5e03f5386782100318d2e8fa7a4b35dcc6e75fa4ee11a97e3f9c95251ae9f0d9",
@@ -6427,34 +6126,34 @@
       },
       "forecast": {
         "fixtureId": "oldb-83228",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.6587935657567902,
-          "draw": 0.19309768339419905,
-          "away": 0.14810875084901085
+          "home": 0.6587044439280119,
+          "draw": 0.19312210299435978,
+          "away": 0.14817345307762844
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 2.1711100066745392,
-          "away": 0.9223868154225485
+          "home": 2.170967567532267,
+          "away": 0.9226479028082215
         },
         "topScores": [
           {
             "home": 2,
             "away": 0,
-            "probability": 0.10686735552943383
+            "probability": 0.10684065637381245
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09857303973942375
+            "probability": 0.09857630753795191
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.09844490164100084
+            "probability": 0.09842676415038105
           }
         ],
         "sample": {
@@ -6467,23 +6166,23 @@
         "sampleQuality": {
           "weighted": {
             "league": {
-              "weightedMatches": 164.35307116,
+              "weightedMatches": 164.15310843,
               "effectiveMatches": 292.31492635
             },
             "home": {
-              "weightedMatches": 18.46128273,
+              "weightedMatches": 18.43882153,
               "effectiveMatches": 32.55893006
             },
             "away": {
-              "weightedMatches": 7.0961287,
+              "weightedMatches": 7.08749508,
               "effectiveMatches": 7.9427303
             },
             "homeVenue": {
-              "weightedMatches": 9.24097866,
+              "weightedMatches": 9.22973548,
               "effectiveMatches": 16.51861257
             },
             "awayVenue": {
-              "weightedMatches": 3.5456931,
+              "weightedMatches": 3.54137917,
               "effectiveMatches": 3.9794445
             }
           },
@@ -6506,35 +6205,35 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9096731329947187,
-          "leagueAwayGoals": 1.4298028577394855,
-          "homeAttack": 1.1099885123683402,
-          "homeDefenceConceding": 0.7465770366098355,
-          "awayAttack": 0.8640966036139923,
-          "awayDefenceConceding": 1.0242460712184533
+          "leagueHomeGoals": 1.9096731329947163,
+          "leagueAwayGoals": 1.4298028577394857,
+          "homeAttack": 1.1099357921206958,
+          "homeDefenceConceding": 0.7466985085808738,
+          "awayAttack": 0.8642005816545913,
+          "awayDefenceConceding": 1.0242275208433747
         },
-        "trainingCutoff": "2026-11-01T07:31:43.105Z",
+        "trainingCutoff": "2026-11-01T15:06:57.799Z",
         "newestTrainingKickoff": "2026-10-31T17:30:00.000Z",
-        "trainingHash": "3eb9696d7a648bc7fee4b53df096546325cad25d028e58a753db4408738d56d7",
+        "trainingHash": "f663312d848870376df1faf910b8bc313553aaea2cd3a53879170ac3ffb20142",
         "confidence": "uncalibrated-baseline",
         "limitations": [
           "仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。",
           "基线概率尚未校准，不代表亚洲盘赢盘概率。"
         ],
-        "horizonHours": 150.97135972222222,
+        "horizonHours": 143.38394472222222,
         "validation": {
           "status": "evaluated-small-sample",
-          "horizonHours": 150.97135972222222,
+          "horizonHours": 143.38394472222222,
           "selection": "exact-publication-lead-time",
           "visibility": "snapshot",
           "evaluated": 63,
           "skipped": 17,
           "metrics": {
-            "brier": 0.5898763969006232,
-            "logLoss": 0.9885328102827637,
+            "brier": 0.5899285908523614,
+            "logLoss": 0.9886323401015062,
             "accuracy": 0.5079365079365079,
-            "baselineBrier": 0.6297093267999786,
-            "baselineLogLoss": 1.0440153597106554
+            "baselineBrier": 0.6297212865635792,
+            "baselineLogLoss": 1.0440657034155605
           },
           "coverage": {
             "eligible": 80,
@@ -6547,19 +6246,19 @@
             "method": "normal-approximation-mean-95pct",
             "status": "approximate-small-sample",
             "brier": {
-              "estimate": 0.5898763969006232,
-              "lower": 0.5121586083970798,
-              "upper": 0.6675941854041666
+              "estimate": 0.5899285908523614,
+              "lower": 0.5122171046463432,
+              "upper": 0.6676400770583796
             },
             "logLoss": {
-              "estimate": 0.9885328102827637,
-              "lower": 0.8786123344667405,
-              "upper": 1.098453286098787
+              "estimate": 0.9886323401015062,
+              "lower": 0.8787203031511294,
+              "upper": 1.098544377051883
             },
             "pairedBrierDifference": {
-              "estimate": -0.03983292989935537,
-              "lower": -0.0922438557119988,
-              "upper": 0.012577995913288072
+              "estimate": -0.03979269571121775,
+              "lower": -0.09212557095184745,
+              "upper": 0.01254017952941195
             },
             "limitations": [
               "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -6589,10 +6288,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:41.911Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:56.720Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T16:06:57.799Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -6604,7 +6303,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
           "quoteGroups": [],
           "requiredQuoteGroups": 2,
@@ -6633,11 +6332,11 @@
         "kickoff": "2026-11-07T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:41.911Z",
+        "updatedAt": "2026-11-01T15:06:56.720Z",
         "homeTeamId": "1635",
         "awayTeamId": "95",
-        "observedAt": "2026-11-01T07:31:41.911Z",
-        "fetchedAt": "2026-11-01T07:31:41.911Z",
+        "observedAt": "2026-11-01T15:06:56.720Z",
+        "fetchedAt": "2026-11-01T15:06:56.720Z",
         "sourceUpdatedAt": null,
         "season": "2026",
         "canonicalMatchId": "evt_722eb80db30f30dabac0bee13ea54ab20c42435c0918d7eb1ecb5b176d9dd762",
@@ -6649,34 +6348,34 @@
       },
       "forecast": {
         "fixtureId": "oldb-83229",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.7363616977800348,
-          "draw": 0.14479525164025156,
-          "away": 0.11884305057971367
+          "home": 0.7362546206567626,
+          "draw": 0.14483899442303566,
+          "away": 0.11890638492020171
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 2.9095336785440042,
-          "away": 1.1350484294970247
+          "home": 2.9090151905865755,
+          "away": 1.1352111832225933
         },
         "topScores": [
           {
             "home": 2,
             "away": 1,
-            "probability": 0.08415723971682217
+            "probability": 0.08416924772460867
           },
           {
             "home": 3,
             "away": 1,
-            "probability": 0.08161944108313171
+            "probability": 0.08161654007037705
           },
           {
             "home": 2,
             "away": 0,
-            "probability": 0.07414418409804316
+            "probability": 0.07414413191884903
           }
         ],
         "sample": {
@@ -6689,23 +6388,23 @@
         "sampleQuality": {
           "weighted": {
             "league": {
-              "weightedMatches": 164.35307116,
+              "weightedMatches": 164.15310843,
               "effectiveMatches": 292.31492635
             },
             "home": {
-              "weightedMatches": 18.49081252,
+              "weightedMatches": 18.46831539,
               "effectiveMatches": 32.57440938
             },
             "away": {
-              "weightedMatches": 18.47017848,
+              "weightedMatches": 18.44770645,
               "effectiveMatches": 32.55096257
             },
             "homeVenue": {
-              "weightedMatches": 9.24258276,
+              "weightedMatches": 9.23133763,
               "effectiveMatches": 16.52304266
             },
             "awayVenue": {
-              "weightedMatches": 8.39025893,
+              "weightedMatches": 8.38005079,
               "effectiveMatches": 15.94806956
             }
           },
@@ -6728,35 +6427,35 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9096731329947187,
-          "leagueAwayGoals": 1.4298028577394855,
-          "homeAttack": 1.3988913299037713,
-          "homeDefenceConceding": 0.7060202261484497,
-          "awayAttack": 1.1244006510835682,
-          "awayDefenceConceding": 1.089131633127898
+          "leagueHomeGoals": 1.9096731329947163,
+          "leagueAwayGoals": 1.4298028577394857,
+          "homeAttack": 1.39870015141443,
+          "homeDefenceConceding": 0.7061611231919521,
+          "awayAttack": 1.1243374994328295,
+          "awayDefenceConceding": 1.0890863856977926
         },
-        "trainingCutoff": "2026-11-01T07:31:43.105Z",
+        "trainingCutoff": "2026-11-01T15:06:57.799Z",
         "newestTrainingKickoff": "2026-10-31T17:30:00.000Z",
-        "trainingHash": "3eb9696d7a648bc7fee4b53df096546325cad25d028e58a753db4408738d56d7",
+        "trainingHash": "f663312d848870376df1faf910b8bc313553aaea2cd3a53879170ac3ffb20142",
         "confidence": "uncalibrated-baseline",
         "limitations": [
           "仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。",
           "基线概率尚未校准，不代表亚洲盘赢盘概率。"
         ],
-        "horizonHours": 150.97135972222222,
+        "horizonHours": 143.38394472222222,
         "validation": {
           "status": "evaluated-small-sample",
-          "horizonHours": 150.97135972222222,
+          "horizonHours": 143.38394472222222,
           "selection": "exact-publication-lead-time",
           "visibility": "snapshot",
           "evaluated": 63,
           "skipped": 17,
           "metrics": {
-            "brier": 0.5898763969006232,
-            "logLoss": 0.9885328102827637,
+            "brier": 0.5899285908523614,
+            "logLoss": 0.9886323401015062,
             "accuracy": 0.5079365079365079,
-            "baselineBrier": 0.6297093267999786,
-            "baselineLogLoss": 1.0440153597106554
+            "baselineBrier": 0.6297212865635792,
+            "baselineLogLoss": 1.0440657034155605
           },
           "coverage": {
             "eligible": 80,
@@ -6769,19 +6468,19 @@
             "method": "normal-approximation-mean-95pct",
             "status": "approximate-small-sample",
             "brier": {
-              "estimate": 0.5898763969006232,
-              "lower": 0.5121586083970798,
-              "upper": 0.6675941854041666
+              "estimate": 0.5899285908523614,
+              "lower": 0.5122171046463432,
+              "upper": 0.6676400770583796
             },
             "logLoss": {
-              "estimate": 0.9885328102827637,
-              "lower": 0.8786123344667405,
-              "upper": 1.098453286098787
+              "estimate": 0.9886323401015062,
+              "lower": 0.8787203031511294,
+              "upper": 1.098544377051883
             },
             "pairedBrierDifference": {
-              "estimate": -0.03983292989935537,
-              "lower": -0.0922438557119988,
-              "upper": 0.012577995913288072
+              "estimate": -0.03979269571121775,
+              "lower": -0.09212557095184745,
+              "upper": 0.01254017952941195
             },
             "limitations": [
               "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -6811,10 +6510,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:41.911Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:56.720Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T16:06:57.799Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -6826,7 +6525,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
           "quoteGroups": [],
           "requiredQuoteGroups": 2,
@@ -6855,11 +6554,11 @@
         "kickoff": "2026-11-07T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:41.911Z",
+        "updatedAt": "2026-11-01T15:06:56.720Z",
         "homeTeamId": "81",
         "awayTeamId": "40",
-        "observedAt": "2026-11-01T07:31:41.911Z",
-        "fetchedAt": "2026-11-01T07:31:41.911Z",
+        "observedAt": "2026-11-01T15:06:56.720Z",
+        "fetchedAt": "2026-11-01T15:06:56.720Z",
         "sourceUpdatedAt": null,
         "season": "2026",
         "canonicalMatchId": "evt_94a82aec00e79f441440337522437acb9be2ca6627fe14871a7bf0917d51b418",
@@ -6871,34 +6570,34 @@
       },
       "forecast": {
         "fixtureId": "oldb-83233",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.14836071125960149,
-          "draw": 0.16614053261943734,
-          "away": 0.6854987561209611
+          "home": 0.14847428793791026,
+          "draw": 0.16620183284343495,
+          "away": 0.6853238792186548
         },
         "selection": "away",
         "expectedGoals": {
-          "home": 1.1743917321015371,
-          "away": 2.633673356613602
+          "home": 1.1747068029706593,
+          "away": 2.633018196541688
         },
         "topScores": [
           {
             "home": 1,
             "away": 2,
-            "probability": 0.09038266759981173
+            "probability": 0.09039267802970126
           },
           {
             "home": 1,
             "away": 3,
-            "probability": 0.07934614118576254
+            "probability": 0.07933518869544581
           },
           {
             "home": 0,
             "away": 2,
-            "probability": 0.07696126013938705
+            "probability": 0.07694913982034629
           }
         ],
         "sample": {
@@ -6911,23 +6610,23 @@
         "sampleQuality": {
           "weighted": {
             "league": {
-              "weightedMatches": 164.35307116,
+              "weightedMatches": 164.15310843,
               "effectiveMatches": 292.31492635
             },
             "home": {
-              "weightedMatches": 18.47232298,
+              "weightedMatches": 18.44984834,
               "effectiveMatches": 32.56999337
             },
             "away": {
-              "weightedMatches": 18.46807696,
+              "weightedMatches": 18.44560748,
               "effectiveMatches": 32.54667053
             },
             "homeVenue": {
-              "weightedMatches": 9.09672227,
+              "weightedMatches": 9.0856546,
               "effectiveMatches": 16.26534765
             },
             "awayVenue": {
-              "weightedMatches": 9.28198142,
+              "weightedMatches": 9.27068835,
               "effectiveMatches": 16.45661822
             }
           },
@@ -6950,35 +6649,35 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9096731329947187,
-          "leagueAwayGoals": 1.4298028577394855,
-          "homeAttack": 0.8516206643232176,
-          "homeDefenceConceding": 1.2214708128474314,
-          "awayAttack": 1.5080045627438368,
-          "awayDefenceConceding": 0.7221173106652596
+          "leagueHomeGoals": 1.9096731329947163,
+          "leagueAwayGoals": 1.4298028577394857,
+          "homeAttack": 0.8516924655287711,
+          "homeDefenceConceding": 1.2213636424568597,
+          "awayAttack": 1.5077617164540398,
+          "awayDefenceConceding": 0.7222501495904446
         },
-        "trainingCutoff": "2026-11-01T07:31:43.105Z",
+        "trainingCutoff": "2026-11-01T15:06:57.799Z",
         "newestTrainingKickoff": "2026-10-31T17:30:00.000Z",
-        "trainingHash": "3eb9696d7a648bc7fee4b53df096546325cad25d028e58a753db4408738d56d7",
+        "trainingHash": "f663312d848870376df1faf910b8bc313553aaea2cd3a53879170ac3ffb20142",
         "confidence": "uncalibrated-baseline",
         "limitations": [
           "仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。",
           "基线概率尚未校准，不代表亚洲盘赢盘概率。"
         ],
-        "horizonHours": 150.97135972222222,
+        "horizonHours": 143.38394472222222,
         "validation": {
           "status": "evaluated-small-sample",
-          "horizonHours": 150.97135972222222,
+          "horizonHours": 143.38394472222222,
           "selection": "exact-publication-lead-time",
           "visibility": "snapshot",
           "evaluated": 63,
           "skipped": 17,
           "metrics": {
-            "brier": 0.5898763969006232,
-            "logLoss": 0.9885328102827637,
+            "brier": 0.5899285908523614,
+            "logLoss": 0.9886323401015062,
             "accuracy": 0.5079365079365079,
-            "baselineBrier": 0.6297093267999786,
-            "baselineLogLoss": 1.0440153597106554
+            "baselineBrier": 0.6297212865635792,
+            "baselineLogLoss": 1.0440657034155605
           },
           "coverage": {
             "eligible": 80,
@@ -6991,19 +6690,19 @@
             "method": "normal-approximation-mean-95pct",
             "status": "approximate-small-sample",
             "brier": {
-              "estimate": 0.5898763969006232,
-              "lower": 0.5121586083970798,
-              "upper": 0.6675941854041666
+              "estimate": 0.5899285908523614,
+              "lower": 0.5122171046463432,
+              "upper": 0.6676400770583796
             },
             "logLoss": {
-              "estimate": 0.9885328102827637,
-              "lower": 0.8786123344667405,
-              "upper": 1.098453286098787
+              "estimate": 0.9886323401015062,
+              "lower": 0.8787203031511294,
+              "upper": 1.098544377051883
             },
             "pairedBrierDifference": {
-              "estimate": -0.03983292989935537,
-              "lower": -0.0922438557119988,
-              "upper": 0.012577995913288072
+              "estimate": -0.03979269571121775,
+              "lower": -0.09212557095184745,
+              "upper": 0.01254017952941195
             },
             "limitations": [
               "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -7033,10 +6732,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:41.911Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:56.720Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T16:06:57.799Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -7048,7 +6747,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
           "quoteGroups": [],
           "requiredQuoteGroups": 2,
@@ -7077,11 +6776,11 @@
         "kickoff": "2026-11-07T14:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:41.911Z",
+        "updatedAt": "2026-11-01T15:06:56.720Z",
         "homeTeamId": "31",
         "awayTeamId": "91",
-        "observedAt": "2026-11-01T07:31:41.911Z",
-        "fetchedAt": "2026-11-01T07:31:41.911Z",
+        "observedAt": "2026-11-01T15:06:56.720Z",
+        "fetchedAt": "2026-11-01T15:06:56.720Z",
         "sourceUpdatedAt": null,
         "season": "2026",
         "canonicalMatchId": "evt_a718c3ea5ee51b5a8403158abcd439504a8693d6bc50cecf94abbe200d21d831",
@@ -7093,34 +6792,34 @@
       },
       "forecast": {
         "fixtureId": "oldb-83236",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.4796178808841632,
-          "draw": 0.2301412672532105,
-          "away": 0.2902408518626263
+          "home": 0.479641076440506,
+          "draw": 0.230127634509507,
+          "away": 0.29023128904998696
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.7995521064500517,
-          "away": 1.355823243173063
+          "home": 1.7997389667075425,
+          "away": 1.3559144872954347
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.10399330924896943
+            "probability": 0.1039821849522932
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09357068935784728
+            "probability": 0.09357039505101636
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.07670122914074817
+            "probability": 0.07668786337676833
           }
         ],
         "sample": {
@@ -7133,23 +6832,23 @@
         "sampleQuality": {
           "weighted": {
             "league": {
-              "weightedMatches": 164.35307116,
+              "weightedMatches": 164.15310843,
               "effectiveMatches": 292.31492635
             },
             "home": {
-              "weightedMatches": 7.09598611,
+              "weightedMatches": 7.08735266,
               "effectiveMatches": 7.94140936
             },
             "away": {
-              "weightedMatches": 17.46658485,
+              "weightedMatches": 17.44533385,
               "effectiveMatches": 32.19299085
             },
             "homeVenue": {
-              "weightedMatches": 3.54596647,
+              "weightedMatches": 3.54165222,
               "effectiveMatches": 3.97947145
             },
             "awayVenue": {
-              "weightedMatches": 9.08877416,
+              "weightedMatches": 9.07771617,
               "effectiveMatches": 16.26011172
             }
           },
@@ -7172,35 +6871,35 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9096731329947187,
-          "leagueAwayGoals": 1.4298028577394855,
-          "homeAttack": 0.8219959262065472,
-          "homeDefenceConceding": 0.8846051438327169,
-          "awayAttack": 1.0719572198846594,
-          "awayDefenceConceding": 1.1463988005140502
+          "leagueHomeGoals": 1.9096731329947163,
+          "leagueAwayGoals": 1.4298028577394857,
+          "homeAttack": 0.8221321110677792,
+          "homeDefenceConceding": 0.8846934285114836,
+          "awayAttack": 1.071922381237205,
+          "awayDefenceConceding": 1.1463279203965726
         },
-        "trainingCutoff": "2026-11-01T07:31:43.105Z",
+        "trainingCutoff": "2026-11-01T15:06:57.799Z",
         "newestTrainingKickoff": "2026-10-31T17:30:00.000Z",
-        "trainingHash": "3eb9696d7a648bc7fee4b53df096546325cad25d028e58a753db4408738d56d7",
+        "trainingHash": "f663312d848870376df1faf910b8bc313553aaea2cd3a53879170ac3ffb20142",
         "confidence": "uncalibrated-baseline",
         "limitations": [
           "仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。",
           "基线概率尚未校准，不代表亚洲盘赢盘概率。"
         ],
-        "horizonHours": 150.97135972222222,
+        "horizonHours": 143.38394472222222,
         "validation": {
           "status": "evaluated-small-sample",
-          "horizonHours": 150.97135972222222,
+          "horizonHours": 143.38394472222222,
           "selection": "exact-publication-lead-time",
           "visibility": "snapshot",
           "evaluated": 63,
           "skipped": 17,
           "metrics": {
-            "brier": 0.5898763969006232,
-            "logLoss": 0.9885328102827637,
+            "brier": 0.5899285908523614,
+            "logLoss": 0.9886323401015062,
             "accuracy": 0.5079365079365079,
-            "baselineBrier": 0.6297093267999786,
-            "baselineLogLoss": 1.0440153597106554
+            "baselineBrier": 0.6297212865635792,
+            "baselineLogLoss": 1.0440657034155605
           },
           "coverage": {
             "eligible": 80,
@@ -7213,19 +6912,19 @@
             "method": "normal-approximation-mean-95pct",
             "status": "approximate-small-sample",
             "brier": {
-              "estimate": 0.5898763969006232,
-              "lower": 0.5121586083970798,
-              "upper": 0.6675941854041666
+              "estimate": 0.5899285908523614,
+              "lower": 0.5122171046463432,
+              "upper": 0.6676400770583796
             },
             "logLoss": {
-              "estimate": 0.9885328102827637,
-              "lower": 0.8786123344667405,
-              "upper": 1.098453286098787
+              "estimate": 0.9886323401015062,
+              "lower": 0.8787203031511294,
+              "upper": 1.098544377051883
             },
             "pairedBrierDifference": {
-              "estimate": -0.03983292989935537,
-              "lower": -0.0922438557119988,
-              "upper": 0.012577995913288072
+              "estimate": -0.03979269571121775,
+              "lower": -0.09212557095184745,
+              "upper": 0.01254017952941195
             },
             "limitations": [
               "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -7255,10 +6954,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:41.911Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:56.720Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T16:06:57.799Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -7270,7 +6969,7 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
           "quoteGroups": [],
           "requiredQuoteGroups": 2,
@@ -7299,11 +6998,11 @@
         "kickoff": "2026-11-07T17:30:00.000Z",
         "source": "openligadb",
         "status": "SCHEDULED",
-        "updatedAt": "2026-11-01T07:31:41.911Z",
+        "updatedAt": "2026-11-01T15:06:56.720Z",
         "homeTeamId": "16",
         "awayTeamId": "134",
-        "observedAt": "2026-11-01T07:31:41.911Z",
-        "fetchedAt": "2026-11-01T07:31:41.911Z",
+        "observedAt": "2026-11-01T15:06:56.720Z",
+        "fetchedAt": "2026-11-01T15:06:56.720Z",
         "sourceUpdatedAt": null,
         "season": "2026",
         "canonicalMatchId": "evt_197f31d18ad66dd455e520d6a1d77ee0b17ff293909a74e512502c582b820da1",
@@ -7315,34 +7014,34 @@
       },
       "forecast": {
         "fixtureId": "oldb-83230",
-        "generatedAt": "2026-11-01T07:31:43.105Z",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
         "status": "forecast",
         "reasons": [],
         "probabilities": {
-          "home": 0.5190097048318061,
-          "draw": 0.22777327019788296,
-          "away": 0.25321702497031096
+          "home": 0.518994454408681,
+          "draw": 0.2277707359709387,
+          "away": 0.25323480962038036
         },
         "selection": "home",
         "expectedGoals": {
-          "home": 1.8455040432449235,
-          "away": 1.2257485973088684
+          "home": 1.845535256405147,
+          "away": 1.2258472981496764
         },
         "topScores": [
           {
             "home": 1,
             "away": 1,
-            "probability": 0.10487895021104825
+            "probability": 0.10487554365155688
           },
           {
             "home": 2,
             "away": 1,
-            "probability": 0.09677726333288629
+            "probability": 0.09677575667180262
           },
           {
             "home": 1,
             "away": 0,
-            "probability": 0.08556318191292246
+            "probability": 0.0855535137287153
           }
         ],
         "sample": {
@@ -7355,23 +7054,23 @@
         "sampleQuality": {
           "weighted": {
             "league": {
-              "weightedMatches": 164.35307116,
+              "weightedMatches": 164.15310843,
               "effectiveMatches": 292.31492635
             },
             "home": {
-              "weightedMatches": 18.47170129,
+              "weightedMatches": 18.44922741,
               "effectiveMatches": 32.58971041
             },
             "away": {
-              "weightedMatches": 18.48867687,
+              "weightedMatches": 18.46618233,
               "effectiveMatches": 32.59187886
             },
             "homeVenue": {
-              "weightedMatches": 8.38049125,
+              "weightedMatches": 8.370295,
               "effectiveMatches": 15.92310177
             },
             "awayVenue": {
-              "weightedMatches": 9.10149336,
+              "weightedMatches": 9.09041988,
               "effectiveMatches": 16.27393641
             }
           },
@@ -7394,32 +7093,32 @@
         },
         "strength": {
           "basis": "weighted-venue-goals-relative-to-league",
-          "leagueHomeGoals": 1.9096731329947187,
-          "leagueAwayGoals": 1.4298028577394855,
-          "homeAttack": 0.9919585502439522,
-          "homeDefenceConceding": 0.9004037949936021,
-          "awayAttack": 0.9521117556612023,
-          "awayDefenceConceding": 0.9742321059768924
+          "leagueHomeGoals": 1.9096731329947163,
+          "leagueAwayGoals": 1.4298028577394857,
+          "homeAttack": 0.9919626352353201,
+          "homeDefenceConceding": 0.9004543890593476,
+          "awayAttack": 0.952134921608565,
+          "awayDefenceConceding": 0.9742445712005576
         },
-        "trainingCutoff": "2026-11-01T07:31:43.105Z",
+        "trainingCutoff": "2026-11-01T15:06:57.799Z",
         "newestTrainingKickoff": "2026-10-31T17:30:00.000Z",
-        "trainingHash": "3eb9696d7a648bc7fee4b53df096546325cad25d028e58a753db4408738d56d7",
+        "trainingHash": "f663312d848870376df1faf910b8bc313553aaea2cd3a53879170ac3ffb20142",
         "confidence": "uncalibrated-baseline",
         "limitations": [
           "仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。",
           "基线概率尚未校准，不代表亚洲盘赢盘概率。"
         ],
-        "horizonHours": 153.97135972222222,
+        "horizonHours": 146.38394472222222,
         "validation": {
           "status": "evaluated-small-sample",
-          "horizonHours": 153.97135972222222,
+          "horizonHours": 146.38394472222222,
           "selection": "exact-publication-lead-time",
           "visibility": "snapshot",
           "evaluated": 63,
           "skipped": 17,
           "metrics": {
-            "brier": 0.5898756792248037,
-            "logLoss": 0.9885307696321025,
+            "brier": 0.5898774989723559,
+            "logLoss": 0.9885359372508793,
             "accuracy": 0.5079365079365079,
             "baselineBrier": 0.6297093267999786,
             "baselineLogLoss": 1.0440153597106554
@@ -7435,19 +7134,19 @@
             "method": "normal-approximation-mean-95pct",
             "status": "approximate-small-sample",
             "brier": {
-              "estimate": 0.5898756792248037,
-              "lower": 0.5121516871767287,
-              "upper": 0.6675996712728787
+              "estimate": 0.5898774989723559,
+              "lower": 0.5121691970649586,
+              "upper": 0.6675858008797532
             },
             "logLoss": {
-              "estimate": 0.9885307696321025,
-              "lower": 0.8786013013507774,
-              "upper": 1.0984602379134276
+              "estimate": 0.9885359372508793,
+              "lower": 0.8786292122769677,
+              "upper": 1.098442662224791
             },
             "pairedBrierDifference": {
-              "estimate": -0.03983364757517476,
-              "lower": -0.09225302991092238,
-              "upper": 0.012585734760572849
+              "estimate": -0.03983182782762259,
+              "lower": -0.09222982094907578,
+              "upper": 0.012566165293830596
             },
             "limitations": [
               "Intervals assume independent observations; match and team dependence can understate uncertainty.",
@@ -7477,10 +7176,10 @@
           "globalCoverage": "unknown"
         },
         "freshness": {
-          "generatedAt": "2026-11-01T07:31:43.105Z",
-          "fixtureFetchedAt": "2026-11-01T07:31:41.911Z",
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:56.720Z",
           "fixtureSourceUpdatedAt": null,
-          "validUntil": "2026-11-01T08:31:43.105Z",
+          "validUntil": "2026-11-01T16:06:57.799Z",
           "maximumAgeMinutes": 60
         }
       },
@@ -7492,7 +7191,229 @@
         ],
         "candidate": null,
         "readiness": {
-          "checkedAt": "2026-11-01T07:31:46.322Z",
+          "checkedAt": "2026-11-01T15:07:21.122Z",
+          "scope": "market-only",
+          "quoteGroups": [],
+          "requiredQuoteGroups": 2,
+          "pairedQuoteCount": 0,
+          "verifiedOpeningCount": 0,
+          "blockers": [
+            "LATEST_MARKET_UNAVAILABLE",
+            "NO_FRESH_COMPLETE_ASIAN_MARKET",
+            "SECOND_INDEPENDENT_ASIAN_SOURCE_MISSING",
+            "TRUE_OPENING_RECORD_MISSING"
+          ],
+          "sourceIssues": [
+            "LATEST_MARKET_UNAVAILABLE"
+          ],
+          "matchingMarkets": [],
+          "quotes": []
+        }
+      }
+    },
+    {
+      "fixture": {
+        "id": "oldb-83235",
+        "league": "BL1",
+        "home": "1. FC Köln",
+        "away": "Bayer 04 Leverkusen",
+        "kickoff": "2026-11-08T14:30:00.000Z",
+        "source": "openligadb",
+        "status": "SCHEDULED",
+        "updatedAt": "2026-11-01T15:06:56.720Z",
+        "homeTeamId": "65",
+        "awayTeamId": "6",
+        "observedAt": "2026-11-01T15:06:56.720Z",
+        "fetchedAt": "2026-11-01T15:06:56.720Z",
+        "sourceUpdatedAt": null,
+        "season": "2026",
+        "canonicalMatchId": "evt_9e52ccfcf09f521d3053eef1c046dcbe149c2c5cc2a89b7a3ea6b805cbd536bf",
+        "identityRevision": "7a38494d29db842736862182b7a32523d70f49a52ae813f12f6863bf07f5525e",
+        "revisionId": "332eb2cd644460956ab7241cb48f6780b43162681334d7c96797b0e147e782a7",
+        "recordHash": "862e0fe8f5770e0541028374565d65267e1dd31e8f2e604e68e7f3c505703bd7",
+        "sourceFixtureId": "83235",
+        "identityScope": "source"
+      },
+      "forecast": {
+        "fixtureId": "oldb-83235",
+        "generatedAt": "2026-11-01T15:06:57.799Z",
+        "status": "forecast",
+        "reasons": [],
+        "probabilities": {
+          "home": 0.406659563623565,
+          "draw": 0.22299353216968443,
+          "away": 0.37034690420675065
+        },
+        "selection": "home",
+        "expectedGoals": {
+          "home": 1.7885578015924457,
+          "away": 1.700140351825002
+        },
+        "topScores": [
+          {
+            "home": 1,
+            "away": 1,
+            "probability": 0.09286785147719664
+          },
+          {
+            "home": 2,
+            "away": 1,
+            "probability": 0.08304976013833429
+          },
+          {
+            "home": 1,
+            "away": 2,
+            "probability": 0.07894419084183656
+          }
+        ],
+        "sample": {
+          "league": 376,
+          "home": 41,
+          "away": 42,
+          "homeVenue": 21,
+          "awayVenue": 21
+        },
+        "sampleQuality": {
+          "weighted": {
+            "league": {
+              "weightedMatches": 164.15310843,
+              "effectiveMatches": 292.31492635
+            },
+            "home": {
+              "weightedMatches": 17.44664493,
+              "effectiveMatches": 32.20019854
+            },
+            "away": {
+              "weightedMatches": 18.5161618,
+              "effectiveMatches": 32.61791264
+            },
+            "homeVenue": {
+              "weightedMatches": 9.23427359,
+              "effectiveMatches": 16.52646304
+            },
+            "awayVenue": {
+              "weightedMatches": 9.29519875,
+              "effectiveMatches": 16.60349489
+            }
+          },
+          "season": "2026",
+          "currentSeason": {
+            "league": 70,
+            "home": 7,
+            "away": 8,
+            "homeVenue": 4,
+            "awayVenue": 4
+          },
+          "unknownSeason": 0,
+          "coldStart": {
+            "status": "current-season-sample-present",
+            "notes": [
+              "Cross-season history is time-decayed; roster, transfer and managerial changes are not modeled.",
+              "Promoted teams are not assigned invented same-league history."
+            ]
+          }
+        },
+        "strength": {
+          "basis": "weighted-venue-goals-relative-to-league",
+          "leagueHomeGoals": 1.9096731329947163,
+          "leagueAwayGoals": 1.4298028577394857,
+          "homeAttack": 0.9014281471175091,
+          "homeDefenceConceding": 1.029290931376992,
+          "awayAttack": 1.15523534540039,
+          "awayDefenceConceding": 1.0389934916296633
+        },
+        "trainingCutoff": "2026-11-01T15:06:57.799Z",
+        "newestTrainingKickoff": "2026-10-31T17:30:00.000Z",
+        "trainingHash": "f663312d848870376df1faf910b8bc313553aaea2cd3a53879170ac3ffb20142",
+        "confidence": "uncalibrated-baseline",
+        "limitations": [
+          "仅使用历史全场比分，未包含伤停、阵容、赛程负荷或盘口。",
+          "基线概率尚未校准，不代表亚洲盘赢盘概率。"
+        ],
+        "horizonHours": 167.38394472222222,
+        "validation": {
+          "status": "evaluated-small-sample",
+          "horizonHours": 167.38394472222222,
+          "selection": "exact-publication-lead-time",
+          "visibility": "snapshot",
+          "evaluated": 60,
+          "skipped": 20,
+          "metrics": {
+            "brier": 0.5942034699614394,
+            "logLoss": 0.9935124350397835,
+            "accuracy": 0.5,
+            "baselineBrier": 0.6305952759589536,
+            "baselineLogLoss": 1.0446632843139447
+          },
+          "coverage": {
+            "eligible": 80,
+            "evaluated": 60,
+            "skipped": 20,
+            "pending": 0,
+            "rate": 0.75
+          },
+          "uncertainty": {
+            "method": "normal-approximation-mean-95pct",
+            "status": "approximate-small-sample",
+            "brier": {
+              "estimate": 0.5942034699614394,
+              "lower": 0.5146084811667218,
+              "upper": 0.673798458756157
+            },
+            "logLoss": {
+              "estimate": 0.9935124350397835,
+              "lower": 0.881056747726453,
+              "upper": 1.105968122353114
+            },
+            "pairedBrierDifference": {
+              "estimate": -0.03639180599751421,
+              "lower": -0.09050124283317357,
+              "upper": 0.017717630838145156
+            },
+            "limitations": [
+              "Intervals assume independent observations; match and team dependence can understate uncertainty.",
+              "Reliability bins describe this sample and do not establish calibration."
+            ]
+          }
+        },
+        "completeness": {
+          "scope": "baseline-required-checks-not-global-coverage",
+          "passed": 8,
+          "total": 8,
+          "checks": {
+            "teamIdentity": true,
+            "leagueHistory": true,
+            "homeHistory": true,
+            "awayHistory": true,
+            "venueHistory": true,
+            "teamRecency": true,
+            "prematchFreshness": true,
+            "backtest": true
+          },
+          "enrichmentMissing": [
+            "injuries",
+            "lineups",
+            "odds"
+          ],
+          "globalCoverage": "unknown"
+        },
+        "freshness": {
+          "generatedAt": "2026-11-01T15:06:57.799Z",
+          "fixtureFetchedAt": "2026-11-01T15:06:56.720Z",
+          "fixtureSourceUpdatedAt": null,
+          "validUntil": "2026-11-01T16:06:57.799Z",
+          "maximumAgeMinutes": 60
+        }
+      },
+      "marketCandidate": {
+        "status": "source_insufficient",
+        "reasons": [
+          "NO_FRESH_COMPLETE_ASIAN_MARKET",
+          "LATEST_MARKET_UNAVAILABLE"
+        ],
+        "candidate": null,
+        "readiness": {
+          "checkedAt": "2026-11-01T15:07:21.122Z",
           "scope": "market-only",
           "quoteGroups": [],
           "requiredQuoteGroups": 2,
