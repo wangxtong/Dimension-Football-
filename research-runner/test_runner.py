@@ -105,8 +105,9 @@ class LinuxRunnerTests(unittest.TestCase):
             runner.State(str(link / "data"))
         instance = self.make()
         (Path(self.path) / "bad").symlink_to(target, target_is_directory=True)
-        with self.assertRaises(OSError):
+        with self.assertRaises((OSError, runner.SafetyError)):
             instance.state.immutable("bad/escape.json", b"bad")
+        self.assertFalse((target / "escape.json").exists())
         (Path(self.path) / "bad").unlink()
         os.mkfifo(Path(self.path) / "pipe", 0o600)
         with self.assertRaises(runner.SafetyError):
