@@ -271,6 +271,10 @@ class LinuxRuntimeReview(unittest.TestCase):
         with collector.state.lock():
             result = heartbeat.heartbeat(NOW + dt.timedelta(minutes=5))
         self.assertEqual(result["status"], "HEARTBEAT")
+        record = heartbeat.state.json("heartbeats/20261101T0005Z.json")
+        self.assertEqual(record["kind"], "HEARTBEAT")
+        self.assertEqual(record["metadata"]["pid"], os.getpid())
+        self.assertTrue(record["metadata"]["boot_id"])
 
     def test_overdue_and_restart_gaps_raise_each_local_alert_once(self):
         instance = self.make_runner()

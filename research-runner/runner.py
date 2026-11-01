@@ -598,6 +598,11 @@ class Runner:
         # filesystem lock so heartbeat never waits behind an upstream request.
         with self.state.lock("heartbeat.lock"):
             self.initialize(now)
+            beat = {"kind": "HEARTBEAT", "checked_at": iso(now), "metadata": metadata(now)}
+            try:
+                self.state.immutable("heartbeats/" + now.strftime("%Y%m%dT%H%MZ") + ".json", encoded(beat))
+            except FileExistsError:
+                pass
             epoch = instant(self.state.json("epoch.json")["started_at"])
             first = (int(epoch.timestamp()) + 599) // 600 * 600
             cursor = self.state.json("state/heartbeat.json", {"last_slot": first - 600})["last_slot"]
