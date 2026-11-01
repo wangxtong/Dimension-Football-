@@ -1,0 +1,13 @@
+[Unit]
+Description=Dimension research UTC anchored ten-minute slots
+After=time-sync.target
+
+[Timer]
+OnCalendar=*-*-* *:00/10:00 UTC
+AccuracySec=1s
+RandomizedDelaySec=0
+Persistent=true
+Unit=dimension-research-collector.service
+
+[Install]
+WantedBy=timers.target

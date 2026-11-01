@@ -1,0 +1,13 @@
+[Unit]
+Description=Dimension research independent UTC minute heartbeat
+After=time-sync.target
+
+[Timer]
+OnCalendar=*-*-* *:*:00 UTC
+AccuracySec=1s
+RandomizedDelaySec=0
+Persistent=true
+Unit=dimension-research-heartbeat.service
+
+[Install]
+WantedBy=timers.target

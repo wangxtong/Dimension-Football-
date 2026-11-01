@@ -1,0 +1,15 @@
+[Unit]
+Description=Dimension research aggregate resource boundary
+
+[Slice]
+CPUAccounting=yes
+CPUQuota=20%
+MemoryAccounting=yes
+MemoryMax=256M
+MemorySwapMax=0
+TasksAccounting=yes
+TasksMax=32
+IOAccounting=yes
+IOWeight=10
+IOReadBandwidthMax=/var/lib/dimension-research 2M
+IOWriteBandwidthMax=/var/lib/dimension-research 1M

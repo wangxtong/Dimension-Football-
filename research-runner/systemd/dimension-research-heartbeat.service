@@ -1,0 +1,47 @@
+[Unit]
+Description=Dimension research independent local heartbeat
+After=time-sync.target
+
+[Service]
+Type=oneshot
+User=dimension-research
+Group=dimension-research
+Slice=dimension-research.slice
+WorkingDirectory=/var/lib/dimension-research
+Environment=TZ=UTC
+ExecStart=/usr/bin/python3 -I -B /opt/dimension-research/runner.py --config /etc/dimension-research/config.json heartbeat
+TimeoutStartSec=15s
+TimeoutStopSec=5s
+KillMode=control-group
+UMask=0077
+Nice=10
+CPUWeight=100
+MemoryMax=32M
+TasksMax=4
+LimitNOFILE=64
+LimitFSIZE=16M
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX
+InaccessiblePaths=-/etc/vantis -/opt/vantis -/var/lib/vantis /etc/dimension-research/api.env
+ReadWritePaths=/var/lib/dimension-research
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dimension-research-heartbeat
+LogRateLimitIntervalSec=60s
+LogRateLimitBurst=20

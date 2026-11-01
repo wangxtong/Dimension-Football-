@@ -1,0 +1,13 @@
+[Unit]
+Description=Dimension research UTC one-off event reconciler tick
+After=time-sync.target
+
+[Timer]
+OnCalendar=*-*-* *:*:00 UTC
+AccuracySec=1s
+RandomizedDelaySec=0
+Persistent=true
+Unit=dimension-research-reconcile.service
+
+[Install]
+WantedBy=timers.target

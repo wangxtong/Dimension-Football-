@@ -1,0 +1,49 @@
+[Unit]
+Description=Dimension isolated research fixed-slot collection
+Wants=network-online.target
+After=network-online.target time-sync.target
+
+[Service]
+Type=oneshot
+User=dimension-research
+Group=dimension-research
+Slice=dimension-research.slice
+WorkingDirectory=/var/lib/dimension-research
+Environment=TZ=UTC
+EnvironmentFile=/etc/dimension-research/api.env
+ExecStart=/usr/bin/python3 -I -B /opt/dimension-research/runner.py --config /etc/dimension-research/config.json collect
+TimeoutStartSec=90s
+TimeoutStopSec=10s
+KillMode=control-group
+UMask=0077
+Nice=10
+CPUWeight=10
+MemoryMax=192M
+TasksMax=20
+LimitNOFILE=128
+LimitFSIZE=16M
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=any
+InaccessiblePaths=-/etc/vantis -/opt/vantis -/var/lib/vantis
+ReadWritePaths=/var/lib/dimension-research
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dimension-research-collector
+LogRateLimitIntervalSec=60s
+LogRateLimitBurst=20
