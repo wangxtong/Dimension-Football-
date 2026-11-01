@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "verifiedAt": "2026-11-01T08:00:21Z",
+  "mode": "RESEARCH_ONLY",
+  "deployment": {
+    "targetInstanceId": "i-j6c4g9s2y6b5irl5gcr9",
+    "isolation": "same ECS; separate account, directories, systemd units and cgroup; shared kernel",
+    "sourceCommit": "47ec4661ee4bf4031c0f0745906dad9c8b9d4077",
+    "runnerSha256": "424fe6d7561681417b71a83d57f588c4203e93f48646e1266478b0249ebd8af0",
+    "sourceManifestSha256": "ebcb06cf4ca09e78110df7e38bb718c3dd3e8936cd00ac2ebb559a24d41f15db",
+    "account": "dimension-research",
+    "codeDirectory": "/opt/dimension-research",
+    "dataDirectory": "/var/lib/dimension-research",
+    "credentialMode": "root:root 0600; manager injects only API_FOOTBALL_KEY"
+  },
+  "resources": {
+    "cpuQuotaPercentOfOneCore": 20,
+    "memoryMaxBytes": 268435456,
+    "tasksMax": 32,
+    "swapMaxBytes": 0,
+    "ioReadBytesPerSecond": 2097152,
+    "ioWriteBytesPerSecond": 1048576,
+    "actualCgroupReadback": true
+  },
+  "tests": {
+    "platform": "Ubuntu 22.04; Python 3.10.12",
+    "passed": 35,
+    "failed": 0,
+    "skipped": 0,
+    "meaning": "offline safety tests with synthetic HTTP; independent from live capture"
+  },
+  "live": {
+    "startup": {
+      "time": "2026-11-01T07:50:21.653542Z",
+      "trigger": "manual service start",
+      "status": "CAPTURED",
+      "officialHttp200Count": 2,
+      "freshProcessRawReadback": true
+    },
+    "scheduled": {
+      "dueAt": "2026-11-01T08:00:00Z",
+      "startedAt": "2026-11-01T08:00:02.744302Z",
+      "finishedAt": "2026-11-01T08:00:05.852570Z",
+      "trigger": "native UTC calendar timer",
+      "status": "CAPTURED",
+      "startDelaySeconds": 2.7443020343780518,
+      "officialHttp200Count": 2,
+      "freshProcessRawReadback": true
+    },
+    "persistedMinuteHeartbeats": 11,
+    "lastHeartbeatAt": "2026-11-01T08:00:01.540943Z",
+    "activePeriodicTimers": 3,
+    "activeT50TimersObserved": 5,
+    "nextCollectorAt": "2026-11-01T08:10:00Z"
+  },
+  "receipts": {
+    "connectionInvokeId": "t-hk071rytk2ts8ao",
+    "uploadInvokeId": "f-hk071s0fwfx5qtc",
+    "activationInvokeId": "t-hk071s3fy58joqo",
+    "scheduledVerificationInvokeId": "t-hk071s4cbqvtwqo"
+  },
+  "limitations": [
+    "one league rotates per 600-second slot; at most one selected odds fixture per slot; not full all-match T50 coverage",
+    "500 new research requests/day, at most 5 per slot, shared upstream quota reserve 500",
+    "T50 timers registered; actual T50 firing not yet observed",
+    "four consecutive native slots, reboot persistence drill and full 24-hour SLO not yet verified",
+    "local alarms cannot notify during whole-host failure",
+    "existing vantis-sync.service had failed before deployment and was not repaired"
+  ],
+  "forecastRelease": "BLOCKED",
+  "telegramMessagesSent": 0
+}
