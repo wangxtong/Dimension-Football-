@@ -11,5 +11,5 @@ TasksAccounting=yes
 TasksMax=32
 IOAccounting=yes
 IOWeight=10
-IOReadBandwidthMax=/var/lib/dimension-research 2M
-IOWriteBandwidthMax=/var/lib/dimension-research 1M
+IOReadBandwidthMax=/var/lib/dimension-research 2097152
+IOWriteBandwidthMax=/var/lib/dimension-research 1048576
