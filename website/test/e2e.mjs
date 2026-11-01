@@ -13,6 +13,11 @@ import { gzipSync } from 'node:zlib';
 import { NOW, sampleReport, sampleReceipt } from './fixtures.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
+const historicalEvidence = JSON.parse(await readFile(join(root, 'website/evaluation-evidence.json')));
+const historicalSelected = historicalEvidence.groups.find(row => row.league === 'BL1' && row.horizonHours === 24);
+const historicalSample = `${historicalSelected.evaluated} 场`;
+const historicalAccuracy = `${(historicalSelected.metrics.accuracy * 100).toFixed(1)}%`;
+const historicalDelta = `${historicalSelected.deltaVsBaseline.brier > 0 ? '+' : ''}${historicalSelected.deltaVsBaseline.brier.toFixed(4)}`;
 const password = 'synthetic-browser-test-password', salt = 'a1'.repeat(16);
 const auth = { username: 'test-viewer', iterations: 100000, salt,
   hash: pbkdf2Sync(password, Buffer.from(salt, 'hex'), 100000, 32, 'sha256').toString('hex') };
@@ -34,11 +39,13 @@ before(async () => {
   assert.ok(assets['/report-schema.mjs'], 'The shared schema must be present in the deployable build');
   assert.ok(assets['/locale-zh.mjs'], 'The Chinese presentation module must be present in the deployable build');
   assert.ok(assets['/evaluation-evidence.json'], 'The authenticated historical evidence asset must be present in the real build');
+  assert.ok(assets['/model-experiment-evidence.json'], 'The authenticated frozen model evidence asset must be present in the real build');
   ({ createDashboard } = await import(pathToFileURL(join(output, 'server/index.js'))));
   await promisify(execFile)('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
     '-subj', '/CN=localhost', '-keyout', join(output, 'test-key.pem'), '-out', join(output, 'test-cert.pem')]);
   tls = { key: await readFile(join(output, 'test-key.pem')), cert: await readFile(join(output, 'test-cert.pem')) };
-  browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+  browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined,
+    args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 }, { timeout: 60000 });
 after(async () => { await browser?.close(); if (output) await rm(output, { recursive: true, force: true }); });
 
@@ -227,14 +234,21 @@ test('built website: all views localize names and machine labels without changin
   state.report.coverage = [{ source: 'unknown-provider', league: 'UNKNOWN_LEAGUE', fixtureCount: 0, historyCount: 0,
     fixtureStatus: 'UNKNOWN_STATUS', historyStatus: 'UNKNOWN_STATUS' }];
   await login();
+  await page.locator('#experiment-content').waitFor({ state: 'visible' });
   assert.match(await page.locator('[data-fixture-id="analysis"] .teams').textContent(), /拜仁慕尼黑.*对阵.*多特蒙德/);
   assert.match(await page.locator('#validation').textContent(), /布里尔评分.*对数损失/s);
   assert.match(await page.locator('#delivery').textContent(), /机器人通知/);
   assert.match(await page.locator('#attribution').textContent(), /开放联赛原始数据与许可/);
+  const binding = JSON.parse(assets['/model-experiment-evidence.json']).binding;
+  const evidenceIdentifiers = [`协议 ${binding.protocolHash.slice(0, 12)}`, `冻结算法摘要 ${binding.experimentCodeHash.slice(0, 12)}`];
+  for (const identifier of evidenceIdentifiers) assert.ok((await page.locator('#experiment-binding').textContent()).includes(identifier));
   for (const label of ['普通预测', '严格候选', '暂不可评估']) {
     await page.getByRole('tab', { name: label, exact: true }).click();
-    const text = (await page.locator('body').textContent()).replace(/报告编号 [a-f0-9]{12}/g, '报告编号');
-    assert.doesNotMatch(text, /[A-Za-z]/, `${label} must use Chinese labels, including unknown metadata`);
+    let text = (await page.locator('body').textContent()).replace(/报告编号 [a-f0-9]{12}/g, '报告编号');
+    // Exempt only the two exact identifiers bound to this built asset. Product
+    // labels, unknown metadata and any other ASCII remain subject to the gate.
+    for (const identifier of evidenceIdentifiers) text = text.replace(identifier, identifier.split(' ')[0]);
+    assert.doesNotMatch(text, /[A-Za-z]/, `${label} must use Chinese labels, including unknown metadata: ${(text.match(/[A-Za-z]+/g) || []).join(',')}`);
   }
   const original = await page.evaluate(async () => (await (await fetch('/api/report')).json()).report);
   assert.equal(original.fixtures[0].fixture.home, 'Bayern Munich');
@@ -310,15 +324,15 @@ test('commercial dashboard keeps historical comparisons separate from live zero-
     state.freshness = { mode: 'hosted' };
   }
   await page.setViewportSize({ width: 1440, height: 1050 }); await login('0');
-  await page.waitForFunction(() => document.querySelector('#history-sample')?.textContent === '63 场');
+  await page.waitForFunction(expected => document.querySelector('#history-sample')?.textContent === expected, historicalSample);
   assert.equal(await page.locator('#count-publishable').textContent(), '0');
   assert.equal(await page.locator('#today-picks-count').textContent(), '0');
   assert.equal(await page.locator('#count-analysis').textContent(), '0');
-  assert.equal(await page.locator('#history-accuracy').textContent(), '57.1%');
-  assert.equal(await page.locator('#history-brier-delta').textContent(), '-0.0645');
-  assert.equal(await page.locator('#history-prospective').textContent(), '0 场');
-  assert.equal(await page.locator('#backtest-chart .chart-row').count(), 4);
-  assert.match(await page.locator('#chart-summary').textContent(), /0.5489.*0.6134/);
+  assert.equal(await page.locator('#history-accuracy').textContent(), historicalAccuracy);
+  assert.equal(await page.locator('#history-brier-delta').textContent(), historicalDelta);
+  assert.equal(await page.locator('#history-prospective').textContent(), `${historicalEvidence.prospective.evaluated} 场`);
+  assert.equal(await page.locator('#backtest-chart .chart-row').count(), historicalEvidence.groups.filter(row => row.league === 'BL1' && [1, 24, 72, 168].includes(row.horizonHours) && row.metrics).length);
+  for (const metric of [historicalSelected.metrics.brier, historicalSelected.baseline.brier]) assert.ok((await page.locator('#chart-summary').textContent()).includes(metric.toFixed(4)));
   assert.match(await page.locator('#picks').textContent(), /3–7.*不为数量凑单/s);
   assert.match(await page.locator('#picks').textContent(), /严格盘口额外要求/);
   assert.match(await page.locator('#picks').textContent(), /普通胜平负评估独立于亚洲盘/);
@@ -332,7 +346,7 @@ test('commercial dashboard keeps historical comparisons separate from live zero-
   assert.equal(await page.locator('#backtest-chart .chart-row').count(), 0);
   assert.match(await page.locator('#backtest-chart').textContent(), /不补绘图表/);
   await page.locator('#history-league').selectOption('all');
-  assert.equal(await page.locator('#history-table tr').count(), 25);
+  assert.equal(await page.locator('#history-table tr').count(), historicalEvidence.groups.length);
   await page.locator('#history-league').selectOption('BL1');
   const screenshots = process.env.DASHBOARD_SCREENSHOTS_DIR;
   if (screenshots) {
@@ -342,7 +356,7 @@ test('commercial dashboard keeps historical comparisons separate from live zero-
   }
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-  assert.equal(await page.locator('.table-scroll').evaluate(node => node.scrollWidth > node.clientWidth), true);
+  assert.equal(await page.getByRole('region', { name: '历史回测数据表，可横向滚动', exact: true }).evaluate(node => node.scrollWidth > node.clientWidth), true);
   if (screenshots) {
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await page.screenshot({ path: join(screenshots, 'mobile-overview.png') });
@@ -353,7 +367,7 @@ test('commercial dashboard keeps historical comparisons separate from live zero-
     await context.clearCookies(); await page.goto(origin + `/?view=${target}#${target}`);
     await page.getByLabel('用户名').fill(auth.username); await page.getByLabel('密码').fill(password);
     await page.getByRole('button', { name: '登录看板 →' }).click();
-    await page.waitForFunction(() => document.querySelector('#history-sample')?.textContent === '63 场');
+    await page.waitForFunction(expected => document.querySelector('#history-sample')?.textContent === expected, historicalSample);
     assert.equal(new URL(page.url()).searchParams.get('view'), target);
     assert.equal(new URL(page.url()).hash, `#${target}`);
   }
@@ -366,17 +380,17 @@ test('a failed historical archive load never hides the live report and retry res
   assert.equal(await page.locator('#count-analysis').textContent(), '2');
   assert.equal(await page.locator('#cards .card').count(), 2);
   state.evaluationStatus = 200; await refresh();
-  await page.waitForFunction(() => document.querySelector('#history-sample')?.textContent === '63 场');
+  await page.waitForFunction(expected => document.querySelector('#history-sample')?.textContent === expected, historicalSample);
   state.evaluationStatus = 503; await refresh();
   await page.waitForFunction(() => document.querySelector('#evaluation-state')?.textContent.includes('保留上次有效档案'));
-  assert.equal(await page.locator('#history-sample').textContent(), '63 场');
+  assert.equal(await page.locator('#history-sample').textContent(), historicalSample);
   assert.equal(await page.locator('#count-fixtures').textContent(), '3');
 });
 
 test('an initially unavailable live report displays an explicit unknown state without relabelling historical results as live', { timeout: 60000 }, async t => {
   const { page, state, login, refresh } = await dashboard(t); state.status = 503;
   await login('未取得');
-  await page.waitForFunction(() => document.querySelector('#history-sample')?.textContent === '63 场');
+  await page.waitForFunction(expected => document.querySelector('#history-sample')?.textContent === expected, historicalSample);
   assert.equal(await page.locator('#count-fixtures').textContent(), '未取得');
   assert.equal(await page.locator('#count-publishable').textContent(), '0');
   assert.equal(await page.locator('#collected-at').textContent(), '未取得');

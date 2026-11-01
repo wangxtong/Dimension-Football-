@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "kind": "model-experiment-protocol",
+  "createdAt": "2026-10-31T10:11:29.548Z",
+  "source": "openligadb",
+  "league": "BL1",
+  "asOf": "2026-10-31T10:05:56.989Z",
+  "rules": {
+    "version": 1,
+    "candidate": "poisson-temperature-v1",
+    "horizonHours": 24,
+    "warmupFraction": 0.4,
+    "calibrationEndFraction": 0.8,
+    "minimumCalibration": 100,
+    "minimumHoldout": 30,
+    "inverseTemperatureMinimum": 0.5,
+    "inverseTemperatureMaximum": 2,
+    "optimizerIterations": 60,
+    "objective": "calibration-multiclass-log-loss",
+    "baselineUpdate": "fixed-parameters-prequential-past-results-only",
+    "holdoutDisclosure": "previously-inspected-history-not-independent-confirmation"
+  },
+  "experimentCodeHash": "1b4a43bd1a2704e361724f22edba29992689bf155858225caec887d16ae3a53e",
+  "codeDependencies": [
+    "model-experiment.mjs",
+    "forecast.mjs",
+    "forecast-evaluation.mjs",
+    "evaluation-quality.mjs",
+    "policy.mjs",
+    "data/identity.mjs",
+    "data/history-cache.mjs"
+  ],
+  "codeHashEncoding": "canonical JSON SHA-256 of dependency filename to file-byte-SHA-256 mapping",
+  "rawInputSha256": "e4f89bb9981180141b8ea3a03ece15086b603322847b3c1fada0c68b303b3ec7",
+  "normalizedHistoryHash": "586bfe670497cb279d0438fb8d482f48c5435dadbd58ab1401c63088266f0ad5",
+  "baseline": {
+    "id": "venue-poisson-v2",
+    "version": 2,
+    "configurationHash": "5bb4b076a15c3044d258858947b1a6487ad91dc5718867ccec8bbf9daf170a85"
+  },
+  "history": {
+    "accepted": 982,
+    "excludedAfterAsOf": 0,
+    "duplicatesRemoved": 0,
+    "unknownObservationTime": 0
+  },
+  "split": {
+    "calibrationStart": "2024-11-09T17:30:00.000Z",
+    "holdoutStart": "2026-01-31T14:30:00.000Z",
+    "fitCutoff": "2026-01-30T14:30:00.000Z",
+    "segments": {
+      "warmup": {
+        "count": 392,
+        "from": "2023-08-18T18:30:00.000Z",
+        "to": "2024-11-09T14:30:00.000Z",
+        "fixtureIdsHash": "a13be61793269460607ea971eec566e0c057b5438bb6a4ddac1199d9402eeb4d"
+      },
+      "calibration": {
+        "count": 391,
+        "from": "2024-11-09T17:30:00.000Z",
+        "to": "2026-01-30T19:30:00.000Z",
+        "fixtureIdsHash": "a280d56ee3295bb1442b1897cfd299c2eedc834e053f909b754ff5af951da91c"
+      },
+      "holdout": {
+        "count": 199,
+        "from": "2026-01-31T14:30:00.000Z",
+        "to": "2026-10-30T19:30:00.000Z",
+        "fixtureIdsHash": "18f62eb045c52bae596e2e6847203d48ccac1902d242b0d202e47afff21ad42c"
+      }
+    }
+  },
+  "candidateCount": 1,
+  "primaryComparison": "holdout-candidate-minus-poisson-log-loss",
+  "evidenceStatus": "internally-fixed-exploratory-protocol-not-external-preregistration",
+  "releaseGate": "BLOCKED",
+  "protocolHash": "811c5722663d39fbca163f82fdf7a962a3e3bc8c9582535205b0cc39c8e84595"
+}

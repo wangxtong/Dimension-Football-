@@ -147,8 +147,11 @@ test('legacy openings are retained for review without fabricating missing identi
 
 test('archive capacity overflow cannot discard conflict blockers and revive openings', () => {
   const { fixture, quotes } = setup();
-  const many = Array.from({ length: 201 }, (_, i) => ({ ...quotes[0], bookmaker: `Book-${i}`,
-    opening: { ...quotes[0].opening, bookmaker: `Book-${i}` } }));
+  // Known production origins have fixed bookmaker identities. Use the generic
+  // reference feed for this cardinality test, without inventing Titan bookies.
+  const template = quotes.find(q => q.sourceId === 'oddstorm');
+  const many = Array.from({ length: 201 }, (_, i) => ({ ...template, bookmaker: `Book-${i}`,
+    opening: { ...template.opening, bookmaker: `Book-${i}` } }));
   const result = reconcileMarketEvidence(fixture, many, [], NOW);
   assert.equal(result.records.length, 200);
   assert.equal(result.records[0].archiveStatus, 'capacity_exceeded');

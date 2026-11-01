@@ -5,7 +5,7 @@ const WORKFLOW_URL = `https://github.com/${REPO}/actions/workflows/public-source
 const choices = { home: '主胜', draw: '平局', away: '客胜' };
 const $ = id => document.getElementById(id);
 const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
-const time = date => Number.isFinite(Date.parse(date)) ? new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(date)) : '未知';
+const time = date => Number.isFinite(Date.parse(date)) ? new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(date)) : '未知';
 const percent = n => `${(n * 100).toFixed(1)}%`;
 const safeLabel = (value, fallback = '未记录') => typeof value === 'string' && value.trim() && value.length <= 160 && !/[\u0000-\u001f]/u.test(value) ? value : fallback;
 const validHorizon = value => Number.isFinite(value) && value >= 0 && value <= 336;
@@ -74,6 +74,165 @@ export function createEvaluationLoader({ fetchImpl = (...args) => fetch(...args)
     })().finally(() => { inFlight = null; });
     return inFlight;
   } };
+}
+export function validateMarketObservation(value) {
+  const count = n => Number.isSafeInteger(n) && n >= 0 && n <= 100000;
+  const groups = { hkjc: 'hkjc-first-party', macauslot: 'macauslot-official', titan007: 'titan007' };
+  const only = (row, keys) => row && typeof row === 'object' && !Array.isArray(row) && Object.keys(row).every(key => keys.includes(key));
+  if (!value || value.version !== 1 || value.releaseGate !== 'BLOCKED' || !validDate(value.checkedAt) || !validDate(value.expiresAt)
+    || !only(value, ['version', 'checkedAt', 'expiresAt', 'fixtureCount', 'sources', 'dualSourceFixtureCount', 'alignedEligibleFixtureCount', 'trueOpeningFixtureCount', 'releaseGate'])
+    || Date.parse(value.expiresAt) < Date.parse(value.checkedAt) || Date.parse(value.expiresAt) - Date.parse(value.checkedAt) > 300000 || !count(value.fixtureCount)
+    || !Array.isArray(value.sources) || value.sources.length !== 3 || new Set(value.sources.map(row => row?.id)).size !== 3
+    || !value.sources.every(row => only(row, ['id', 'group', 'status', 'quoteCount', 'pairedFixtureCount', 'latestSourceUpdatedAt', 'openingCount'])
+      && Object.hasOwn(groups, row.id) && row.group === groups[row.id]
+      && ['available', 'partial', 'stale', 'unavailable', 'missing'].includes(row.status)
+      && ['quoteCount', 'pairedFixtureCount', 'openingCount'].every(key => count(row[key]))
+      && row.pairedFixtureCount <= value.fixtureCount && row.quoteCount >= row.pairedFixtureCount * 2 && row.openingCount <= row.quoteCount
+      && (row.status === 'available' ? row.pairedFixtureCount > 0 : row.status === 'partial' ? row.quoteCount > 0 && row.pairedFixtureCount === 0 : row.quoteCount === 0 && row.pairedFixtureCount === 0)
+      && (row.latestSourceUpdatedAt === null ? row.quoteCount === 0 : validDate(row.latestSourceUpdatedAt) && Date.parse(row.latestSourceUpdatedAt) <= Date.parse(value.checkedAt)))
+    || !['dualSourceFixtureCount', 'alignedEligibleFixtureCount', 'trueOpeningFixtureCount'].every(key => count(value[key]))
+    || value.dualSourceFixtureCount > value.fixtureCount || value.alignedEligibleFixtureCount > value.dualSourceFixtureCount
+    || value.trueOpeningFixtureCount > value.alignedEligibleFixtureCount
+    || value.dualSourceFixtureCount * 2 > value.sources.reduce((sum, row) => sum + row.pairedFixtureCount, 0)
+    || value.trueOpeningFixtureCount > value.sources.reduce((sum, row) => sum + row.openingCount, 0)) throw Error('MARKET_OBSERVATION_INVALID');
+  return value;
+}
+export function marketObservationState(value, now = Date.now(), reportFixtureCount) {
+  try {
+    const summary = validateMarketObservation(value), checked = Date.parse(summary.checkedAt);
+    if (reportFixtureCount !== undefined && (!Number.isSafeInteger(reportFixtureCount) || reportFixtureCount < 0
+      || summary.fixtureCount > reportFixtureCount)) return { status: 'unverified', summary: null };
+    if (checked > now + 300000) return { status: 'unverified', summary: null };
+    return { status: Date.parse(summary.expiresAt) <= now ? 'expired' : 'current', summary };
+  } catch { return { status: 'unverified', summary: null }; }
+}
+export function scheduleAcquisitionTime(value, now = Date.now()) {
+  const checkedAt = value?.acquisition?.checkedAt;
+  // Report generation can advance after a market-only update. It must never
+  // renew the age of schedules that were collected in an earlier operation.
+  return validDate(checkedAt) && validDate(value?.generatedAt) && Date.parse(checkedAt) <= Date.parse(value.generatedAt)
+    && Date.parse(checkedAt) <= now ? checkedAt : null;
+}
+export function validateModelExperimentEvidence(value) {
+  const count = n => Number.isSafeInteger(n) && n >= 0 && n <= 1e7;
+  const hash = text => typeof text === 'string' && /^[a-f0-9]{64}$/.test(text);
+  const token = text => typeof text === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(text);
+  const unit = n => Number.isFinite(n) && n >= 0 && n <= 1;
+  const metric = row => row && unit(row.accuracy) && unit(row.macroECE) && Number.isFinite(row.brier) && row.brier >= 0 && row.brier <= 2
+    && Number.isFinite(row.logLoss) && row.logLoss >= 0 && row.logLoss <= 100;
+  const stage = row => row && ['eligible', 'evaluated', 'skipped'].every(key => count(row[key])) && row.evaluated + row.skipped === row.eligible;
+  const samples = value?.samples, result = value?.holdout;
+  if (!value || value.version !== 1 || value.kind !== 'model-experiment-evidence' || value.historicalOnly !== true
+    || value.releaseGate !== 'BLOCKED' || value.calibrated !== false || value.independentEvidence !== false
+    || !['generatedAt', 'protocolCreatedAt', 'dataAsOf'].every(key => validDate(value[key]))
+    || !['protocolHash', 'protocolFileSha256', 'resultFileSha256', 'rawInputSha256', 'normalizedHistoryHash', 'experimentCodeHash', 'baselineModelHash'].every(key => hash(value.binding?.[key]))
+    || !token(value.scope?.source) || !['PL', 'PD', 'SA', 'BL1', 'FL1'].includes(value.scope?.league) || value.scope.horizonHours !== 24
+    || !samples || !count(samples.input) || !count(samples.warmup) || !stage(samples.calibration) || !stage(samples.holdout)
+    || samples.holdout.eligible < 1 || samples.holdout.evaluated < 1 || !unit(samples.holdout.rate)
+    || Math.abs(samples.holdout.rate - samples.holdout.evaluated / samples.holdout.eligible) > 1e-8
+    || samples.input !== samples.warmup + samples.calibration.eligible + samples.holdout.eligible
+    || !count(samples.asObserved?.calibration) || !count(samples.asObserved?.holdout)
+    || samples.asObserved.calibration > samples.calibration.evaluated || samples.asObserved.holdout > samples.holdout.evaluated
+    || value.models?.baseline?.id !== 'venue-poisson-v2' || value.models.baseline.version !== 2
+    || value.models?.candidate?.id !== 'poisson-temperature-v1' || !Number.isFinite(value.models.candidate.temperature) || value.models.candidate.temperature <= 0
+    || !Number.isFinite(value.models.candidate.inverseTemperature) || value.models.candidate.inverseTemperature <= 0
+    || Math.abs(value.models.candidate.temperature * value.models.candidate.inverseTemperature - 1) > 1e-8
+    || !metric(result?.baseline) || !metric(result?.candidate)
+    || !['accuracy', 'brier', 'logLoss', 'macroECE'].every(key => Number.isFinite(result.candidateMinusBaseline?.[key])
+      && Math.abs(result.candidateMinusBaseline[key] - (result.candidate[key] - result.baseline[key])) < 1e-8)
+    || !['brier', 'logLoss'].every(key => { const interval = result.pairedIntervals?.[key]; return interval
+      && ['estimate', 'lower', 'upper'].every(field => Number.isFinite(interval[field])) && interval.lower <= interval.upper
+      && Math.abs(interval.estimate - result.candidateMinusBaseline[key]) < 1e-8; })
+    || result.uncertainty?.method !== 'paired-UTC-week-cluster-percentile-bootstrap' || !count(result.uncertainty.blocks)
+    || !count(result.uncertainty.replicates) || result.uncertainty.blocks < 1 || result.uncertainty.replicates < 1
+    || !unit(result.uncertainty.confidenceLevel) || result.uncertainty.confidenceLevel <= 0 || result.uncertainty.confidenceLevel >= 1
+    || value.decision?.status !== 'NOT_ADOPTED' || value.decision.candidateAdopted !== false || value.decision.retainedModel !== value.models.baseline.id
+    || !Array.isArray(value.decision.reasons) || !value.decision.reasons.every(token)
+    || !Array.isArray(value.limitations) || value.limitations.length > 20 || !value.limitations.every(line => typeof line === 'string' && line.length <= 1000)) throw Error('MODEL_EXPERIMENT_INVALID');
+  return value;
+}
+export function createModelExperimentLoader({ fetchImpl = (...args) => fetch(...args) } = {}) {
+  let inFlight = null;
+  return { load() {
+    if (inFlight) return inFlight;
+    inFlight = (async () => {
+      const response = await fetchImpl('/model-experiment-evidence.json', { credentials: 'same-origin', cache: 'no-cache', signal: AbortSignal.timeout(12000) });
+      if (!response.ok) throw Error('MODEL_EXPERIMENT_UNAVAILABLE');
+      const body = await response.text();
+      if (body.length > 20000) throw Error('MODEL_EXPERIMENT_INVALID');
+      return validateModelExperimentEvidence(JSON.parse(body));
+    })().finally(() => { inFlight = null; });
+    return inFlight;
+  } };
+}
+let experiment = null, experimentFailed = false;
+const experimentLoader = createModelExperimentLoader();
+function renderExperiment() {
+  $('experiment-badge').textContent = experiment ? '候选未采用 · 发布暂停' : '未核验';
+  $('experiment-state').classList.toggle('load-failed', experimentFailed);
+  $('experiment-state').textContent = experimentFailed ? experiment ? '实验档案刷新失败，保留上次有效对照；实时赛程和当前历史档案独立更新。'
+    : '模型实验档案未加载，无法核验新增实验。实时赛程和当前历史档案仍可正常查看。'
+    : experiment ? `首次冻结实验 · ${time(experiment.generatedAt)} 北京时间 · ${leagueName(experiment.scope.league)} / ${sourceName(experiment.scope.source)} / 提前 ${experiment.scope.horizonHours} 小时`
+      : '正在读取独立实验档案；与当前历史回测分别加载。';
+  $('experiment-content').hidden = !experiment;
+  if (!experiment) return;
+  const s = experiment.samples, r = experiment.holdout;
+  $('experiment-input').textContent = `${s.input} 条`;
+  $('experiment-warmup').textContent = `其中 ${s.warmup} 条为预热历史，不是留出评估`;
+  $('experiment-calibration').textContent = `${s.calibration.evaluated} / ${s.calibration.eligible}`;
+  $('experiment-calibration-note').textContent = `校准段可评估 / 预定样本 · 跳过 ${s.calibration.skipped} 场`;
+  $('experiment-holdout').textContent = `${s.holdout.evaluated} / ${s.holdout.eligible}`;
+  $('experiment-holdout-note').textContent = `留出同场对照 / 预定样本 · 跳过 ${s.holdout.skipped} 场`;
+  $('experiment-observed').textContent = `${s.asObserved.holdout} 场`;
+  const table = $('experiment-table'); table.replaceChildren();
+  for (const [key, label, direction] of [['accuracy', '方向命中率', '越高越好'], ['brier', '布里尔评分', '越低越好'], ['logLoss', '对数损失', '越低越好'], ['macroECE', '分箱校准误差', '越低越好']]) {
+    const tr = el('tr'), name = el('td', label); name.append(el('small', direction)); tr.append(name);
+    const format = value => ['accuracy', 'macroECE'].includes(key) ? `${(value * 100).toFixed(key === 'accuracy' ? 1 : 2)}%` : value.toFixed(6);
+    const delta = r.candidateMinusBaseline[key];
+    const deltaText = ['accuracy', 'macroECE'].includes(key) ? `${delta > 0 ? '+' : ''}${(delta * 100).toFixed(3)} 个百分点` : `${delta > 0 ? '+' : ''}${delta.toFixed(6)}`;
+    for (const value of [format(r.baseline[key]), format(r.candidate[key]), deltaText]) tr.append(el('td', value));
+    table.append(tr);
+  }
+  $('experiment-conclusion').textContent = `留出 ${s.holdout.evaluated} 场中，原模型方向命中率 ${percent(r.baseline.accuracy)}，温度缩放候选 ${percent(r.candidate.accuracy)}。候选未采用，继续保留原模型；校准误差的单项变化不等于已校准。`;
+  $('experiment-intervals').replaceChildren(...['brier', 'logLoss'].map(key => { const interval = r.pairedIntervals[key];
+    return el('li', `${key === 'brier' ? '布里尔评分' : '对数损失'}差值的 ${percent(r.uncertainty.confidenceLevel)} 近似区间：[${interval.lower.toFixed(6)}, ${interval.upper.toFixed(6)}]。`); }));
+  $('experiment-method').textContent = `按 ${r.uncertainty.blocks} 个协调世界时自然周分组，配对重采样 ${r.uncertainty.replicates} 次。区间是历史样本的不确定性估计，不是独立确认或未来收益保证。`;
+  $('experiment-limitations').replaceChildren(...experiment.limitations.map(line => el('li', line.replaceAll('asObserved', '历史时点可见').replaceAll('argmax', '最大概率赛果').replaceAll('ECE', '分箱校准误差').replaceAll('Brier', '布里尔评分').replaceAll('Log loss', '对数损失'))));
+  $('experiment-binding').textContent = `保留主客场泊松基线（第 2 版） · 协议 ${experiment.binding.protocolHash.slice(0, 12)} · 冻结算法摘要 ${experiment.binding.experimentCodeHash.slice(0, 12)} · 原始输入截至 ${time(experiment.dataAsOf)} 北京时间。该实验对应冻结算法版本，不表示当前生产版本已重新验证。`;
+  const link = el('a', ' 查看完整实验摘要 ↗'); link.href = '/model-experiment-evidence.json'; link.target = '_blank'; link.rel = 'noreferrer'; $('experiment-binding').append(link);
+}
+async function loadExperiment() {
+  try { experiment = await experimentLoader.load(); experimentFailed = false; }
+  catch { experimentFailed = true; }
+  renderExperiment();
+}
+function renderMarketObservation() {
+  const { status, summary } = marketObservationState(report?.marketObservation, Date.now(), report?.fixtures.length);
+  const state = $('market-observation-state');
+  state.classList.toggle('load-failed', status !== 'current' || failedRefresh);
+  $('market-observation-content').hidden = !summary;
+  $('market-observation-badge').textContent = status === 'current' ? '采集观察 · 待正式验收' : '未核验';
+  state.textContent = !summary ? '本报告缺少有效盘口采集摘要，第二独立来源就绪程度未核验。赛程和模型实验继续单独展示。'
+    : status === 'expired' ? `摘要已过期，当前就绪程度未核验；下列仅为上次观察。检查于 ${time(summary.checkedAt)}，有效截至 ${time(summary.expiresAt)} 北京时间。`
+      : `${failedRefresh ? '报告刷新失败，下列保留上次有效观察。' : ''}检查于 ${time(summary.checkedAt)}，有效截至 ${time(summary.expiresAt)} 北京时间；不以检查时间代替来源更新时间。`;
+  if (!summary) return;
+  const fresh = summary.sources.filter(row => ['available', 'partial'].includes(row.status) && row.quoteCount > 0);
+  $('market-source-count').textContent = `${fresh.length} / ${summary.sources.length}`;
+  $('market-paired-count').textContent = `${summary.dualSourceFixtureCount} 场`;
+  $('market-aligned-count').textContent = `${summary.alignedEligibleFixtureCount} 场`;
+  $('market-opening-gap').textContent = `${summary.alignedEligibleFixtureCount - summary.trueOpeningFixtureCount} 场`;
+  $('market-opening-note').textContent = summary.alignedEligibleFixtureCount
+    ? `合格对齐场次中 ${summary.trueOpeningFixtureCount} 场有真实初盘轨迹` : '尚无合格对齐场次，初盘门槛仍待验收';
+  $('market-scope').textContent = `本轮受检赛事 ${summary.fixtureCount} 场（未来 24 小时实际送采子集）；报告共 ${report.fixtures.length} 场赛程。以下只有采集统计，不展示当前价格、概率或方向。${status === 'expired' ? '所有数字均为过期观察。' : ''}`;
+  const labels = { available: '有完整双边', partial: '部分报价', stale: '证据已过期', unavailable: '采集不可用', missing: '未取得证据' };
+  const sources = { hkjc: '香港马会', macauslot: '澳门彩票官方', titan007: '球探' };
+  const table = $('market-source-table'); table.replaceChildren();
+  for (const row of summary.sources) {
+    const tr = el('tr'), name = el('td', sources[row.id]); name.append(el('small', row.id === 'titan007' ? '同站转发仅计一个来源组' : '官方独立发布渠道')); tr.append(name);
+    for (const value of [labels[row.status], `${row.quoteCount} 侧`, `${row.pairedFixtureCount} 场`, `${row.openingCount} 侧`,
+      row.latestSourceUpdatedAt ? `${time(row.latestSourceUpdatedAt)} 北京时间` : '未取得来源时间']) tr.append(el('td', value));
+    table.append(tr);
+  }
 }
 let evaluation = null, evaluationFailed = false;
 const evaluationLoader = createEvaluationLoader();
@@ -235,6 +394,7 @@ function renderCoverage() {
 }
 function render() {
   if (!report) return;
+  renderMarketObservation();
   $('today-date').textContent = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date()) + ' · 北京时间';
   $('count-fixtures').textContent = report.fixtures.length;
   $('schedule-summary').textContent = `${report.fixtures.length} 场真实赛程 · ${new Set(report.fixtures.map(row => row.fixture.league)).size} 个联赛`;
@@ -243,9 +403,10 @@ function render() {
   $('count-publishable').textContent = '0'; $('today-picks-count').textContent = '0';
   renderPickBlockers();
   $('feed-mode').textContent = freshness?.mode === 'hosted' ? '持久实时采集报告' : freshness?.mode === 'ecs' ? '服务器报告' : freshness?.mode === 'bootstrap' ? '启动快照 · 未实时连接' : '数据来源待核验';
-  $('collected-at').textContent = time(report.generatedAt);
-  const age = Math.max(0, Math.floor((Date.now() - Date.parse(report.generatedAt)) / 60000));
-  $('data-age').textContent = age < 60 ? `${age} 分钟` : `${Math.floor(age / 60)} 小时 ${age % 60} 分钟`;
+  const scheduleTime = scheduleAcquisitionTime(report);
+  $('collected-at').textContent = scheduleTime ? time(scheduleTime) : '采集时间未记录';
+  const age = scheduleTime ? Math.max(0, Math.floor((Date.now() - Date.parse(scheduleTime)) / 60000)) : null;
+  $('data-age').textContent = age === null ? '赛程采集时间未核验' : age < 60 ? `${age} 分钟` : `${Math.floor(age / 60)} 小时 ${age % 60} 分钟`;
   const leagueOverview = $('league-overview'); leagueOverview.replaceChildren();
   for (const code of ['PL','PD','SA','BL1','FL1']) {
     const count = report.fixtures.filter(row => row.fixture.league === code).length;
@@ -286,7 +447,7 @@ function render() {
   if (receipt?.reportId === report.publication.reportId) for (const [key, label] of Object.entries(labels)) {
     const n = el('div', null, 'receipt'); n.append(el('span', label), el('span', statuses[receipt.channels[key]?.status] || '状态待同步')); $('delivery').append(n);
   } else $('delivery').append(el('p', '最新发布回执正在同步。', 'muted'));
-  $('updated').textContent = `报告编号 ${report.publication.reportId.slice(0,12)} · 更新时间 ${time(report.generatedAt)}`;
+  $('updated').textContent = `报告编号 ${report.publication.reportId.slice(0,12)} · 报告生成 ${time(report.generatedAt)} 北京时间`;
   const artifactUrl = receipt?.reportId === report.publication.reportId ? receipt.channels.githubArtifact?.url : null;
   $('run-link').href = typeof artifactUrl === 'string' && new RegExp(`^https://github\\.com/${REPO}/actions/runs/[0-9]+(?:/artifacts/[0-9]+)?$`).test(artifactUrl)
     ? artifactUrl : WORKFLOW_URL;
@@ -318,7 +479,7 @@ function load() {
   return refreshing;
 }
 if (typeof document !== 'undefined') {
-  $('refresh').addEventListener('click', () => { load(); loadEvaluation(); }); $('league').addEventListener('change', render);
+  $('refresh').addEventListener('click', () => { load(); loadEvaluation(); loadExperiment(); }); $('league').addEventListener('change', render);
   $('history-league').addEventListener('change', renderEvaluation); $('history-horizon').addEventListener('change', renderEvaluation);
   const tabs = [...document.querySelectorAll('[data-view]')];
   function selectTab(button) {
@@ -343,5 +504,5 @@ if (typeof document !== 'undefined') {
     for (const link of document.querySelectorAll('.section-nav a')) link.classList.toggle('nav-current', link.hash === `#${target || 'overview'}`);
   }
   addEventListener('hashchange',followSection); followSection();
-  setInterval(load, 60000); setInterval(render, 30000); load(); loadEvaluation();
+  setInterval(load, 60000); setInterval(render, 30000); load(); loadEvaluation(); loadExperiment();
 }

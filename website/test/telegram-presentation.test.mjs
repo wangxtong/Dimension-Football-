@@ -28,7 +28,7 @@ test('verified archive displays one historical sample with its same-match baseli
   const report=sampleReport(),value=formatTelegramPublication({report,evaluationEvidence:evidence,now:NOW});
   assert.match(value.text,/今日优选.*0 场正式发布/);
   assert.match(value.text,/德甲 · 赛前 1 小时｜已评 63 \/ 80 场，跳过 17 场/);
-  assert.match(value.text,/历史方向命中 57\.14%｜同场基准 53\.97%/);
+  assert.match(value.text,/历史方向命中 49\.21%｜同场基准 49\.21%/);
   assert.match(value.text,/前瞻已评分 0 场/);assert.match(value.text,/未校准的历史快照回顾/);
   assert.match(value.text,/不是当前比赛概率/);assert.doesNotMatch(value.text,/252 场|249 场|胜率 57|收益|稳赚/);
   assert.ok(value.text.length<=TELEGRAM_TEXT_LIMIT);

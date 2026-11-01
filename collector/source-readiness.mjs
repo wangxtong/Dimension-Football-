@@ -10,14 +10,17 @@ import { PROVIDER_CATALOG, readProviderPolicy } from './sources/providers.mjs';
 import { PUBLIC_FIXTURE_SOURCES } from './sources/public-fixtures.mjs';
 import { FAILURE_CODES } from './sources/health.mjs';
 import { CRAWLER_CODES } from './sources/crawler.mjs';
+import { QUOTE_ORIGINS } from './sources/independence-registry.mjs';
 
 const LEAGUES = ['PL', 'PD', 'SA', 'BL1', 'FL1'];
 const aliases = { m88: 'titan007', '12bet': 'titan007', sbobet: 'titan007' };
 const sourceOf = row => aliases[row.sourceId || row.id] || row.sourceId || row.id;
 const knownCodes = new Set([...FAILURE_CODES, ...CRAWLER_CODES, 'ok', 'matched', 'source_cooldown', 'cooldown', 'not_configured',
   'contract_required', 'community_schedule_unverified', 'free_tier_limited', 'history_cache_hit', 'history_cache_unavailable', 'prediction_format_not_verified',
-  'public_live_snapshot_partial_coverage', 'no_matching_markets', 'no_matching_predictions', 'no_matching_fixtures',
-  'outside_today_coverage', 'invalid_or_stale_markets', 'stale_page', 'fixture_identity_unmatched', 'market_not_published']);
+  'public_live_snapshot_partial_coverage', 'public_snapshot_partial_coverage', 'no_matching_markets', 'no_matching_predictions', 'no_matching_fixtures',
+  'outside_today_coverage', 'invalid_or_stale_markets', 'stale_page', 'fixture_identity_unmatched', 'fixture_identity_ambiguous',
+  'market_not_published', 'invalid_snapshot', 'invalid_schedule', 'stale_snapshot', 'incomplete_market', 'invalid_market_fields',
+  'market_ambiguous', 'quote_validation_failed', 'fixture_ineligible', 'not_prematch']);
 const codeOf = row => knownCodes.has(row.code || row.note) ? row.code || row.note : 'unrecognized_diagnostic';
 const time = value => canonicalTimestamp(value);
 const lastTime = values => values.map(time).filter(Boolean).sort().at(-1) || null;
@@ -33,7 +36,7 @@ function catalog(sourcePolicy, providerPolicy) {
   for (const row of PUBLIC_FIXTURE_SOURCES) entries.set(row.id, { id: row.id, implemented: true, leagues: row.leagues,
     capabilities: row.id === 'openligadb' ? ['fixtures', 'history'] : ['fixtures'], authorizationBasis: 'declared-public-policy',
     declaredLicense: row.license, reference: row.licenseUrl });
-  for (const [id, capabilities] of Object.entries({ hkjc: ['asian-handicap'], titan007: ['asian-handicap'],
+  for (const [id, capabilities] of Object.entries({ hkjc: ['asian-handicap'], titan007: ['asian-handicap'], macauslot: ['asian-handicap'],
     statarea: ['1x2-model'], tiantian: ['monitor-only'] })) entries.set(id, { id, implemented: true, leagues: LEAGUES,
       capabilities, authorizationBasis: 'documented-public-operation', reference: `collector/sources/${id === 'titan007' ? 'market-sources' : ['statarea', 'tiantian'].includes(id) ? 'signals' : id}.mjs` });
   for (const id of ['singbet', 'ibc', 'forebet', 'footymetrics', 'tactix', 'golsinyali', 'fotmob']) entries.set(id,
@@ -131,6 +134,9 @@ export function auditSourceReadiness({ report, bundle, sourcePolicy, providerPol
     });
     return { id: entry.id, implemented: entry.implemented, capabilities: entry.capabilities,
       fixtureEnabled: entry.fixtureEnabled ?? null, evidenceEnabled: entry.evidenceEnabled ?? null,
+      ...(Object.hasOwn(QUOTE_ORIGINS, entry.id) ? { productionOrigin: { group: QUOTE_ORIGINS[entry.id].group,
+        kind: QUOTE_ORIGINS[entry.id].kind, evidence: QUOTE_ORIGINS[entry.id].evidence,
+        meaning: 'Documented production/publishing origin only; not quote freshness, commercial authorization or opening evidence.' } } : {}),
       network: networkEvidence(diagnostics), authorization: authorizationEvidence(entry, diagnostics, configured), leagues };
   });
   const alignment = new Map();

@@ -16,7 +16,18 @@ jobs:
         with:
           node-version: "24"
           package-manager-cache: false
-      - run: npm test
+      - name: 校验八岗位职责与只读提示词配置
+        run: npm run agents:check
+      - name: 恢复按摘要固定的真实报告供必测使用
+        run: node scripts/restore-report-fixture.mjs --out "$RUNNER_TEMP/dimension-real-report"
+      - name: 恢复五联赛两个赛季的固定公开快照
+        run: node scripts/restore-openfootball-fixture.mjs --out "$RUNNER_TEMP/openfootball-fixed"
+      - name: 全量回归（包含真实输入和构建 Worker 检查）
+        env:
+          EVALUATION_TEST_REPORT_DIRECTORY: ${{ runner.temp }}/dimension-real-report
+          HOSTED_TEST_REPORT_DIRECTORY: ${{ runner.temp }}/dimension-real-report
+          OPENFOOTBALL_SNAPSHOT_DIRECTORY: ${{ runner.temp }}/openfootball-fixed
+        run: npm test
       - run: npm run collect:demo
       - run: python -m unittest scripts/test_package.py
       - run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest deploy/test_bundle.py deploy/test_handoff.py
@@ -40,7 +51,7 @@ jobs:
       - name: 验证实际网站构建、登录与报告页面
         env:
           PLAYWRIGHT_MODULE: ${{ github.workspace }}/collector/browser-runtime/node_modules/playwright/index.mjs
-        run: node --test --test-isolation=none website/test/e2e.mjs
+        run: node --test --test-isolation=none website/test/e2e.mjs website/test/observation-panels.e2e.mjs
   release:
     needs: [test, browser]
     runs-on: ubuntu-latest

@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "controller": "A1",
+  "repository": "wangxtong/Dimension-Football-",
+  "baselineCommit": "17931a231f6f11ccbf191fff855eae7930ad3466",
+  "commonPrompt": "docs/agents/COMMON.md",
+  "progressTemplate": "docs/agents/PROGRESS-TEMPLATE.md",
+  "releaseGate": "BLOCKED",
+  "execution": {
+    "mode": "session-supervised",
+    "maxConcurrentAgents": 7,
+    "persistentBackgroundAgents": false,
+    "remoteOperationsOwner": "A1"
+  },
+  "roles": [
+    {
+      "id": "A1",
+      "title": "项目总监、总控架构与集成负责人",
+      "prompt": "docs/agents/A1-DIRECTOR.md",
+      "reviewer": "A8",
+      "skills": [
+        "GitHub"
+      ],
+      "firstTask": "落实八岗位指令及任务交接，盘点 R3 本地提交、未提交成果和草稿 PR，形成唯一集成清单。",
+      "deliverables": [
+        "任务与版本清单",
+        "接口决策",
+        "逐环节进度报告",
+        "验收记录和发布裁决"
+      ]
+    },
+    {
+      "id": "A2",
+      "title": "信息源采集与可靠性负责人",
+      "prompt": "docs/agents/A2-SOURCES.md",
+      "reviewer": "A8",
+      "skills": [
+        "GitHub",
+        "app-6a314a73f8ac819195b0d55e36b9c609:firecrawl"
+      ],
+      "firstTask": "审查澳门源最终接线提交 a26bd4c 的依赖，制定纳入共享采集器及自动观察任务的集成清单；由总控安排同轮真实采集验收。",
+      "deliverables": [
+        "适配器及故障回归",
+        "来源使用范围记录",
+        "逐联赛有效覆盖和时间报告",
+        "采集及恢复证据"
+      ]
+    },
+    {
+      "id": "A3",
+      "title": "数据工程与数据溯源负责人",
+      "prompt": "docs/agents/A3-DATA.md",
+      "reviewer": "A8",
+      "skills": [
+        "GitHub"
+      ],
+      "firstTask": "定位可取回的 982 场实验精确输入归档，核对摘要；整理其他四联赛球队身份、UTC 时间及历史可见性缺口。",
+      "deliverables": [
+        "可按摘要取回的数据快照",
+        "映射与修订记录",
+        "质量和覆盖报告",
+        "固定输入交接包"
+      ]
+    },
+    {
+      "id": "A4",
+      "title": "量化模型与预测研究负责人",
+      "prompt": "docs/agents/A4-MODELS.md",
+      "reviewer": "A8",
+      "skills": [
+        "GitHub"
+      ],
+      "firstTask": "恢复 982 场实验对应的源码与输入复现；继续保留泊松基线，将未改善的温度候选标为不晋升；核对 b34db1c 摘要导出成果。",
+      "deliverables": [
+        "冻结实验协议",
+        "可复现预测及逐场评估",
+        "前瞻核账报告",
+        "带证据的晋升或拒绝建议"
+      ]
+    },
+    {
+      "id": "A5",
+      "title": "盘口证据与推荐策略负责人",
+      "prompt": "docs/agents/A5-MARKETS.md",
+      "reviewer": "A8",
+      "skills": [
+        "GitHub",
+        "app-6a314a73f8ac819195b0d55e36b9c609:firecrawl"
+      ],
+      "firstTask": "核对 HKJC 与澳门源同轮、同盘口有效覆盖的验收要求，列出真实初盘和逐场回避条件。",
+      "deliverables": [
+        "来源独立性核验",
+        "逐场盘口资格和阻断原因",
+        "推荐策略协议",
+        "历史回放及故障回归"
+      ]
+    },
+    {
+      "id": "A6",
+      "title": "产品、Web 与 Telegram 交付负责人",
+      "prompt": "docs/agents/A6-PRODUCT.md",
+      "reviewer": "A8",
+      "skills": [
+        "GitHub",
+        "sites:sites"
+      ],
+      "firstTask": "盘点未提交的双源观察和模型实验面板，核对 report.marketObservation 与摘要资产依赖；形成完整构建、供数和浏览器验收清单。",
+      "deliverables": [
+        "中文分类看板",
+        "⚽赛事/📊模型/⭐优选/🧾复盘/⚠️状态消息与按钮",
+        "同版本发布回执",
+        "手机/桌面交付证据"
+      ]
+    },
+    {
+      "id": "A7",
+      "title": "平台运维、存储与部署负责人",
+      "prompt": "docs/agents/A7-OPERATIONS.md",
+      "reviewer": "A8",
+      "skills": [
+        "GitHub",
+        "cloud-environment:cloud-environment-runtime"
+      ],
+      "firstTask": "明确 ECS 身份/TCP 通道恢复条件，准备归档 v2 的迁移、容量、重启与回滚验收；核对代码部署授权缺口。",
+      "deliverables": [
+        "可验证部署制品和运行诊断",
+        "存储迁移及恢复报告",
+        "调度与容量指标",
+        "回滚记录"
+      ]
+    },
+    {
+      "id": "A8",
+      "title": "独立质量、安全与商业验收负责人",
+      "prompt": "docs/agents/A8-QUALITY.md",
+      "reviewer": "A1",
+      "skills": [
+        "GitHub"
+      ],
+      "firstTask": "独立检查八岗位配置及交接边界；列出远端 CI 两项跳过检查的证据恢复要求，审核第二源、模型复现和部署资格的验收矩阵。",
+      "deliverables": [
+        "独立缺陷清单",
+        "复算和复测记录",
+        "安全及发布门禁意见",
+        "明确范围的验收裁决"
+      ]
+    }
+  ],
+  "architecture": [
+    {
+      "id": "sources",
+      "number": 1,
+      "title": "信息源采集",
+      "owner": "A2",
+      "collaborators": [
+        "A3",
+        "A5"
+      ],
+      "parts": [
+        {
+          "title": "联赛赛程、历史比赛、终场结果",
+          "owner": "A2"
+        },
+        {
+          "title": "独立盘口来源、初盘与最新报价",
+          "owner": "A2"
+        },
+        {
+          "title": "探活、限速、冷却、失败切换",
+          "owner": "A2"
+        }
+      ],
+      "reviewer": "A8"
+    },
+    {
+      "id": "data",
+      "number": 2,
+      "title": "数据中心",
+      "owner": "A3",
+      "collaborators": [
+        "A2",
+        "A7"
+      ],
+      "parts": [
+        {
+          "title": "球队／赛事统一身份",
+          "owner": "A3"
+        },
+        {
+          "title": "原始数据、来源时间、修订记录",
+          "owner": "A3"
+        },
+        {
+          "title": "持久存储、快照、归档恢复",
+          "owner": "A7"
+        }
+      ],
+      "reviewer": "A8"
+    },
+    {
+      "id": "analysis",
+      "number": 3,
+      "title": "预测与分析",
+      "owner": "A4",
+      "collaborators": [
+        "A3",
+        "A5"
+      ],
+      "parts": [
+        {
+          "title": "胜平负概率模型",
+          "owner": "A4"
+        },
+        {
+          "title": "大小球分析",
+          "owner": "A4"
+        },
+        {
+          "title": "亚洲盘口证据审核",
+          "owner": "A5"
+        }
+      ],
+      "reviewer": "A8"
+    },
+    {
+      "id": "evaluation",
+      "number": 4,
+      "title": "模型评估",
+      "owner": "A4",
+      "collaborators": [
+        "A3",
+        "A8"
+      ],
+      "parts": [
+        {
+          "title": "历史回测、基准比较、概率校准",
+          "owner": "A4"
+        },
+        {
+          "title": "赛前预测冻结、赛后核账",
+          "owner": "A4"
+        },
+        {
+          "title": "分联赛、分提前量的质量报告",
+          "owner": "A4"
+        }
+      ],
+      "reviewer": "A8"
+    },
+    {
+      "id": "recommendations",
+      "probabilityAuthority": "A4 submits, A8 independently verifies, A1 decides; A5 consumes approved probabilities without Asian-market veto over ordinary 1X2",
+      "number": 5,
+      "title": "推荐与发布审核",
+      "owner": "A5",
+      "collaborators": [
+        "A1",
+        "A4",
+        "A8"
+      ],
+      "parts": [
+        {
+          "title": "今日优选、普通分析、暂不可评估",
+          "owner": "A5"
+        },
+        {
+          "title": "数据资格、模型资格、版本发布门禁",
+          "owner": "A1"
+        }
+      ],
+      "reviewer": "A8"
+    },
+    {
+      "id": "delivery",
+      "number": 6,
+      "title": "用户交付",
+      "owner": "A6",
+      "collaborators": [
+        "A7",
+        "A8"
+      ],
+      "parts": [
+        {
+          "title": "中文 Web 看板",
+          "owner": "A6"
+        },
+        {
+          "title": "Telegram 分类消息、按钮、发布回执",
+          "owner": "A6"
+        }
+      ],
+      "reviewer": "A8"
+    },
+    {
+      "id": "control_operations",
+      "number": 7,
+      "title": "总控与运维",
+      "owner": "A1",
+      "collaborators": [
+        "A7",
+        "A8"
+      ],
+      "parts": [
+        {
+          "title": "八角色协作、进度及证据台账",
+          "owner": "A1"
+        },
+        {
+          "title": "GitHub CI、制品、部署、监控、回滚",
+          "owner": "A7"
+        },
+        {
+          "title": "Sites／阿里云 ECS",
+          "owner": "A7"
+        }
+      ],
+      "reviewer": "A8"
+    }
+  ]
+}

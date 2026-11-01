@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { lstat, mkdir, open, readdir, realpath, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, open, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { atomicJson, readJson } from './storage.mjs';
@@ -13,6 +13,8 @@ import { requireGreenForecastDelivery } from './publication-release-gate.mjs';
 import { runPublic } from './public.mjs';
 import { createAcquisitionSnapshot } from './data/acquisition-snapshot.mjs';
 import { DEFAULT_POLICY } from './policy.mjs';
+import { ARCHIVE_LIMITS, archiveHash, archivePath, createArchiveEpoch, emptyArchive, validateArchive,
+  createArchiveShard, decodeArchiveShard, appendArchive } from './state-archive.mjs';
 
 export const HOSTED_ORIGIN = 'https://dimension-football-live-wangxtong.secretmelon37.chatgpt.site';
 export const STATE_LIMITS = Object.freeze({ jsonBytes:32 * 1024 * 1024, decodedBytes:64 * 1024 * 1024, files:10000 });
@@ -138,6 +140,105 @@ export async function restoreState(root, snapshot, limits = STATE_LIMITS) {
   return snapshot.revision;
 }
 
+const archiveEndpoint = (epoch, hash) => `/internal/state/objects/${epoch}/${hash}`;
+const archiveEndpointPattern = /^\/internal\/state\/objects\/[a-f0-9]{64}\/[a-f0-9]{64}$/;
+/** Stage the whole restore away from the working root. A missing or corrupt shard
+ * never leaves a partially restored ledger available to the collector. */
+async function restorePartitionedState(root, snapshot, client, { limits, archiveLimits, restoreArchive }) {
+  if (snapshot.version !== 2) fail('HOSTED_STATE_INVALID');
+  const archive = validateArchive(snapshot.archive, archiveLimits);
+  const hot = validateStateSnapshot({ revision: snapshot.revision, files: snapshot.files }, limits);
+  if (snapshot.files.some(file => archivePath(file.path))) fail('HOSTED_ARCHIVE_PATH_IN_HOT_STATE');
+  await safeRoot(root, { empty: true });
+  const staged = await mkdtemp(resolve(dirname(root), '.hosted-restore-'));
+  const known = restoreArchive ? new Map() : null;
+  try {
+    async function save(path, bytes) {
+      const target = resolve(staged, path); await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, bytes, { flag: 'wx', mode: 0o600 });
+    }
+    if (restoreArchive) {
+      let decodedBytes = 0;
+      for (const descriptor of archive.shards) {
+        const body = await client.request(archiveEndpoint(archive.epoch, descriptor.sha256), { limit: archiveLimits.shardBytes });
+        for (const file of decodeArchiveShard(body, descriptor, archive.epoch, archiveLimits)) {
+          if (known.has(file.path)) fail('HOSTED_ARCHIVE_DUPLICATE_PATH');
+          known.set(file.path, archiveHash(file.bytes)); decodedBytes += file.bytes.length;
+          await save(file.path, file.bytes);
+        }
+      }
+      if (known.size !== archive.fileCount || decodedBytes !== archive.decodedBytes) fail('HOSTED_ARCHIVE_TOTAL_MISMATCH');
+    }
+    for (const [path, file] of hot) await save(path, file.bytes);
+    await safeRoot(root, { empty: true });
+    await rename(staged, root);
+    return { revision: snapshot.revision, archive, known };
+  } finally { await rm(staged, { recursive: true, force: true }); }
+}
+
+async function capturePartitionedState(root, revision, client, previous, known, { limits, archiveLimits }) {
+  await safeRoot(root);
+  let pointer = null;
+  try { pointer = JSON.parse((await safeBytes(root, 'reports/.delivery/current.json', 64000)).toString('utf8')); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (pointer && !ID.test(pointer.reportId || '')) fail('HOSTED_STATE_BUNDLE_INVALID');
+  const hot = [], seen = new Set(), added = new Map(), descriptors = [];
+  let hotBytes = 0, hotWire = 64, rows = [], rowWire = 0, newBytes = 0;
+  const overhead = Buffer.byteLength(JSON.stringify({ version: 1, kind: 'state-archive-shard', epoch: previous.epoch, files: [] }));
+  async function flush() {
+    if (!rows.length) return;
+    if (descriptors.length >= archiveLimits.newShards) fail('HOSTED_ARCHIVE_CHECKPOINT_BATCH_EXCEEDED');
+    const { body, descriptor } = createArchiveShard(previous.epoch, rows, archiveLimits);
+    appendArchive(previous, [...descriptors, descriptor], archiveLimits);
+    const path = archiveEndpoint(previous.epoch, descriptor.sha256);
+    const saved = await client.request(path, { method: 'PUT', body, limit: 64000 });
+    if (saved?.epoch !== previous.epoch || Object.entries(descriptor).some(([key, value]) => saved[key] !== value))
+      fail('HOSTED_ARCHIVE_WRITE_UNCONFIRMED');
+    const readback = await client.request(path, { limit: archiveLimits.shardBytes });
+    decodeArchiveShard(readback, descriptor, previous.epoch, archiveLimits);
+    descriptors.push(descriptor); rows = []; rowWire = 0;
+  }
+  async function walk(path) {
+    let entries;
+    try { entries = await readdir(resolve(root, path), { withFileTypes: true }); } catch (error) { if (error.code === 'ENOENT') return; throw error; }
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      const relative = `${path}/${entry.name}`, directory = allowedDirectory(relative, pointer?.reportId), file = allowedStatePath(relative);
+      if (!directory && !file) continue;
+      if (entry.isSymbolicLink()) fail('HOSTED_STATE_UNSAFE_FILE');
+      if (entry.isDirectory()) { if (directory) await walk(relative); continue; }
+      if (!file) continue;
+      if (archivePath(relative)) {
+        // Observation-only sessions deliberately preserve archive references
+        // without fetching private ledgers; they may not write archive files.
+        if (known === null) fail('HOSTED_ARCHIVE_RESEARCH_REQUIRED');
+        const bytes = await safeBytes(root, relative, archiveLimits.shardBytes), sha = archiveHash(bytes);
+        seen.add(relative);
+        if (known.has(relative)) { if (known.get(relative) !== sha) fail('HOSTED_ARCHIVE_IMMUTABLE_CHANGED'); continue; }
+        if (previous.fileCount + added.size + 1 > archiveLimits.files || previous.decodedBytes + newBytes + bytes.length > archiveLimits.decodedBytes)
+          fail('HOSTED_ARCHIVE_LIMIT_EXCEEDED');
+        const row = { path: relative, content: bytes.toString('base64') }; decodeFile(row);
+        const size = Buffer.byteLength(JSON.stringify(row));
+        if (size + overhead > archiveLimits.shardBytes) fail('HOSTED_ARCHIVE_SHARD_TOO_LARGE');
+        if (rows.length >= archiveLimits.shardFiles || overhead + rowWire + size + (rows.length ? 1 : 0) > archiveLimits.shardBytes) await flush();
+        rowWire += size + (rows.length ? 1 : 0); rows.push(row); added.set(relative, sha); newBytes += bytes.length;
+      } else {
+        if (hot.length >= limits.files) fail('HOSTED_STATE_LIMIT_EXCEEDED');
+        const bytes = await safeBytes(root, relative, limits.decodedBytes - hotBytes); hotBytes += bytes.length;
+        const row = { path: relative, content: bytes.toString('base64') }; decodeFile(row);
+        hotWire += Buffer.byteLength(JSON.stringify(row)) + 1;
+        if (hotWire > limits.jsonBytes) fail('HOSTED_STATE_LIMIT_EXCEEDED');
+        hot.push(row);
+      }
+    }
+  }
+  await walk('state'); await walk('reports');
+  if (known && [...known.keys()].some(path => !seen.has(path))) fail('HOSTED_ARCHIVE_FILE_MISSING');
+  validateStateSnapshot({ revision, files: hot }, limits);
+  await flush();
+  const archive = appendArchive(previous, descriptors, archiveLimits);
+  return { snapshot: { version: 2, expectedRevision: revision, files: hot, archive }, added };
+}
+
 async function boundedJson(response, limit) {
   const reader = response.body?.getReader(); if(!reader)fail('HOSTED_INVALID_RESPONSE');
   let bytes = 0; const chunks = [];
@@ -168,9 +269,10 @@ export function createHostedClient({ env = process.env, fetchImpl = fetch, clock
     cached={token:value.value,expiresAt:claims.exp*1000};return cached.token;
   }
   async function request(path,{method='GET',body,allow404=false,limit=MAX_REPORT_BUNDLE_BYTES,requestSignal,fetchImpl:requestFetch}={}) {
-    if(!['/internal/publications','/internal/observations','/internal/report-status','/internal/state','/internal/notifications'].includes(path))fail('HOSTED_INVALID_ENDPOINT');
+    const archived = archiveEndpointPattern.test(path);
+    if(!archived&&!['/internal/publications','/internal/observations','/internal/report-status','/internal/state','/internal/notifications'].includes(path))fail('HOSTED_INVALID_ENDPOINT');
     const serialized=body===undefined?undefined:JSON.stringify(body);
-    if(serialized && Buffer.byteLength(serialized)>(path==='/internal/state'?STATE_LIMITS.jsonBytes:MAX_REPORT_BUNDLE_BYTES))fail('HOSTED_REQUEST_LIMIT_EXCEEDED');
+    if(serialized && Buffer.byteLength(serialized)>(archived?ARCHIVE_LIMITS.shardBytes:path==='/internal/state'?STATE_LIMITS.jsonBytes:MAX_REPORT_BUNDLE_BYTES))fail('HOSTED_REQUEST_LIMIT_EXCEEDED');
     for(let attempt=0;attempt<2;attempt++){
       const token=await identity(attempt===1);let response;
       try { response=await (requestFetch||fetchImpl)(HOSTED_ORIGIN+path,{method,redirect:'error',signal:AbortSignal.any([signal,requestSignal,AbortSignal.timeout(20000)].filter(Boolean)),
@@ -178,7 +280,7 @@ export function createHostedClient({ env = process.env, fetchImpl = fetch, clock
       catch { fail('HOSTED_REQUEST_UNCONFIRMED'); }
       if(response.status===401&&attempt===0){await response.body?.cancel();continue;}
       if(response.status===404&&allow404){await response.body?.cancel();return null;}
-      if(!response.ok){const status=response.status;await response.body?.cancel();fail(status===409?(path==='/internal/state'?'HOSTED_STATE_CONFLICT':'HOSTED_PUBLICATION_CONFLICT'):`HOSTED_HTTP_${status}`);}
+      if(!response.ok){const status=response.status;await response.body?.cancel();fail(status===409?(archived?'HOSTED_ARCHIVE_CONFLICT':path==='/internal/state'?'HOSTED_STATE_CONFLICT':'HOSTED_PUBLICATION_CONFLICT'):`HOSTED_HTTP_${status}`);}
       if(!/application\/json/i.test(response.headers.get('content-type')||'')){await response.body?.cancel();fail('HOSTED_INVALID_RESPONSE');}
       const value=await boundedJson(response,limit);
       if(path==='/internal/state'&&value===null)fail('HOSTED_STATE_INVALID');
@@ -188,21 +290,30 @@ export function createHostedClient({ env = process.env, fetchImpl = fetch, clock
   return { request };
 }
 
-export async function createStateSession(root, client, { limits=STATE_LIMITS }={}) {
+export async function createStateSession(root, client, { limits=STATE_LIMITS, archiveLimits=ARCHIVE_LIMITS, partitioned=false, restoreArchive=true }={}) {
+  if(typeof partitioned!=='boolean'||typeof restoreArchive!=='boolean')fail('HOSTED_STATE_INVALID_OPTIONS');
   const remote=await client.request('/internal/state',{allow404:true,limit:limits.jsonBytes});
   if(remote!==null&&(!object(remote)||!Number.isSafeInteger(remote.revision)||remote.revision<1))fail('HOSTED_STATE_INVALID');
-  let revision=await restoreState(root,remote===null?{revision:0,files:[]}:remote,limits), blocked=null;
+  if(remote?.version!==undefined&&![1,2].includes(remote.version))fail('HOSTED_STATE_INVALID');
+  const restored=remote?.version===2?await restorePartitionedState(root,remote,client,{limits,archiveLimits,restoreArchive}):null;
+  let revision=restored?.revision??await restoreState(root,remote===null?{revision:0,files:[]}:remote,limits), blocked=null;
+  let archive=restored?.archive||emptyArchive(createArchiveEpoch(HOSTED_ORIGIN,revision)), known=restored?restored.known:new Map();
+  const useArchive=partitioned||remote?.version===2;
   return {
     get revision(){return revision;}, get blocked(){return blocked;},
     stop(code){blocked=/^HOSTED_[A-Z0-9_]+$/.test(code)?code:'HOSTED_OPERATION_FAILED';},
     async checkpoint(){
       if(blocked)fail(blocked);
       try {
-        const snapshot=await captureState(root,revision,limits),body={expectedRevision:revision,files:snapshot.files};
+        let body,added;
+        if(useArchive){const captured=await capturePartitionedState(root,revision,client,archive,known,{limits,archiveLimits});body=captured.snapshot;added=captured.added;}
+        else {const snapshot=await captureState(root,revision,limits);body={expectedRevision:revision,files:snapshot.files};}
         if(Buffer.byteLength(JSON.stringify(body))>limits.jsonBytes)fail('HOSTED_STATE_LIMIT_EXCEEDED');
         const result=await client.request('/internal/state',{method:'PUT',body});
         if(!Number.isSafeInteger(result?.revision)||result.revision!==revision+1)fail('HOSTED_STATE_WRITE_UNCONFIRMED');
-        revision=result.revision;return revision;
+        revision=result.revision;
+        if(useArchive){archive=body.archive;if(known)for(const [path,hash]of added)known.set(path,hash);}
+        return revision;
       } catch(error){blocked=safeCode(error);throw Error(blocked);}
     },
   };
@@ -284,7 +395,7 @@ export async function runHosted({ root,env=process.env,fetchImpl=fetch,clock=sta
   const overall=AbortSignal.any([signal,AbortSignal.timeout(budgetMs)].filter(Boolean));
   const client=providedClient||createHostedClient({env,fetchImpl,clock:()=>Date.parse(clock()),signal:overall});
   if(typeof privateResearch!=='boolean')fail('HOSTED_INVALID_ARGUMENT');
-  const session=await createStateSession(root,client),out=resolve(root,'reports'),schedulerPath=resolve(root,privateResearch?'state/hosted-research-scheduler.json':'state/hosted-scheduler.json');
+  const session=await createStateSession(root,client,{partitioned:privateResearch}),out=resolve(root,'reports'),schedulerPath=resolve(root,privateResearch?'state/hosted-research-scheduler.json':'state/hosted-scheduler.json');
   const scheduler=await optionalJson(schedulerPath)||{version:1,lanes:{}};
   if(scheduler.version!==1||!object(scheduler.lanes))fail('HOSTED_SCHEDULER_INVALID');
   const publisher=privateResearch?async()=>fail('HOSTED_PRIVATE_RESEARCH_DELIVERY_FORBIDDEN'):createHostedPublisher({client,session,clock}),outcomes=[];let failure=null;
@@ -330,7 +441,7 @@ export async function runHosted({ root,env=process.env,fetchImpl=fetch,clock=sta
 
 // Observation collection is deliberately separate from research orchestration:
 // it never creates forecasts, opportunities, prediction ledgers or replay files.
-export function observationBundle(manifest,{commit,nowISO=stamp()}={}) {
+export function observationBundle(manifest,{commit,nowISO=stamp(),marketObservation}={}) {
   if(manifest?.version!==1||manifest.kind!=='public-fixture-sample'||manifest.dataSchemaVersion!==2||manifest.simulated!==false
     ||!Array.isArray(manifest.fixtures)||!manifest.fixtures.length||!Array.isArray(manifest.sources)||!Array.isArray(manifest.diagnostics)
     ||!Array.isArray(manifest.coverage)||!/^[a-f0-9]{40}$/.test(commit||''))fail('HOSTED_OBSERVATION_INPUT_INVALID');
@@ -341,8 +452,13 @@ export function observationBundle(manifest,{commit,nowISO=stamp()}={}) {
     verifyAcquisitionSnapshot(snapshot,{nowISO,policy:DEFAULT_POLICY});
   } catch { fail('HOSTED_OBSERVATION_INPUT_STALE_OR_INVALID'); }
   if(!snapshot.fixtures.length)fail('HOSTED_OBSERVATION_INPUT_INVALID');
-  const reportId=reportHash({version:1,kind:'collection-observation',snapshot,commit,attribution:manifest.sources});
-  const generatedAt=snapshot.checkedAt,blocked={status:'skipped',checkedAt:generatedAt,code:'RELEASE_GATE_BLOCKED'};
+  if(marketObservation!==undefined&&(!object(marketObservation)||marketObservation.releaseGate!=='BLOCKED'
+    ||!Number.isFinite(Date.parse(marketObservation.checkedAt))||Date.parse(marketObservation.checkedAt)<Date.parse(snapshot.checkedAt)
+    ||Date.parse(marketObservation.checkedAt)>Date.parse(nowISO)||!Number.isSafeInteger(marketObservation.fixtureCount)
+    ||marketObservation.fixtureCount<0||marketObservation.fixtureCount>snapshot.fixtures.length))fail('HOSTED_MARKET_OBSERVATION_INVALID');
+  const reportId=reportHash({version:1,kind:'collection-observation',snapshot,commit,attribution:manifest.sources,
+    ...(marketObservation===undefined?{}:{marketObservation})});
+  const generatedAt=marketObservation?.checkedAt||snapshot.checkedAt,blocked={status:'skipped',checkedAt:generatedAt,code:'RELEASE_GATE_BLOCKED'};
   const report={version:1,kind:'prematch-forecast-report',publicationKind:'collection-observation',generatedAt,simulated:false,
     publication:{reportId,forecastPublished:false,releaseGate:'BLOCKED'},model:null,
     summary:{fixtures:snapshot.fixtures.length,forecasts:0,unavailable:snapshot.fixtures.length,strictCandidates:0},
@@ -350,6 +466,7 @@ export function observationBundle(manifest,{commit,nowISO=stamp()}={}) {
       marketCandidate:{status:'source_insufficient',reasons:['RELEASE_GATE_BLOCKED'],candidate:null,readiness:null}})),
     backtests:[],coverage:manifest.coverage,diagnostics:manifest.diagnostics,attribution:manifest.sources,
     acquisition:{snapshotHash:snapshot.snapshotHash,checkedAt:snapshot.checkedAt,commit},
+    ...(marketObservation===undefined?{}:{marketObservation}),
     categories:{analysis:[],strictCandidates:[],unassessable:snapshot.fixtures.map(fixture=>fixture.id)}};
   const receipt={version:1,reportId,generatedAt,simulated:false,
     channels:{files:{status:'not_attempted'},githubArtifact:{status:'not_attempted'},externalWebsite:{...blocked,servedVerified:false},
@@ -368,6 +485,22 @@ function observationStatus(value,bundle) {
     &&value.originReportId===bundle.reportId&&value.generatedAt===bundle.report.generatedAt&&value.mode==='hosted'&&value.health==='available'
     &&value.publicationKind==='observations'&&value.forecastPublished===false;
 }
+function manifestFromObservation(report) {
+  return {version:1,kind:'public-fixture-sample',dataSchemaVersion:2,simulated:false,checkedAt:report.acquisition?.checkedAt,
+    fixtures:report.fixtures.map(row=>row.fixture),sources:report.attribution,diagnostics:report.diagnostics,coverage:report.coverage};
+}
+function validateObservationAcquisition(report,nowISO) {
+  const acquisition=report.acquisition;
+  if(!object(acquisition)||!ID.test(acquisition.snapshotHash||'')||!/^[a-f0-9]{40}$/.test(acquisition.commit||''))fail('HOSTED_OBSERVATION_STATE_INVALID');
+  const manifest=manifestFromObservation(report);
+  let snapshot;
+  try{
+    snapshot=createAcquisitionSnapshot({fixtures:manifest.fixtures,history:[],checkedAt:manifest.checkedAt,diagnostics:manifest.diagnostics,
+      coverage:manifest.coverage,poolComplete:false,policy:DEFAULT_POLICY});
+    verifyAcquisitionSnapshot(snapshot,{nowISO,policy:DEFAULT_POLICY});
+  }catch{fail('HOSTED_OBSERVATION_INPUT_STALE_OR_INVALID');}
+  if(snapshot.snapshotHash!==acquisition.snapshotHash)fail('HOSTED_OBSERVATION_STATE_INVALID');
+}
 function validateObservationRecord(record,nowISO) {
   if(!object(record)||record.version!==1||record.bundleHash!==reportHash(record.bundle)
     ||!['pending','verified'].includes(record.delivery?.status))fail('HOSTED_OBSERVATION_STATE_INVALID');
@@ -377,37 +510,121 @@ function validateObservationRecord(record,nowISO) {
     ||report.fixtures.some(row=>row.forecast.status!=='unavailable'||row.marketCandidate.candidate!==null)
     ||!Number.isFinite(age)||age<0||age>1200000)fail('HOSTED_OBSERVATION_INPUT_STALE_OR_INVALID');
   if(record.delivery.status==='verified'&&!observationStatus(record.delivery,record.bundle))fail('HOSTED_OBSERVATION_STATE_INVALID');
+  if(report.marketObservation!==undefined){
+    const acquisition=report.acquisition,market=report.marketObservation;
+    if(market?.checkedAt!==report.generatedAt||Date.parse(acquisition?.checkedAt)>Date.parse(report.generatedAt))fail('HOSTED_OBSERVATION_STATE_INVALID');
+    validateObservationAcquisition(report,nowISO);
+  }
   return record;
 }
+function marketTargets(report,nowISO){
+  const now=Date.parse(nowISO);
+  return report.fixtures.map(row=>row.fixture).filter(fixture=>['SCHEDULED','TIMED'].includes(fixture.status)
+    &&Date.parse(fixture.kickoff)>now&&Date.parse(fixture.kickoff)<=now+86400000);
+}
+function marketTargetHash(fixtures){
+  return reportHash(fixtures.map(row=>({id:row.id,source:row.source,league:row.league,home:row.home,away:row.away,
+    homeTeamId:row.homeTeamId??null,awayTeamId:row.awayTeamId??null,kickoff:row.kickoff,status:row.status})).sort((a,b)=>a.id.localeCompare(b.id)));
+}
+function assertMarketPublishable(bundle,nowISO){
+  const summary=bundle.report.marketObservation;
+  if(summary?.sources?.some(source=>source.quoteCount>0)&&Date.parse(summary.expiresAt)<=Date.parse(nowISO))fail('HOSTED_MARKET_OBSERVATION_EXPIRED');
+}
 export async function runShadow({root,env=process.env,fetchImpl=fetch,clock=stamp,monotonic=()=>performance.now(),budgetMs=180000,
-  signal,stdout=text=>process.stdout.write(text),runPublicImpl=runPublic,client:providedClient}={}) {
+  signal,stdout=text=>process.stdout.write(text),runPublicImpl=runPublic,collectMarketImpl,client:providedClient}={}) {
   if(!root||!Number.isFinite(budgetMs)||budgetMs<1000||budgetMs>180000||!Number.isFinite(Date.parse(clock())))fail('HOSTED_INVALID_ARGUMENT');
   if(!/^[a-f0-9]{40}$/.test(env.GITHUB_SHA||''))fail('HOSTED_COMMIT_REQUIRED');
   root=resolve(root);const started=monotonic(),remaining=()=>Math.max(0,budgetMs-(monotonic()-started));
   const overall=AbortSignal.any([signal,AbortSignal.timeout(budgetMs)].filter(Boolean));
   const client=providedClient||createHostedClient({env,fetchImpl,clock:()=>Date.parse(clock()),signal:overall});
-  const session=await createStateSession(root,client),out=resolve(root,'reports'),schedulerPath=resolve(root,'state/hosted-scheduler.json');
+  const session=await createStateSession(root,client,{restoreArchive:false}),out=resolve(root,'reports'),schedulerPath=resolve(root,'state/hosted-scheduler.json');
   const recordPath=resolve(root,'state/hosted-observation.json'),scheduler=await optionalJson(schedulerPath)||{version:1,lanes:{}};
   if(scheduler.version!==1||!object(scheduler.lanes))fail('HOSTED_SCHEDULER_INVALID');
+  const marketsEnabled=env.HOSTED_MARKET_OBSERVATIONS==='true',marketPath=resolve(root,'state/hosted-market-observation.json');
+  let marketRecord=marketsEnabled?await optionalJson(marketPath):null,marketObserved=false,marketStatus=null;
   let record=await optionalJson(recordPath),failure=null,collected=false,published=false;
   try {
+    if(overall.aborted)fail('HOSTED_OBSERVATION_CANCELLED');
     const now=Date.parse(clock()),retry=['failed','blocked'].includes(scheduler.lanes.observations?.status)&&due(scheduler,'observations',300000,now);
+    let candidate=record?.bundle;
     if(due(scheduler,'observations',900000,now)||retry){
-      const workMs=Math.min(135000,remaining()-40000);if(workMs<1000)fail('HOSTED_OBSERVATION_BUDGET_EXHAUSTED');
+      const workMs=Math.min(marketsEnabled?90000:135000,remaining()-(marketsEnabled?60000:40000));if(workMs<1000)fail('HOSTED_OBSERVATION_BUDGET_EXHAUSTED');
       scheduler.lanes.observations={startedAt:clock(),status:'active'};await atomicJson(schedulerPath,scheduler);
       const workSignal=AbortSignal.any([overall,AbortSignal.timeout(Math.ceil(workMs))]);
       const result=await runPublicImpl(['--state',resolve(root,'state/state.json'),'--out',out,'--budget-minutes',String(workMs/60000)],{
         env:{...env,COLLECTOR_COMMIT:env.GITHUB_SHA},cwd:root,clock,fetchImpl,stdout:()=>{},signal:workSignal,collectMode:'public'});
       if(result.exitCode!==0||result.collection!==null)fail('HOSTED_OBSERVATION_COLLECTION_FAILED');
-      const bundle=observationBundle(result.manifest,{commit:env.GITHUB_SHA,nowISO:clock()});
-      record={version:1,bundle,bundleHash:reportHash(bundle),delivery:{status:'pending'}};
-      await atomicJson(recordPath,record);collected=true;
+      candidate=observationBundle(result.manifest,{commit:env.GITHUB_SHA,nowISO:clock()});collected=true;
       scheduler.lanes.observations={...scheduler.lanes.observations,finishedAt:clock(),status:'collected'};
       await atomicJson(schedulerPath,scheduler);
     }
+    if(candidate)validateObservationRecord(candidate===record?.bundle?record:{version:1,bundle:candidate,bundleHash:reportHash(candidate),delivery:{status:'pending'}},clock());
+    if(marketsEnabled&&candidate){
+      // Check original acquisition/fixture times even when upgrading an older
+      // observation that has not contained a market summary before.
+      validateObservationAcquisition(candidate.report,clock());
+      // The 20-minute acquisition check happens before any market request.
+      // New quote observations never renew the cached schedule timestamp.
+      const {collectMarketObservation,summarizeMarketObservation}=await import('./market-observation.mjs');
+      const fixtures=marketTargets(candidate.report,clock()),targetHash=marketTargetHash(fixtures),acquisitionHash=candidate.report.acquisition.snapshotHash;
+      if(marketRecord&&(!object(marketRecord)||marketRecord.version!==1||!ID.test(marketRecord.targetHash||'')||!ID.test(marketRecord.acquisitionHash||'')
+        ||!['complete','no_targets','unavailable','budget_exhausted'].includes(marketRecord.status)
+        ||marketRecord.evidenceHash!==reportHash(marketRecord.privateEvidence)||marketRecord.summaryHash!==reportHash(marketRecord.summary)
+        ||!Number.isFinite(Date.parse(marketRecord.summary?.checkedAt))||Date.parse(marketRecord.summary.checkedAt)>Date.parse(clock())))fail('HOSTED_MARKET_OBSERVATION_STATE_INVALID');
+      const sameContext=marketRecord?.targetHash===targetHash&&marketRecord?.acquisitionHash===acquisitionHash;
+      const dueMarket=!sameContext||(fixtures.length>0&&Date.parse(clock())-Date.parse(marketRecord.summary.checkedAt)>=300000);
+      if(dueMarket){
+        const workMs=Math.min(90000,remaining()-30000),startedAt=clock(),marketStarted=monotonic();
+        const marketSignal=AbortSignal.any([overall,...(workMs>=1000?[AbortSignal.timeout(Math.ceil(workMs))]:[])]);
+        const marketRemaining=()=>Math.max(0,Math.min(remaining()-30000,workMs-(monotonic()-marketStarted)));
+        let evidence,summary;
+        marketStatus=fixtures.length?'complete':'no_targets';
+        scheduler.lanes.marketObservations={startedAt,status:'active',targetHash};await atomicJson(schedulerPath,scheduler);
+        try{
+          if(overall.aborted)fail('HOSTED_OBSERVATION_CANCELLED');
+          if(!fixtures.length){evidence={};summary=summarizeMarketObservation({fixtures,evidence,checkedAt:clock()});}
+          else{
+            if(workMs<1000)fail('HOSTED_MARKET_OBSERVATION_BUDGET_EXHAUSTED');
+            const result=await (collectMarketImpl||collectMarketObservation)({fixtures,
+              statePath:resolve(root,'state/market-observation-crawler.json'),providerStatePath:resolve(root,'state/market-observation-providers.json'),
+              env,clock,remaining:marketRemaining,signal:marketSignal,
+              fetchImpl:(url,init={})=>fetchImpl(url,{...init,signal:AbortSignal.any([init.signal,marketSignal].filter(Boolean))})});
+            if(overall.aborted)fail('HOSTED_OBSERVATION_CANCELLED');
+            if(marketSignal.aborted||marketRemaining()<=0)fail('HOSTED_MARKET_OBSERVATION_BUDGET_EXHAUSTED');
+            if(!Number.isFinite(Date.parse(result?.summary?.checkedAt))||Date.parse(result.summary.checkedAt)<Date.parse(startedAt)
+              ||Date.parse(result.summary.checkedAt)>Date.parse(clock()))fail('HOSTED_MARKET_OBSERVATION_TIME_INVALID');
+            evidence=result.privateEvidence;
+            summary=summarizeMarketObservation({fixtures,evidence,checkedAt:result.summary.checkedAt});
+            if(reportHash(summary)!==reportHash(result.summary))fail('HOSTED_MARKET_OBSERVATION_SUMMARY_MISMATCH');
+            marketStatus=summary.sources.some(source=>source.quoteCount>0)?'complete':'unavailable';
+          }
+        }catch{
+          if(overall.aborted)fail('HOSTED_OBSERVATION_CANCELLED');
+          marketStatus=workMs<1000||marketSignal.aborted||marketRemaining()<=0?'budget_exhausted':'unavailable';
+          const checkedAt=clock();
+          evidence={quotes:[],marketStates:[],signals:[],fixtureDiagnostics:[],diagnostics:['hkjc','macauslot','titan007'].map(id=>({id,status:'unavailable',
+            code:marketStatus==='budget_exhausted'?'COLLECTION_BUDGET_EXHAUSTED':'COLLECTION_FAILED',checkedAt}))};
+          summary=summarizeMarketObservation({fixtures,evidence,checkedAt});
+        }
+        marketRecord={version:1,targetHash,acquisitionHash,summary,summaryHash:reportHash(summary),privateEvidence:evidence,evidenceHash:reportHash(evidence),status:marketStatus};
+        await atomicJson(marketPath,marketRecord);marketObserved=true;
+        scheduler.lanes.marketObservations={startedAt,finishedAt:clock(),checkedAt:summary.checkedAt,status:marketStatus,targetHash};await atomicJson(schedulerPath,scheduler);
+      }else{
+        const checked=summarizeMarketObservation({fixtures,evidence:marketRecord.privateEvidence,checkedAt:marketRecord.summary.checkedAt});
+        if(reportHash(checked)!==marketRecord.summaryHash)fail('HOSTED_MARKET_OBSERVATION_STATE_INVALID');
+        marketStatus=marketRecord.status;
+      }
+      candidate=observationBundle(manifestFromObservation(candidate.report),{commit:candidate.report.acquisition.commit,nowISO:clock(),marketObservation:marketRecord.summary});
+    }
+    if(candidate&&candidate.reportId!==record?.bundle.reportId){
+      record={version:1,bundle:candidate,bundleHash:reportHash(candidate),delivery:{status:'pending'}};await atomicJson(recordPath,record);
+    }
     if(record)validateObservationRecord(record,clock());
+    if(overall.aborted)fail('HOSTED_OBSERVATION_CANCELLED');
     if(record&&record.delivery?.status!=='verified'){
+      assertMarketPublishable(record.bundle,clock());
       await session.checkpoint();
+      assertMarketPublishable(record.bundle,clock());
       const posted=await client.request('/internal/observations',{method:'POST',body:record.bundle});
       if(!observationStatus(posted,record.bundle))fail('HOSTED_OBSERVATION_READBACK_MISMATCH');
       const probe=await client.request('/internal/report-status');
@@ -428,6 +645,7 @@ export async function runShadow({root,env=process.env,fetchImpl=fetch,clock=stam
     else failure=session.blocked;
   }
   const result={version:1,mode:'observations',status:failure?'blocked':published?'complete':'idle',RELEASE_GATE:'BLOCKED',forecastPublished:false,
+    ...(marketsEnabled?{marketObserved,marketStatus,marketFixtureCount:marketRecord?.summary?.fixtureCount??null,marketCheckedAt:marketRecord?.summary?.checkedAt??null}:{}),
     ...(failure?{code:failure}:{}),checkedAt:clock(),revision:session.revision,collected,observationServedVerified:!failure&&(published||record?.delivery?.status==='verified'),
     ...(record?{originReportId:record.bundle.reportId,observationGeneratedAt:record.bundle.report.generatedAt}:{}),
     meaning:'collection-only; fixtures-target-fifteen-minutes; github-may-delay; no-forecast-or-notification'};

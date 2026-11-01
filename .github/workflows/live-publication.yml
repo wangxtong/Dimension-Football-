@@ -37,6 +37,7 @@ jobs:
       COLLECTOR_COMMIT: ${{ github.sha }}
       # Collection/state can advance; publication requires the reviewed report gate.
       RELEASE_GATE: BLOCKED
+      HOSTED_MARKET_OBSERVATIONS: 'true'
       HOSTED_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observations' }}
     steps:
       - uses: actions/checkout@v6
@@ -70,9 +71,10 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Sites 持久采集与发布
 
-          RELEASE_GATE=BLOCKED：默认只采集公开赛程，网站仅刷新已去除预测与盘口候选的观测投影；不创建预测账本、不发布正式预测、不发送通知。
+          RELEASE_GATE=BLOCKED：采集公开赛程及未来 24 小时受检赛事的独立报价，网站仅刷新赛程和来源覆盖统计；不包含原始盘口、预测概率或正式候选，不创建预测账本、不发送通知。
           调度目标为每 5 分钟；GitHub 排队、并发与上游预算可能导致延迟。
           公开赛程仅到 15 分钟采集周期才请求；未到期保持原始观测时间，不把缓存标为刚更新。
+          市场观察目标为每 5 分钟，保留来源原始时间；赛程超过 20 分钟或报价过期时拒绝作为最新有效观察发布。
           状态来自原 Sites 的持久存储，以 revision 做条件更新；冲突或超限会停止，不使用空状态替代失败恢复。
           当前通知入口受独立门禁阻断，runner 与 Sites 均不发送自动预测。
           本轮采集与运行记录保留为 90 天附件；仅手动 research 模式采集研究数据、冻结预测并优先核账，绝不调用正式发布或通知。

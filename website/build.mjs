@@ -2,7 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const [output]=process.argv.slice(2);
 if(!output||process.argv.length!==3)throw Error('Usage: node website/build.mjs OUTPUT_DIRECTORY');
-const assets={};for(const name of ['index.html','style.css','app.mjs','report-schema.mjs','locale-zh.mjs','evaluation-evidence.json'])assets['/'+name]=await readFile(new URL(name,import.meta.url),'utf8');
+const assets={};for(const name of ['index.html','style.css','app.mjs','report-schema.mjs','locale-zh.mjs','evaluation-evidence.json','model-experiment-evidence.json'])assets['/'+name]=await readFile(new URL(name,import.meta.url),'utf8');
 // The deployed Worker is one self-contained ESM file; browser assets stay separate.
 const namespaces=new Map(),bundled=[];
 function inlineImports(source) {
@@ -13,7 +13,7 @@ function inlineImports(source) {
     return `const ${binding.replace(/\s+as\s+/g,': ')}=${namespace};`;
   });
 }
-for(const name of ['report-schema','locale-zh','github-oidc','release-policy','hosted-publications','telegram-presentation','hosted-notifications','report-feed']) {
+for(const name of ['report-schema','market-observation-schema','locale-zh','github-oidc','state-archive','release-policy','hosted-publications','telegram-presentation','hosted-notifications','report-feed']) {
   const text=await readFile(new URL(name+'.mjs',import.meta.url),'utf8');
   const exported=[...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|class)\s+([A-Za-z_$][\w$]*)/gm)].map(m=>m[1]);
   const body=inlineImports(text).replace(/^export\s+/gm,'');
