@@ -1,10 +1,10 @@
 import { validateBundle, validateReceipt, MAX_REPORT_BUNDLE_BYTES } from './report-schema.mjs';
 import { verifyActionsIdentity } from './github-oidc.mjs';
 import { requireHostedForecastRelease } from './release-policy.mjs';
+import { handleStateArchiveRequest } from './state-archive.mjs';
+import { validateMarketObservation, validateObservationAcquisition, assertMarketObservationFreshness } from './market-observation-schema.mjs';
 
 const CURRENT = 'publications/current.json';
-const STATE = 'checkpoints/state.json';
-const MAX_STATE_BYTES = 32 * 1024 * 1024;
 const encoder = new TextEncoder(), decoder = new TextDecoder('utf-8', { fatal: true });
 const id = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -62,11 +62,15 @@ export async function bucketPutCAS(env, key, value, etag = null) {
 }
 function checkContent(content, receipt) {
   validateBundle({ ...content, receipt });
+  if (content.report.marketObservation != null) validateMarketObservation(content.report.marketObservation,
+    { fixtureCount: content.report.fixtures.length, generatedAt: content.report.generatedAt, acquisition: content.report.acquisition });
   if (!receipt || !object(content.sourceData)) throw problem('SOURCE_SNAPSHOT_INVALID');
   const raw = content.sourceData.openligadb;
   if ((content.report.fixtures.some(row => row.fixture.source === 'openligadb') || raw !== undefined)
     && (!object(raw) || !object(raw.attribution) || !Array.isArray(raw.fixtures) || !Array.isArray(raw.history))) throw problem('SOURCE_SNAPSHOT_REQUIRED');
   if (raw?.reportId !== undefined && raw.reportId !== content.reportId) throw problem('SOURCE_REPORT_MISMATCH');
+  if (content.report.marketObservation != null && raw && raw.checkedAt !== content.report.acquisition.checkedAt)
+    throw problem('SOURCE_OBSERVATION_TIME_MISMATCH');
 }
 function served(content, receipt, reportHash) {
   checkContent(content, receipt);
@@ -136,6 +140,7 @@ async function publish(env, input, now) {
   validateBundle(input);
   const content = { version: 1, reportId: input.reportId, report: input.report, sourceData: input.sourceData ?? {} };
   checkContent(content, input.receipt);
+  assertMarketObservationFreshness(content.report, now);
   if (input.receipt.events !== undefined && !Array.isArray(input.receipt.events)) throw problem('INVALID_RECEIPT');
   const generated = Date.parse(content.report.generatedAt);
   if (generated > now + 60000) throw problem('REPORT_FROM_FUTURE');
@@ -198,6 +203,11 @@ async function observationProjection(input) {
       ['source', 'league', 'fixtureStatus', 'historyStatus', 'status', 'fixtureCount', 'historyCount', 'receivedCount', 'rejectedCount',
         'expectedFixtureCount', 'complete', 'historyFrom', 'historyTo', 'checkedAt', 'observedAt', 'fetchedAt', 'sourceUpdatedAt'])) : [],
     categories: { analysis: [], strictCandidates: [], unassessable: fixtures.map(row => row.fixture.id) } };
+  if (input.report.marketObservation != null) {
+    report.acquisition = validateObservationAcquisition(input.report.acquisition);
+    report.marketObservation = validateMarketObservation(input.report.marketObservation,
+      { fixtureCount: fixtures.length, generatedAt: report.generatedAt, acquisition: report.acquisition });
+  }
   const sourceData = {}, raw = input.sourceData?.openligadb;
   if (raw) sourceData.openligadb = { ...pickScalars(raw, ['checkedAt', 'observedAt', 'fetchedAt', 'sourceUpdatedAt']),
     reportId, originReportId: input.reportId, publicationKind: 'observations', forecastPublished: false,
@@ -224,17 +234,22 @@ function allowedPath(path) {
 }
 async function validateFiles(files) {
   if (!Array.isArray(files) || files.length > 10000) throw problem('STATE_FILES_INVALID');
-  const decoded = new Map();
+  const decoded = new Map(), seen = new Set();
   let total = 0;
   for (const file of files) {
-    if (!object(file) || Object.keys(file).sort().join(',') !== 'content,path' || !allowedPath(file.path) || decoded.has(file.path)
+    if (!object(file) || Object.keys(file).sort().join(',') !== 'content,path' || !allowedPath(file.path) || seen.has(file.path)
       || typeof file.content !== 'string' || file.content.length % 4 !== 0 || /[^A-Za-z0-9+/=]/.test(file.content)) throw problem('STATE_FILE_INVALID');
     total += file.content.length / 4 * 3 - (file.content.endsWith('==') ? 2 : file.content.endsWith('=') ? 1 : 0);
     if (total > 64 * 1024 * 1024) throw problem('STATE_TOO_LARGE', 413);
     try {
       const binary = atob(file.content);
       if (btoa(binary) !== file.content) throw Error();
-      decoded.set(file.path, JSON.parse(decoder.decode(Uint8Array.from(binary, c => c.charCodeAt(0)))));
+      const parsed = JSON.parse(decoder.decode(Uint8Array.from(binary, c => c.charCodeAt(0))));
+      // Only the three publication files need cross-file semantic validation.
+      // Keep the rest as encoded files instead of retaining a second full copy
+      // of a legacy ledger checkpoint while migrating it to immutable shards.
+      if (file.path.startsWith('reports/.delivery/')) decoded.set(file.path, parsed);
+      seen.add(file.path);
     } catch { throw problem('STATE_JSON_INVALID'); }
   }
   const pointer = decoded.get('reports/.delivery/current.json');
@@ -253,20 +268,15 @@ async function validateFiles(files) {
   }
   return files;
 }
-async function state(env) {
-  const current = await stored(env, STATE, MAX_STATE_BYTES);
-  if (!current) return null;
-  if (!Number.isSafeInteger(current.value.revision) || current.value.revision < 1) throw problem('HOSTED_STORAGE_CORRUPT', 503);
-  try { await validateFiles(current.value.files); } catch { throw problem('HOSTED_STORAGE_CORRUPT', 503); }
-  return current;
-}
 function status(bundle) {
   return { version: 1, reportId: bundle.reportId, reportHash: bundle.reportHash, generatedAt: bundle.report.generatedAt, mode: 'hosted', health: 'available',
     ...(bundle.publicationKind === 'observations' ? { originReportId: bundle.originReportId, publicationKind: 'observations', forecastPublished: false } : {}) };
 }
 export async function handleHostedRequest(request, env, { fetchImpl = fetch, now = Date.now() } = {}) {
+  const stateResponse = await handleStateArchiveRequest(request, env, { fetchImpl, now, validateFiles });
+  if (stateResponse) return stateResponse;
   const path = new URL(request.url).pathname;
-  const methods = { '/internal/publications': ['POST'], '/internal/observations': ['POST'], '/internal/report-status': ['GET'], '/internal/state': ['GET', 'PUT'] };
+  const methods = { '/internal/publications': ['POST'], '/internal/observations': ['POST'], '/internal/report-status': ['GET'] };
   if (!Object.hasOwn(methods, path)) return null;
   try {
     await verifyActionsIdentity(request, env, { fetchImpl, now });
@@ -287,20 +297,6 @@ export async function handleHostedRequest(request, env, { fetchImpl = fetch, now
       }
       return response(status(bundle));
     }
-    if (request.method === 'GET') {
-      const current = await state(env);
-      return current ? response(current.value) : response({ error: 'HOSTED_STATE_NOT_FOUND' }, 404);
-    }
-    const input = await readJsonBody(request, MAX_STATE_BYTES);
-    if (!object(input) || Object.keys(input).sort().join(',') !== 'expectedRevision,files'
-      || !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 || input.expectedRevision >= Number.MAX_SAFE_INTEGER) throw problem('STATE_REVISION_INVALID');
-    await validateFiles(input.files);
-    const current = await state(env);
-    if ((current?.value.revision || 0) !== input.expectedRevision) throw problem('STATE_REVISION_CONFLICT', 409);
-    const value = { revision: input.expectedRevision + 1, files: input.files };
-    if (bytes(value).byteLength > MAX_STATE_BYTES) throw problem('STATE_TOO_LARGE', 413);
-    if (!await bucketPutCAS(env, STATE, value, current?.etag ?? null)) throw problem('STATE_REVISION_CONFLICT', 409);
-    return response({ revision: value.revision });
   } catch (error) {
     console.warn(JSON.stringify({event:'hosted-request-rejected',path,code:typeof error.code==='string' && /^[A-Z][A-Z0-9_]{1,80}$/.test(error.code) ? error.code : 'HOSTED_REQUEST_FAILED'}));
     const schema = ['REPORT_SCHEMA_INVALID', 'RECEIPT_SCHEMA_INVALID', 'SNAPSHOT_SCHEMA_INVALID'].includes(error.message);

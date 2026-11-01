@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { QUOTE_ORIGINS, quoteChannelSource, resolveQuoteOrigin } from './sources/independence-registry.mjs';
 
 export const DEFAULT_POLICY = Object.freeze({
   version: 1, timezone: 'Asia/Shanghai', intervalMinutes: 60, days: 7,
@@ -11,6 +12,7 @@ export const DEFAULT_POLICY = Object.freeze({
 // Independence comes from this registry, never a provider-supplied vote count.
 export const SOURCES = Object.freeze({
   hkjc: { group: 'hkjc-first-party', hosts: ['bet.hkjc.com'], freshness: 'publisher-live-snapshot' },
+  macauslot: { group: 'macauslot-official', hosts: ['www.macauslot.com'], freshness: 'http-last-modified-snapshot' },
   sportmonks: { group: 'sportmonks-model', hosts: ['api.sportmonks.com'] },
   titan007: { group: 'titan007', hosts: ['live.titan007.com', 'livestatic.titan007.com'] },
   oddsgpt: { group: 'oddsgpt', hosts: ['oddsgpt.com', 'www.oddsgpt.com'] },
@@ -135,22 +137,17 @@ function validEvidence(row, fixture, now, lifetime) {
     && now - observed <= lifetime && observed < isoMillis(fixture.kickoff) && expires > now);
 }
 
-const productionChannels = Object.freeze({ 'titan007-public-market': 'titan007', hkjc: 'hkjc', 'hkjc-first-party': 'hkjc' });
-const titanCompanies = Object.freeze({ 17: 'M88', 24: '12Bet', 31: 'SBOBET' });
-
 // A website label cannot turn a declared shared production channel into another
 // independent source. Commercial reference providers are not formal quote feeds.
 export function quoteSourceGroup(row) {
   if (!row || !Object.hasOwn(SOURCES, row.sourceId)) return null;
   if (row.provider !== undefined) {
-    const producer = Object.hasOwn(productionChannels, row.provider) ? productionChannels[row.provider]
-      : Object.hasOwn(SOURCES, row.provider) ? row.provider : null;
+    const producer = quoteChannelSource(row.provider) || (Object.hasOwn(SOURCES, row.provider) ? row.provider : null);
     if (producer !== row.sourceId) return null;
   }
-  if (Object.hasOwn(productionChannels, row.source) && productionChannels[row.source] !== row.sourceId) return null;
-  if (row.sourceId === 'hkjc' && row.bookmaker !== 'HKJC') return null;
-  if (row.sourceId === 'titan007' && row.companyId !== undefined
-    && (!Number.isSafeInteger(row.companyId) || !Object.hasOwn(titanCompanies, row.companyId) || titanCompanies[row.companyId] !== row.bookmaker)) return null;
+  const sourceChannel = quoteChannelSource(row.source);
+  if (sourceChannel && sourceChannel !== row.sourceId) return null;
+  if (Object.hasOwn(QUOTE_ORIGINS, row.sourceId)) return resolveQuoteOrigin(row)?.group ?? null;
   return SOURCES[row.sourceId].group;
 }
 

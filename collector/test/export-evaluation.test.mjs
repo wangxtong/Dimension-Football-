@@ -104,8 +104,8 @@ test('CLI creates only its separate asset and failed exports never replace an ex
 test('committed real evidence stays bounded and separate from current prediction publication', async () => {
   const text = await readFile(new URL('../../website/evaluation-evidence.json', import.meta.url), 'utf8'), asset = JSON.parse(text);
   assert.ok(Buffer.byteLength(text) < 100000); assert.equal(asset.model.version, 2); assert.equal(asset.model.calibrated, false);
-  assert.equal(asset.binding.codeVersion, '5611605dcdf02636e0c8338f5978ac8d68b65508');
-  assert.equal(asset.binding.reportId, 'd9d61ff8969b662a1a82b9ead07dcfa83e200104d2eb4484c8bff84866dc804c');
+  assert.equal(asset.binding.codeVersion, '17931a231f6f11ccbf191fff855eae7930ad3466');
+  assert.equal(asset.binding.reportId, 'e541ec0487829321212c9c95d84a4790888baa7c0f0f284a6e72745e728902c6');
   assert.equal(asset.groups.length, 25); assert.equal(asset.prospective.evaluated, 0); assert.equal(asset.releaseGate, 'BLOCKED');
   assert.ok(asset.groups.filter(row => row.league !== 'BL1').every(row => row.metrics === null && row.evaluated === 0));
   assert.ok(!serializedKeys(asset).some(key => ['probabilities', 'fixtures', 'candidates', 'selection', 'recommendations'].includes(key)));

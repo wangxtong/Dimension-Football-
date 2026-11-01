@@ -4,7 +4,12 @@ import { retryAfterMs } from './health.mjs';
 import { browserResourceTarget } from '../browser-runtime/index.mjs';
 
 const DAY = 86_400_000, BODY_LIMIT = 1_500_000, ROBOTS_LIMIT = 64_000;
-const ORIGINS = ['https://livestatic.titan007.com', 'https://www.statarea.com', 'https://www.ttyingqiu.com'];
+const MACAU_ORIGIN = 'https://www.macauslot.com';
+const MACAU_PATHS = Object.freeze({
+  '/soccer/json/realtime/threeinone_event_cn_fb.json': BODY_LIMIT,
+  '/soccer/json/realtime/threeinone_odds_cn_fb.json': 4 * 1024 * 1024,
+});
+const ORIGINS = ['https://livestatic.titan007.com', 'https://www.statarea.com', 'https://www.ttyingqiu.com', MACAU_ORIGIN];
 export const CRAWLER_CODES = new Set(['robots_denied', 'robots_unavailable', 'access_challenge', 'authorization_required',
   'access_denied', 'rate_limited', 'http_unavailable', 'redirect_blocked', 'crawler_cooldown', 'crawler_budget_exhausted',
   'crawler_cancelled', 'crawler_timeout', 'crawler_response_too_large', 'crawler_network_unavailable',
@@ -41,13 +46,16 @@ export function crawlerTarget(value, method = 'GET', body) {
     && /^\/predictions(?:\/date\/20\d{2}-\d{2}-\d{2}\/competition)?$/.test(url.pathname)) id = 'statarea';
   if (url.origin === ORIGINS[2] && url.pathname === '/query/hall/jdList' && method === 'POST' && !url.search
     && body === 'raceStatus=0&amountMode=3&sortType=10&raceType=1&gameId=0&pageNo=1&pageSize=30') id = 'tiantian';
+  if (url.origin === MACAU_ORIGIN && method === 'GET' && !url.search && Object.hasOwn(MACAU_PATHS, url.pathname)) id = 'macauslot';
   if (!id || method === 'GET' && body != null) fail('crawler_target_denied');
-  return { id, origin: url.origin, url: url.href, key: url.origin + url.pathname, method };
+  return { id, origin: url.origin, url: url.href, key: url.origin + url.pathname, method,
+    responseMaxBytes: id === 'macauslot' ? MACAU_PATHS[url.pathname] : BODY_LIMIT,
+    ...(id === 'macauslot' ? { responseTimeoutMs: 12_000 } : {}) };
 }
 
 function safeHeaders(input) {
   const headers = new Headers(input);
-  return Object.fromEntries(['date', 'last-modified', 'etag', 'content-type', 'cache-control', 'vary']
+  return Object.fromEntries(['date', 'last-modified', 'age', 'etag', 'content-type', 'cache-control', 'vary']
     .filter(key => headers.has(key) && headers.get(key).length <= 1024).map(key => [key, headers.get(key)]));
 }
 
@@ -72,8 +80,9 @@ async function readCrawlerState(path) {
   }
   if (Object.keys(value.cache).length > 12) invalid();
   for (const [key, entry] of Object.entries(value.cache)) {
-    try { crawlerTarget(key); } catch { invalid(); }
-    if (!entry || typeof entry.text !== 'string' || Buffer.byteLength(entry.text) > BODY_LIMIT
+    let target;
+    try { target = crawlerTarget(key); } catch { invalid(); }
+    if (!entry || typeof entry.text !== 'string' || Buffer.byteLength(entry.text) > target.responseMaxBytes
       || !timestamp(entry.fetchedAt) || !entry.headers || typeof entry.headers !== 'object' || Array.isArray(entry.headers)) invalid();
     if (entry.engine !== undefined && !['http', 'crawlee-playwright'].includes(entry.engine)) invalid();
     state.cache[key] = { text: entry.text, headers: safeHeaders(entry.headers), fetchedAt: entry.fetchedAt, engine: entry.engine || 'http' };
@@ -145,7 +154,9 @@ export async function withPublicCrawler({ statePath, policy = DEFAULT_CRAWLER_PO
       const interval = Math.max(policy.minIntervalMs, delays.get(origin) || 0);
       const elapsed = performance.now() - (lastStart.get(origin) ?? -Infinity);
       const delay = Math.max(0, interval - elapsed);
-      if (delay >= remaining() || delay > 6000) fail('crawl_delay_exceeds_budget');
+      // Only the two registered Macau JSON endpoints may need the site's
+      // documented 10-second interval. Never lower a longer robots directive.
+      if (delay >= remaining() || delay > (origin === MACAU_ORIGIN ? 10_000 : 6000)) fail('crawl_delay_exceeds_budget');
       await pause(delay, requestSignal); check(requestSignal); ready(origin);
       if (networkRequests >= policy.maxRequests) fail('crawler_budget_exhausted');
       networkRequests++; lastStart.set(origin, performance.now());
@@ -153,11 +164,11 @@ export async function withPublicCrawler({ statePath, policy = DEFAULT_CRAWLER_PO
       reservations.set(origin, task.catch(() => {}));
       return task;
     }
-    async function request(url, init, origin, requestSignal, limit) {
+    async function request(url, init, origin, requestSignal, limit, responseTimeoutMs = policy.requestTimeoutMs) {
       const rendered = !!browser?.matches?.(url);
       if (!rendered) await reserve(origin, requestSignal);
       else { check(requestSignal); ready(origin); }
-      const controller = new AbortController(), timer = setTimeout(() => controller.abort(), Math.min(rendered ? 25_000 : policy.requestTimeoutMs, Math.max(1, remaining())));
+      const controller = new AbortController(), timer = setTimeout(() => controller.abort(), Math.min(rendered ? 25_000 : responseTimeoutMs, Math.max(1, remaining())));
       const combined = AbortSignal.any([controller.signal, requestSignal, signal].filter(Boolean));
       const requestPolicy = rendered ? {
         beforeRequest: async descriptor => {
@@ -233,7 +244,8 @@ export async function withPublicCrawler({ statePath, policy = DEFAULT_CRAWLER_PO
       }
       for (let attempt = 0; attempt <= policy.maxRetries; attempt++) {
         let result;
-        try { result = await request(target.url, { method: target.method, headers, body: init.body }, target.origin, requestSignal, BODY_LIMIT); }
+        try { result = await request(target.url, { method: target.method, headers, body: init.body }, target.origin, requestSignal,
+          target.responseMaxBytes, target.responseTimeoutMs); }
         catch (error) {
           if (target.method === 'GET' && attempt < policy.maxRetries && ['crawler_timeout', 'crawler_network_unavailable'].includes(error.code)) {
             await pause(policy.retryDelayMs * 2 ** attempt + Math.floor(Math.random() * 100), requestSignal); continue;

@@ -39,7 +39,9 @@ test('one broken tool still leaves all other evidence and a BLOCKED eight-role p
   assert.equal(result.audit.checks[3].executionStatus, 'completed');
   assert.equal(result.audit.checks[3].findingStatus, 'blocked');
   assert.equal(result.audit.roles.length, 8);
-  assert.deepEqual(result.audit.roles.slice(5).map(role => role.status), ['not-audited', 'not-audited', 'not-audited']);
+  for (const id of ['A3', 'A6', 'A8']) assert.equal(result.audit.roles.find(role => role.id === id).status, 'not-audited');
+  assert.equal(result.audit.roles.find(role => role.id === 'A7').status, 'blocked');
+  assert.deepEqual(result.audit.roles.find(role => role.id === 'A7').evidence, ['state-capacity.json']);
   assert.ok(result.audit.roles.every(role => role.responsibility && role.nextStep && Array.isArray(role.evidence)));
   for (const check of result.audit.checks) {
     const contents = await readFile(join(paths.outDir, check.file));

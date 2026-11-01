@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "kind": "fixed-openfootball-snapshots",
+  "sourceCommit": "e6744429ee395bc86f247348c6184bb08d4eb361",
+  "acquiredFrom": "2026-11-01T07:56:05.550Z",
+  "acquiredThrough": "2026-11-01T07:56:06.312Z",
+  "licenseUrl": "https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/LICENSE.md",
+  "gzipBytes": 64335,
+  "gzipSha256": "2c9ee9cc911518fe7e8930b227b92628ffd2ce5861ff390dbb01f6a8846369a9",
+  "files": [
+    {
+      "path": "2025-26/de.1.json",
+      "bytes": 88247,
+      "sha256": "17d0999db6281e6365823acdbce41a4f01dd469eac63e1f897e4e47c02906672"
+    },
+    {
+      "path": "2025-26/de.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "a142498aee05a78c5ab1b664a0d236015a06d5271fde29dd2c26e13d71c9f2ef"
+    },
+    {
+      "path": "2025-26/en.1.json",
+      "bytes": 108493,
+      "sha256": "d6070bdf731546ccf97767f062e8af4bd26dd309dee69f6092025bf9c78f43c1"
+    },
+    {
+      "path": "2025-26/en.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "dd213e270525a5c263bbf127f509ba46d7552b21742083704cfaa4ea0cc1f2fc"
+    },
+    {
+      "path": "2025-26/es.1.json",
+      "bytes": 108642,
+      "sha256": "b40397d8e62c640138548d57a1a9f76150549213d2a07fcbbb90ed0eabc6ccea"
+    },
+    {
+      "path": "2025-26/es.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "49e09e4646d645a0c8cac318501d41c97e7b25f30707a2b7b2142fd66c071905"
+    },
+    {
+      "path": "2025-26/fr.1.json",
+      "bytes": 85845,
+      "sha256": "3e9403445dd96f4bb7f740de22d4ea7e3ea7d640777a12eab621ae4d4dbf3bc7"
+    },
+    {
+      "path": "2025-26/fr.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "a9ac4d8dadec47633f2124b27c8442f6f2f9e27c7ade7b1fa17887a8c7cec72a"
+    },
+    {
+      "path": "2025-26/it.1.json",
+      "bytes": 105202,
+      "sha256": "28f7773dea86345aeb0cbb4aff2f90231033f7ed855219e70fdd1cf45d4d7e7f"
+    },
+    {
+      "path": "2025-26/it.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "ea1928faac926dafac2b542839a06b40a781310470274cbe00af1a5d3cc1c335"
+    },
+    {
+      "path": "2026-27/de.1.json",
+      "bytes": 40409,
+      "sha256": "07fab65d4a1de8ce4c8472da9ccf4d1d2b145ecd5abdc5b6d4250a5c119d7681"
+    },
+    {
+      "path": "2026-27/de.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "fb8d999c2ade329d32fca6ea428523f37bea00ad758b46e003a859ea78dec220"
+    },
+    {
+      "path": "2026-27/en.1.json",
+      "bytes": 55359,
+      "sha256": "bb91f0ab3e8359df163bb9ec98549bfed85e200dd4c32f3bd606b5890d932dd2"
+    },
+    {
+      "path": "2026-27/en.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "5bcd28fbd2e1302e2a648ad60dc98a944da92efc5d86b08ad875b6028a9cb954"
+    },
+    {
+      "path": "2026-27/es.1.json",
+      "bytes": 50771,
+      "sha256": "4b1a9906e3f2b279a1f25497a38f2f58e21ec19ea726b882fa646da7c07bc0e0"
+    },
+    {
+      "path": "2026-27/es.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "40586ab5fd644e6104d322d28ae160a71588830727e1ff56414e780182b1fdd5"
+    },
+    {
+      "path": "2026-27/fr.1.json",
+      "bytes": 39943,
+      "sha256": "f875275f835e378fc8c4e7d48c7a2f327e7d426237bd057fe652fd47f30b5a4f"
+    },
+    {
+      "path": "2026-27/fr.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "ba4b3ef85e7bae998b5e04c6b3941a027f237d1054a804b105a95118f67b24be"
+    },
+    {
+      "path": "2026-27/it.1.json",
+      "bytes": 47608,
+      "sha256": "721a6c220fecb8208287e41401fa2fce652cd23765ce58a39bf98cdaa3d528ad"
+    },
+    {
+      "path": "2026-27/it.1.json.meta.json",
+      "bytes": 314,
+      "sha256": "6bef6630c06d6463efda9ecc2605de61ec7c33d30296dfbe675e210073559d72"
+    },
+    {
+      "path": "LICENSE.md",
+      "bytes": 6555,
+      "sha256": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673"
+    }
+  ]
+}

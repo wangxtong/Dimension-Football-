@@ -53,29 +53,49 @@
     },
     {
       "id": "website",
-      "owner": "A8",
+      "owner": "A6",
       "status": "verified",
       "priority": "P0",
       "note": "第12版原站点实际部署；历史可视化、7入口和手机浏览器现场通过。",
-      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收",
+      "previousOwner": "A8",
+      "reviewer": "A8"
     },
     {
       "id": "ecs-access",
-      "owner": "A1",
+      "owner": "A7",
       "status": "blocked",
       "priority": "P1",
-      "blocker": "没有可用的 ECS 命令身份；当前网站已接通 Sites+Actions 持久观察流，未证明 ECS 新版运行。"
+      "blocker": "没有可用的 ECS 命令身份；当前网站已接通 Sites+Actions 持久观察流，未证明 ECS 新版运行。",
+      "previousOwner": "A1",
+      "reviewer": "A8"
     },
     {
       "id": "hosted-live",
-      "owner": "A1/A6/A8",
+      "owner": "A6",
       "status": "verified",
       "priority": "P0",
       "note": "两轮真实Actions观察流已验证；新runner恢复revision2并保存至4，同ID/摘要网站回读；长期调度SLO仍待积累。",
-      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收"
+      "verifiedScope": "仅本轮修复及列明测试；不构成模块商业验收",
+      "previousOwner": "A1/A6/A8",
+      "collaborators": [
+        "A1",
+        "A7"
+      ],
+      "reviewer": "A8"
+    },
+    {
+      "id": "agent-role-setup",
+      "owner": "A1",
+      "reviewer": "A8",
+      "status": "verified",
+      "priority": "P1",
+      "note": "八岗位及七层架构已设置并下发，各岗位确认加载；A8独立验收通过，相关15项全通过。完整Node 642通过/2跳过，故不授权远端同步或部署。",
+      "verifiedScope": "仅共同/专属指令、七层职责、只读装载器及其本地回归；不是全项目或商业预测验收。",
+      "evidence": "docs/evidence/agent-role-setup-acceptance.json"
     }
   ],
-  "updatedAt": "2026-10-31T09:39:15.533147+00:00",
+  "updatedAt": "2026-11-01T07:34:57Z",
   "phase": "r2_live_observations_and_quality_validation",
   "acceptance": "docs/upgrade-acceptance.json",
   "productionWebsite": {
@@ -106,5 +126,30 @@
     "buttonCount": 7,
     "automaticForecastsEnabled": false,
     "evidence": "docs/evidence/telegram-maintenance-menu.json"
+  },
+  "roleConfiguration": {
+    "manifest": "config/agent-team.json",
+    "framework": "docs/PROJECT-FRAMEWORK.md",
+    "commonPrompt": "docs/agents/COMMON.md",
+    "assignmentEvidence": "docs/agents/ASSIGNMENTS-2026-11-01.md",
+    "acknowledgedRoles": [
+      "A1",
+      "A2",
+      "A3",
+      "A4",
+      "A5",
+      "A6",
+      "A7",
+      "A8"
+    ],
+    "mode": "session-supervised",
+    "backgroundAgents": false,
+    "remoteBaseline": "17931a231f6f11ccbf191fff855eae7930ad3466",
+    "checkedAt": "2026-11-01T07:34:57Z",
+    "localAcceptance": "docs/evidence/agent-role-setup-acceptance.json",
+    "remoteSynchronization": {
+      "status": "blocked",
+      "reason": "Two required real-report evidence checks remain skipped; no push, merge or deployment."
+    }
   }
 }

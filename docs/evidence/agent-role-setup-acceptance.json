@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "kind": "scoped-agent-role-setup-acceptance",
+  "checkedAt": "2026-11-01T07:34:57Z",
+  "scope": "eight-role-instructions-seven-layer-ownership-and-read-only-prompt-loader",
+  "passed": true,
+  "independentReviewer": "A8",
+  "commercialReleaseAccepted": false,
+  "releaseGate": "BLOCKED",
+  "remoteSynchronized": false,
+  "productionDeployed": false,
+  "baselineCommit": "17931a231f6f11ccbf191fff855eae7930ad3466",
+  "checks": [
+    {
+      "name": "independent role loader and audit ownership regression",
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "actual manifest and prompt loading",
+      "roles": 8,
+      "referencedFiles": 11,
+      "status": "valid"
+    },
+    {
+      "name": "complete Node regression",
+      "tests": 644,
+      "passed": 642,
+      "failed": 0,
+      "skipped": 2,
+      "exitCode": 0,
+      "log": "docs/evidence/agent-role-setup-node.txt"
+    },
+    {
+      "name": "Python packaging and handoff",
+      "passed": 27,
+      "failed": 0,
+      "log": "docs/evidence/agent-role-setup-python.txt"
+    }
+  ],
+  "missingRequiredEvidence": [
+    {
+      "test": "built evidence hashes independently match the preserved original collector files",
+      "requirement": "Restore the exact original evaluation report archive and set EVALUATION_TEST_REPORT_DIRECTORY; do not substitute demo or newly sampled data."
+    },
+    {
+      "test": "built Worker blocks actual collector forecasts but permits their redacted acquisition projection",
+      "requirement": "Restore a verified real collector bundle and set HOSTED_TEST_REPORT_DIRECTORY."
+    }
+  ],
+  "files": {
+    "config/agent-team.json": "12f645457c6642f15d2e1996f29a7e15d3daa148e0a84287e3495dee985419b6",
+    "scripts/agent-team.mjs": "03e2670ce0f5dcb743a02eab129f30d625e356f4708c109dcc53491918b92377",
+    "collector/audit-control.mjs": "4c47a8a3f67b3da7b91a28b9333a822061edbe23fe7ade286809a73343745d44",
+    "collector/test/agent-team.test.mjs": "f9f71a97cda956a5555d3dd6db2928bf14b672d3ba8768c976a7bb89aef880ea",
+    "collector/test/audit-control.test.mjs": "d24fc4776fb3b5e51fd8cc5a5fea06febc533b6d73bf71828e280b8c76f19bc5",
+    "docs/evidence/agent-role-setup-node.txt": "a23674878749d0c95eb306a89e5614291e550c9c570c2e84f33c45983fd1d6d8",
+    "docs/evidence/agent-role-setup-python.txt": "33c278bcef4390dd30d38877f4a8be879720901ba4800a210aeea645a8258fcd"
+  },
+  "review": {
+    "finding": "No P0/P1 defect within role setup scope; A5 probability boundary clarified.",
+    "independentReviewSetSha256": "05f6e26352270a82e384f6f2c8e188fb1d9817bef0d77f46bad40ecff80dbceb",
+    "reviewSetTiming": "Independent review before acceptance metadata and whitespace-only normalization; runtime code unchanged. This is not a hash of the final repository tree."
+  },
+  "limitations": [
+    "Role configuration does not run persistent background agents.",
+    "No model re-fit, new source collection, notification or production deployment occurred.",
+    "Existing full-project skips prevent claiming all required checks GREEN or synchronizing this candidate under the user's condition."
+  ]
+}

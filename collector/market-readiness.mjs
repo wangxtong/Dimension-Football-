@@ -9,6 +9,8 @@ const CHANNELS = Object.freeze([
     origin: 'publisher-first-party', openingCapability: 'not-provided', timeMeaning: 'sourceAsOf is the publisher HTTP snapshot time; pool updateAt is neither opening time nor last trade time' },
   { id: 'titan007', group: SOURCES.titan007.group, role: 'formal-market-adapter', bookmakers: ['M88', '12Bet', 'SBOBET'],
     origin: 'one-shared-aggregator-channel', openingCapability: 'not-provided', timeMeaning: 'sourceUpdatedAt is feed Last-Modified, not an opening timestamp' },
+  { id: 'macauslot', group: SOURCES.macauslot.group, role: 'formal-market-adapter', bookmakers: ['Macau SLOT'],
+    origin: 'publisher-first-party', openingCapability: 'not-provided', timeMeaning: 'sourceUpdatedAt is the official odds JSON HTTP Last-Modified, not an opening or individual trade timestamp' },
   { id: 'sportmonks', group: null, role: 'auxiliary-model', openingCapability: 'not-provided' },
   { id: 'the-odds-api', group: null, role: 'market-reference-only', openingCapability: 'historical-snapshot-is-not-opening' },
   { id: 'isports', group: null, role: 'market-reference-only', openingCapability: 'initial-values-without-opening-time' },
@@ -156,7 +158,7 @@ export function buildMarketReadinessAudit(report, { nowISO = new Date().toISOStr
     limitations: ['Bookmaker count is not independent production-channel count.',
       'A registered source name or enabled commercial provider is not evidence of a second implemented independent quote feed.',
       'First observation, pool updateAt and historical snapshots are not provider opening times.',
-      'Opening counts check declared fields and archive hashes, not supplier authenticity; neither implemented live quote adapter supplies opening history.',
+      'Opening counts check declared fields and archive hashes, not supplier authenticity; the implemented live quote adapters do not supply opening history.',
       'Event/source/kickoff changes require identity revalidation; source-scoped canonical IDs do not prove cross-provider mappings.',
       'This audit never authorizes R1 release, even if retained market metadata appears complete.'], rows };
 }

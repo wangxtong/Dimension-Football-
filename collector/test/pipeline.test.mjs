@@ -258,6 +258,22 @@ test('market diagnostics whitelist known codes and companies and reject unrelate
   assert.equal(JSON.stringify(rows).includes('secret_value'), false);
 });
 
+test('Macau per-fixture diagnostics retain their own source without trusting provider-supplied identity or secrets', async t => {
+  const paths = await workspace(t), input = syntheticInput();
+  input.evidence.quotes = [];
+  input.evidence.fixtureDiagnostics = [{ fixtureId: 'fd-1', id: 'macauslot', sourceId: 'hkjc', bookmaker: 'HKJC',
+    companyId: 17, status: 'pending', code: 'incomplete_market', checkedAt: NOW, httpStatus: 200, matchedCount: 0,
+    sourceUpdatedAt: NOW, body: 'private-response', headers: { authorization: 'private-response' } }];
+  const result = await runCollection(invocation(paths, input));
+  const diagnostic = result.report.marketDiagnostics[0];
+  assert.equal(diagnostic.sourceId, 'macauslot'); assert.equal(diagnostic.bookmaker, 'Macau SLOT');
+  assert.equal(diagnostic.companyId, null); assert.equal(diagnostic.code, 'incomplete_market');
+  assert.equal(diagnostic.sourceUpdatedAt, NOW); assert.equal(result.report.summary.candidates, 0);
+  const saved = await readState(paths.statePath, false);
+  assert.deepEqual(saved.entries[fixtureKey(input.fixtures[0])].marketDiagnostics, result.report.marketDiagnostics);
+  assert.ok(!JSON.stringify(result.report).includes('private-response'));
+});
+
 test('demo state cannot be reused for production, including with an explicit shared state path', async t => {
   const paths = await workspace(t), input = syntheticInput();
   const demo = await runCollection(invocation(paths, input, { simulated: true }));

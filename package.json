@@ -7,6 +7,8 @@
     "node": ">=24"
   },
   "scripts": {
+    "agents:check": "node scripts/agent-team.mjs --check",
+    "agents:prompt": "node scripts/agent-team.mjs --role",
     "collect": "node collector/run.mjs",
     "collect:demo": "node collector/run.mjs --demo",
     "fixtures:public": "node collector/public.mjs",

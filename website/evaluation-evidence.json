@@ -4,17 +4,17 @@
   "historicalOnly": true,
   "releaseGate": "BLOCKED",
   "canRelease": false,
-  "generatedAt": "2026-10-31T07:50:21.243Z",
-  "exportedAt": "2026-10-31T09:10:01.404Z",
+  "generatedAt": "2026-11-01T07:31:46.322Z",
+  "exportedAt": "2026-11-01T07:44:12.312Z",
   "binding": {
-    "reportId": "d9d61ff8969b662a1a82b9ead07dcfa83e200104d2eb4484c8bff84866dc804c",
-    "codeVersion": "5611605dcdf02636e0c8338f5978ac8d68b65508",
-    "manifestHash": "8df9e2b912f455143e618e56e07ad9779c26fe1077427d7645efc4fd98af1af6",
-    "inputsHash": "0bac087e6a109ca657f78b71f6f05ee7efc670df43fa297da22017e390c77f4a",
+    "reportId": "e541ec0487829321212c9c95d84a4790888baa7c0f0f284a6e72745e728902c6",
+    "codeVersion": "17931a231f6f11ccbf191fff855eae7930ad3466",
+    "manifestHash": "f2c63586c5c7f342732afc5da6cce4a75a1322cb05dc559ba320b65dabc222f3",
+    "inputsHash": "cd372a0a0556d134ca512975eb49f03726d3f0a28d34bd9090d33ff0622cfb8f",
     "modelHash": "5bb4b076a15c3044d258858947b1a6487ad91dc5718867ccec8bbf9daf170a85",
-    "reportSha256": "000d8fda125e18f9416fc18e9fb23176191236eba7542138a68e07debdef6980",
-    "documentSha256": "cd3eb0464eedded98769c7c5d8c210b8ec37cfc5987016f6ff3c44fbb46e372b",
-    "backtestsSha256": "ef04a1e3189ce27b338239f860ee42dfc0fb11974ecb777cea84550cdb21d3bf",
+    "reportSha256": "5ffd179b887388498e666dac1ad489e36250940244f9c167ec8c8ff1fc83ed40",
+    "documentSha256": "d87d2461649d483b477e72fbbd7bd061e95b4b46fcc68a796dfe460b82c6e308",
+    "backtestsSha256": "abeffd9687ae4468f62a7fd23b7adaa69f0524d55b48e480f452bfa0d879aa77",
     "hashEncoding": "source files: UTF-8 bytes; backtests: JSON.stringify/UTF-8; manifest: canonical JSON"
   },
   "model": {
@@ -491,37 +491,37 @@
         "rate": 0.7875
       },
       "metrics": {
-        "accuracy": 0.5714285714285714,
-        "brier": 0.5490210103757942,
-        "logLoss": 0.9314467697902175
+        "accuracy": 0.49206349206349204,
+        "brier": 0.5901113782465235,
+        "logLoss": 0.9888952833909188
       },
       "baseline": {
-        "accuracy": 0.5396825396825397,
-        "brier": 0.6128374193511624,
-        "logLoss": 1.019665329662241
+        "accuracy": 0.49206349206349204,
+        "brier": 0.6292904779268965,
+        "logLoss": 1.0435344087179563
       },
       "deltaVsBaseline": {
-        "accuracy": 0.031746031746031744,
-        "brier": -0.06381640897536822,
-        "logLoss": -0.08821855987202365
+        "accuracy": 0,
+        "brier": -0.03917909968037303,
+        "logLoss": -0.05463912532703752
       },
       "uncertainty": {
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.5490210103757942,
-          "lower": 0.4729254069869221,
-          "upper": 0.6251166137646663
+          "estimate": 0.5901113782465235,
+          "lower": 0.5127515220164478,
+          "upper": 0.6674712344765992
         },
         "logLoss": {
-          "estimate": 0.9314467697902175,
-          "lower": 0.8238544788971357,
-          "upper": 1.0390390606832993
+          "estimate": 0.9888952833909188,
+          "lower": 0.8795043510199598,
+          "upper": 1.0982862157618778
         },
         "pairedBrierDifference": {
-          "estimate": -0.06381640897536814,
-          "lower": -0.1172484869510212,
-          "upper": -0.010384330999715072
+          "estimate": -0.03917909968037319,
+          "lower": -0.09082422965590733,
+          "upper": 0.012466030295160947
         }
       },
       "reasons": [
@@ -529,13 +529,13 @@
         "UNCALIBRATED",
         "SMALL_SAMPLE"
       ],
-      "evaluationSetHash": "5181ce6293b33f71e8232adeba37d4630d0049b3af278deb87a101b74d600969",
-      "detailsHash": "4aca89f5a6b1df15319c99bb52e506e0d305cc35357aec2567dac073c664a264"
+      "evaluationSetHash": "d98409b24c4234912773fec69c96c33a71a2c7f3b8d367d1c2a36ada0b89e730",
+      "detailsHash": "1d527fa190202597b461a3ea8898214faf0510740a8f8df07d639a15bad669cd"
     },
     {
       "source": "openligadb",
       "league": "BL1",
-      "horizonHours": 6.662276111111111,
+      "horizonHours": 6.971359722222222,
       "purpose": "actual-publication-horizon",
       "visibility": "snapshot",
       "status": "evaluated-small-sample",
@@ -550,37 +550,37 @@
         "rate": 0.7875
       },
       "metrics": {
-        "accuracy": 0.5714285714285714,
-        "brier": 0.5490162746942759,
-        "logLoss": 0.9314375562890385
+        "accuracy": 0.49206349206349204,
+        "brier": 0.5901100925764918,
+        "logLoss": 0.9888913184236967
       },
       "baseline": {
-        "accuracy": 0.5396825396825397,
-        "brier": 0.6128374193511624,
-        "logLoss": 1.019665329662241
+        "accuracy": 0.49206349206349204,
+        "brier": 0.6292904779268965,
+        "logLoss": 1.0435344087179563
       },
       "deltaVsBaseline": {
-        "accuracy": 0.031746031746031744,
-        "brier": -0.06382114465688649,
-        "logLoss": -0.08822777337320264
+        "accuracy": 0,
+        "brier": -0.03918038535040469,
+        "logLoss": -0.05464309029425962
       },
       "uncertainty": {
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.5490162746942759,
-          "lower": 0.47290834818640626,
-          "upper": 0.6251242012021456
+          "estimate": 0.5901100925764918,
+          "lower": 0.512738016874329,
+          "upper": 0.6674821682786547
         },
         "logLoss": {
-          "estimate": 0.9314375562890385,
-          "lower": 0.8238273406700155,
-          "upper": 1.0390477719080613
+          "estimate": 0.9888913184236967,
+          "lower": 0.8794827635901715,
+          "upper": 1.098299873257222
         },
         "pairedBrierDifference": {
-          "estimate": -0.06382114465688637,
-          "lower": -0.11726932865670205,
-          "upper": -0.010372960657070704
+          "estimate": -0.039180385350404925,
+          "lower": -0.09084246972035377,
+          "upper": 0.012481699019543921
         }
       },
       "reasons": [
@@ -588,13 +588,13 @@
         "UNCALIBRATED",
         "SMALL_SAMPLE"
       ],
-      "evaluationSetHash": "5181ce6293b33f71e8232adeba37d4630d0049b3af278deb87a101b74d600969",
-      "detailsHash": "1d670578874ff94cc150a6f45b7c93cb18214df2b17b523f5e864d87da4f5c86"
+      "evaluationSetHash": "d98409b24c4234912773fec69c96c33a71a2c7f3b8d367d1c2a36ada0b89e730",
+      "detailsHash": "d8e89a7dae4d47152a3b9129809a7b1cf7aff541a2f0de39b2a58602b26faabb"
     },
     {
       "source": "openligadb",
       "league": "BL1",
-      "horizonHours": 9.662276111111112,
+      "horizonHours": 8.971359722222223,
       "purpose": "actual-publication-horizon",
       "visibility": "snapshot",
       "status": "evaluated-small-sample",
@@ -609,37 +609,37 @@
         "rate": 0.7875
       },
       "metrics": {
-        "accuracy": 0.5714285714285714,
-        "brier": 0.5490137702875452,
-        "logLoss": 0.9314326811539673
+        "accuracy": 0.49206349206349204,
+        "brier": 0.5901096641077576,
+        "logLoss": 0.9888899934433363
       },
       "baseline": {
-        "accuracy": 0.5396825396825397,
-        "brier": 0.6128374193511624,
-        "logLoss": 1.019665329662241
+        "accuracy": 0.49206349206349204,
+        "brier": 0.6292904779268965,
+        "logLoss": 1.0435344087179563
       },
       "deltaVsBaseline": {
-        "accuracy": 0.031746031746031744,
-        "brier": -0.06382364906361726,
-        "logLoss": -0.08823264850827384
+        "accuracy": 0,
+        "brier": -0.03918081381913896,
+        "logLoss": -0.05464441527462005
       },
       "uncertainty": {
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.5490137702875452,
-          "lower": 0.47289931502309446,
-          "upper": 0.6251282255519959
+          "estimate": 0.5901096641077576,
+          "lower": 0.5127334958659487,
+          "upper": 0.6674858323495664
         },
         "logLoss": {
-          "estimate": 0.9314326811539673,
-          "lower": 0.8238129685665357,
-          "upper": 1.039052393741399
+          "estimate": 0.9888899934433363,
+          "lower": 0.8794755362266864,
+          "upper": 1.0983044506599862
         },
         "pairedBrierDifference": {
-          "estimate": -0.06382364906361714,
-          "lower": -0.11728036527041828,
-          "upper": -0.010366932856815989
+          "estimate": -0.039180813819138974,
+          "lower": -0.09084857615503489,
+          "upper": 0.012486948516756934
         }
       },
       "reasons": [
@@ -647,8 +647,8 @@
         "UNCALIBRATED",
         "SMALL_SAMPLE"
       ],
-      "evaluationSetHash": "5181ce6293b33f71e8232adeba37d4630d0049b3af278deb87a101b74d600969",
-      "detailsHash": "3e8c580be3757863fac052535587f221237b71677ae7429edfc5d273d51c7d31"
+      "evaluationSetHash": "d98409b24c4234912773fec69c96c33a71a2c7f3b8d367d1c2a36ada0b89e730",
+      "detailsHash": "1e926aa259d632d0f06276fa5845b1d350d9f5eb8aff7f1d1287c6143b0bb00e"
     },
     {
       "source": "openligadb",
@@ -668,37 +668,37 @@
         "rate": 0.7875
       },
       "metrics": {
-        "accuracy": 0.5714285714285714,
-        "brier": 0.5488873121948155,
-        "logLoss": 0.9312652442923788
+        "accuracy": 0.49206349206349204,
+        "brier": 0.5899886064513272,
+        "logLoss": 0.9887268679164012
       },
       "baseline": {
-        "accuracy": 0.5396825396825397,
-        "brier": 0.6134098972602061,
-        "logLoss": 1.0204142332032164
+        "accuracy": 0.49206349206349204,
+        "brier": 0.6295544439083278,
+        "logLoss": 1.0438320998726243
       },
       "deltaVsBaseline": {
-        "accuracy": 0.031746031746031744,
-        "brier": -0.06452258506539066,
-        "logLoss": -0.08914898891083767
+        "accuracy": 0,
+        "brier": -0.0395658374570006,
+        "logLoss": -0.05510523195622308
       },
       "uncertainty": {
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.5488873121948155,
-          "lower": 0.4727127900689788,
-          "upper": 0.6250618343206521
+          "estimate": 0.5899886064513272,
+          "lower": 0.5125557108585478,
+          "upper": 0.6674215020441067
         },
         "logLoss": {
-          "estimate": 0.9312652442923788,
-          "lower": 0.8235581206666839,
-          "upper": 1.0389723679180738
+          "estimate": 0.9887268679164012,
+          "lower": 0.8792327997749394,
+          "upper": 1.098220936057863
         },
         "pairedBrierDifference": {
-          "estimate": -0.0645225850653908,
-          "lower": -0.11795425574072672,
-          "upper": -0.01109091439005487
+          "estimate": -0.0395658374570007,
+          "lower": -0.09123555128930202,
+          "upper": 0.012103876375300623
         }
       },
       "reasons": [
@@ -706,126 +706,8 @@
         "UNCALIBRATED",
         "SMALL_SAMPLE"
       ],
-      "evaluationSetHash": "5181ce6293b33f71e8232adeba37d4630d0049b3af278deb87a101b74d600969",
-      "detailsHash": "ccacb0e34ac3524b86a76341d80109a25119518de0fc419abdf46da21c059cb4"
-    },
-    {
-      "source": "openligadb",
-      "league": "BL1",
-      "horizonHours": 30.66227611111111,
-      "purpose": "actual-publication-horizon",
-      "visibility": "snapshot",
-      "status": "evaluated-small-sample",
-      "evaluated": 63,
-      "skipped": 17,
-      "interrupted": false,
-      "coverage": {
-        "eligible": 80,
-        "evaluated": 63,
-        "skipped": 17,
-        "pending": 0,
-        "rate": 0.7875
-      },
-      "metrics": {
-        "accuracy": 0.5714285714285714,
-        "brier": 0.5489112250789911,
-        "logLoss": 0.9312990067182939
-      },
-      "baseline": {
-        "accuracy": 0.5396825396825397,
-        "brier": 0.6132382227321288,
-        "logLoss": 1.0201982704721724
-      },
-      "deltaVsBaseline": {
-        "accuracy": 0.031746031746031744,
-        "brier": -0.06432699765313765,
-        "logLoss": -0.08889926375387847
-      },
-      "uncertainty": {
-        "method": "normal-approximation-mean-95pct",
-        "status": "approximate-small-sample",
-        "brier": {
-          "estimate": 0.5489112250789911,
-          "lower": 0.4727142769456521,
-          "upper": 0.6251081732123303
-        },
-        "logLoss": {
-          "estimate": 0.9312990067182939,
-          "lower": 0.8235590777235591,
-          "upper": 1.0390389357130287
-        },
-        "pairedBrierDifference": {
-          "estimate": -0.06432699765313767,
-          "lower": -0.11782733421830044,
-          "upper": -0.010826661087974886
-        }
-      },
-      "reasons": [
-        "RETROSPECTIVE_SNAPSHOT",
-        "UNCALIBRATED",
-        "SMALL_SAMPLE"
-      ],
-      "evaluationSetHash": "5181ce6293b33f71e8232adeba37d4630d0049b3af278deb87a101b74d600969",
-      "detailsHash": "d17ac1323bceaff8de9e52d317d965612cf8252d97c6593dcb9e5ef27604f404"
-    },
-    {
-      "source": "openligadb",
-      "league": "BL1",
-      "horizonHours": 32.66227611111111,
-      "purpose": "actual-publication-horizon",
-      "visibility": "snapshot",
-      "status": "evaluated-small-sample",
-      "evaluated": 63,
-      "skipped": 17,
-      "interrupted": false,
-      "coverage": {
-        "eligible": 80,
-        "evaluated": 63,
-        "skipped": 17,
-        "pending": 0,
-        "rate": 0.7875
-      },
-      "metrics": {
-        "accuracy": 0.5714285714285714,
-        "brier": 0.5489094950946175,
-        "logLoss": 0.9312956864200364
-      },
-      "baseline": {
-        "accuracy": 0.5396825396825397,
-        "brier": 0.6132382227321288,
-        "logLoss": 1.0201982704721724
-      },
-      "deltaVsBaseline": {
-        "accuracy": 0.031746031746031744,
-        "brier": -0.0643287276375113,
-        "logLoss": -0.08890258405213602
-      },
-      "uncertainty": {
-        "method": "normal-approximation-mean-95pct",
-        "status": "approximate-small-sample",
-        "brier": {
-          "estimate": 0.5489094950946175,
-          "lower": 0.4727081712461008,
-          "upper": 0.6251108189431342
-        },
-        "logLoss": {
-          "estimate": 0.9312956864200364,
-          "lower": 0.8235493860042491,
-          "upper": 1.0390419868358236
-        },
-        "pairedBrierDifference": {
-          "estimate": -0.06432872763751137,
-          "lower": -0.1178347225166861,
-          "upper": -0.010822732758336631
-        }
-      },
-      "reasons": [
-        "RETROSPECTIVE_SNAPSHOT",
-        "UNCALIBRATED",
-        "SMALL_SAMPLE"
-      ],
-      "evaluationSetHash": "5181ce6293b33f71e8232adeba37d4630d0049b3af278deb87a101b74d600969",
-      "detailsHash": "40994a32db760a0db4ee069ae060ea48050395492048dea6f5b6a1a78e87afd1"
+      "evaluationSetHash": "d98409b24c4234912773fec69c96c33a71a2c7f3b8d367d1c2a36ada0b89e730",
+      "detailsHash": "106474ec018209deb12ce7135faa2dbfa426413de72470ed5f0aa5f16096f2d5"
     },
     {
       "source": "openligadb",
@@ -845,37 +727,37 @@
         "rate": 0.7875
       },
       "metrics": {
-        "accuracy": 0.5714285714285714,
-        "brier": 0.5488751996921185,
-        "logLoss": 0.9312290891277841
+        "accuracy": 0.49206349206349204,
+        "brier": 0.5900034436087518,
+        "logLoss": 0.9887334835987652
       },
       "baseline": {
-        "accuracy": 0.5396825396825397,
-        "brier": 0.6131818378813068,
-        "logLoss": 1.0201552801985596
+        "accuracy": 0.49206349206349204,
+        "brier": 0.62931640644246,
+        "logLoss": 1.0435555738607352
       },
       "deltaVsBaseline": {
-        "accuracy": 0.031746031746031744,
-        "brier": -0.06430663818918825,
-        "logLoss": -0.08892619107077548
+        "accuracy": 0,
+        "brier": -0.03931296283370822,
+        "logLoss": -0.054822090261969936
       },
       "uncertainty": {
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.5488751996921185,
-          "lower": 0.4725727986366818,
-          "upper": 0.6251776007475552
+          "estimate": 0.5900034436087518,
+          "lower": 0.5124533623305202,
+          "upper": 0.6675535248869834
         },
         "logLoss": {
-          "estimate": 0.9312290891277841,
-          "lower": 0.823338680482923,
-          "upper": 1.0391194977726452
+          "estimate": 0.9887334835987652,
+          "lower": 0.8790721534636525,
+          "upper": 1.098394813733878
         },
         "pairedBrierDifference": {
-          "estimate": -0.06430663818918841,
-          "lower": -0.11799308549002233,
-          "upper": -0.010620190888354496
+          "estimate": -0.03931296283370849,
+          "lower": -0.09121553532257637,
+          "upper": 0.012589609655159387
         }
       },
       "reasons": [
@@ -883,13 +765,13 @@
         "UNCALIBRATED",
         "SMALL_SAMPLE"
       ],
-      "evaluationSetHash": "5181ce6293b33f71e8232adeba37d4630d0049b3af278deb87a101b74d600969",
-      "detailsHash": "b35b61b594026b39ac9ae5c20c85e300f7cc8dd4f86023dc194bb8bb188e9fd2"
+      "evaluationSetHash": "d98409b24c4234912773fec69c96c33a71a2c7f3b8d367d1c2a36ada0b89e730",
+      "detailsHash": "043126ef3b3aab9e9f317e6e122aa6e66d905c33d9a80b92b8ec8651c304a288"
     },
     {
       "source": "openligadb",
       "league": "BL1",
-      "horizonHours": 155.6622761111111,
+      "horizonHours": 131.97135972222222,
       "purpose": "actual-publication-horizon",
       "visibility": "snapshot",
       "status": "evaluated-small-sample",
@@ -904,37 +786,37 @@
         "rate": 0.7875
       },
       "metrics": {
-        "accuracy": 0.5873015873015873,
-        "brier": 0.5487313123099089,
-        "logLoss": 0.93099920201358
+        "accuracy": 0.49206349206349204,
+        "brier": 0.589962142868165,
+        "logLoss": 0.988645858653591
       },
       "baseline": {
-        "accuracy": 0.5396825396825397,
-        "brier": 0.6135072901980607,
-        "logLoss": 1.020518864731043
+        "accuracy": 0.49206349206349204,
+        "brier": 0.6295327099475728,
+        "logLoss": 1.0438681431646386
       },
       "deltaVsBaseline": {
-        "accuracy": 0.04761904761904767,
-        "brier": -0.06477597788815181,
-        "logLoss": -0.08951966271746303
+        "accuracy": 0,
+        "brier": -0.03957056707940787,
+        "logLoss": -0.055222284511047603
       },
       "uncertainty": {
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.5487313123099089,
-          "lower": 0.47225252374048315,
-          "upper": 0.6252101008793346
+          "estimate": 0.589962142868165,
+          "lower": 0.5122838085393546,
+          "upper": 0.6676404771969753
         },
         "logLoss": {
-          "estimate": 0.93099920201358,
-          "lower": 0.8228351242048837,
-          "upper": 1.0391632798222763
+          "estimate": 0.988645858653591,
+          "lower": 0.8787983830943137,
+          "upper": 1.0984933342128684
         },
         "pairedBrierDifference": {
-          "estimate": -0.06477597788815158,
-          "lower": -0.11896111612809523,
-          "upper": -0.010590839648207923
+          "estimate": -0.03957056707940775,
+          "lower": -0.0916500919180711,
+          "upper": 0.01250895775925559
         }
       },
       "reasons": [
@@ -942,8 +824,126 @@
         "UNCALIBRATED",
         "SMALL_SAMPLE"
       ],
-      "evaluationSetHash": "5181ce6293b33f71e8232adeba37d4630d0049b3af278deb87a101b74d600969",
-      "detailsHash": "cf59c0d53e1cb48eb02cc1e1a68c28bf8e95807f29086a5d423e95e69f5156eb"
+      "evaluationSetHash": "d98409b24c4234912773fec69c96c33a71a2c7f3b8d367d1c2a36ada0b89e730",
+      "detailsHash": "43b23acf37f35121bb4a6a8a034b9a87f3c43033676ffa361b3ab7182e5e6818"
+    },
+    {
+      "source": "openligadb",
+      "league": "BL1",
+      "horizonHours": 150.97135972222222,
+      "purpose": "actual-publication-horizon",
+      "visibility": "snapshot",
+      "status": "evaluated-small-sample",
+      "evaluated": 63,
+      "skipped": 17,
+      "interrupted": false,
+      "coverage": {
+        "eligible": 80,
+        "evaluated": 63,
+        "skipped": 17,
+        "pending": 0,
+        "rate": 0.7875
+      },
+      "metrics": {
+        "accuracy": 0.5079365079365079,
+        "brier": 0.5898763969006232,
+        "logLoss": 0.9885328102827637
+      },
+      "baseline": {
+        "accuracy": 0.49206349206349204,
+        "brier": 0.6297093267999786,
+        "logLoss": 1.0440153597106554
+      },
+      "deltaVsBaseline": {
+        "accuracy": 0.015873015873015872,
+        "brier": -0.039832929899355385,
+        "logLoss": -0.05548254942789166
+      },
+      "uncertainty": {
+        "method": "normal-approximation-mean-95pct",
+        "status": "approximate-small-sample",
+        "brier": {
+          "estimate": 0.5898763969006232,
+          "lower": 0.5121586083970798,
+          "upper": 0.6675941854041666
+        },
+        "logLoss": {
+          "estimate": 0.9885328102827637,
+          "lower": 0.8786123344667405,
+          "upper": 1.098453286098787
+        },
+        "pairedBrierDifference": {
+          "estimate": -0.03983292989935537,
+          "lower": -0.0922438557119988,
+          "upper": 0.012577995913288072
+        }
+      },
+      "reasons": [
+        "RETROSPECTIVE_SNAPSHOT",
+        "UNCALIBRATED",
+        "SMALL_SAMPLE"
+      ],
+      "evaluationSetHash": "d98409b24c4234912773fec69c96c33a71a2c7f3b8d367d1c2a36ada0b89e730",
+      "detailsHash": "4cb7da801bd9f1c5513c475a544a8b227ae58e15573a8ee362418444f8bd645b"
+    },
+    {
+      "source": "openligadb",
+      "league": "BL1",
+      "horizonHours": 153.97135972222222,
+      "purpose": "actual-publication-horizon",
+      "visibility": "snapshot",
+      "status": "evaluated-small-sample",
+      "evaluated": 63,
+      "skipped": 17,
+      "interrupted": false,
+      "coverage": {
+        "eligible": 80,
+        "evaluated": 63,
+        "skipped": 17,
+        "pending": 0,
+        "rate": 0.7875
+      },
+      "metrics": {
+        "accuracy": 0.5079365079365079,
+        "brier": 0.5898756792248037,
+        "logLoss": 0.9885307696321025
+      },
+      "baseline": {
+        "accuracy": 0.49206349206349204,
+        "brier": 0.6297093267999786,
+        "logLoss": 1.0440153597106554
+      },
+      "deltaVsBaseline": {
+        "accuracy": 0.015873015873015872,
+        "brier": -0.039833647575174935,
+        "logLoss": -0.05548459007855289
+      },
+      "uncertainty": {
+        "method": "normal-approximation-mean-95pct",
+        "status": "approximate-small-sample",
+        "brier": {
+          "estimate": 0.5898756792248037,
+          "lower": 0.5121516871767287,
+          "upper": 0.6675996712728787
+        },
+        "logLoss": {
+          "estimate": 0.9885307696321025,
+          "lower": 0.8786013013507774,
+          "upper": 1.0984602379134276
+        },
+        "pairedBrierDifference": {
+          "estimate": -0.03983364757517476,
+          "lower": -0.09225302991092238,
+          "upper": 0.012585734760572849
+        }
+      },
+      "reasons": [
+        "RETROSPECTIVE_SNAPSHOT",
+        "UNCALIBRATED",
+        "SMALL_SAMPLE"
+      ],
+      "evaluationSetHash": "d98409b24c4234912773fec69c96c33a71a2c7f3b8d367d1c2a36ada0b89e730",
+      "detailsHash": "4e3b102178da5fa124a2e27c7d8cfaf4ccf9ba63c1df0273312c5fc87c6d5e3d"
     },
     {
       "source": "openligadb",
@@ -963,37 +963,37 @@
         "rate": 0.75
       },
       "metrics": {
-        "accuracy": 0.5833333333333334,
-        "brier": 0.55071438113984,
-        "logLoss": 0.9327146234144266
+        "accuracy": 0.5,
+        "brier": 0.5942033836938198,
+        "logLoss": 0.9935120896917035
       },
       "baseline": {
-        "accuracy": 0.5333333333333333,
-        "brier": 0.6133402775095648,
-        "logLoss": 1.0196223307840417
+        "accuracy": 0.48333333333333334,
+        "brier": 0.6305952759589536,
+        "logLoss": 1.0446632843139447
       },
       "deltaVsBaseline": {
-        "accuracy": 0.050000000000000044,
-        "brier": -0.06262589636972482,
-        "logLoss": -0.08690770736961517
+        "accuracy": 0.016666666666666663,
+        "brier": -0.03639189226513384,
+        "logLoss": -0.05115119462224127
       },
       "uncertainty": {
         "method": "normal-approximation-mean-95pct",
         "status": "approximate-small-sample",
         "brier": {
-          "estimate": 0.55071438113984,
-          "lower": 0.47232317751743125,
-          "upper": 0.6291055847622486
+          "estimate": 0.5942033836938198,
+          "lower": 0.5146070226160337,
+          "upper": 0.6737997447716058
         },
         "logLoss": {
-          "estimate": 0.9327146234144266,
-          "lower": 0.8219935483610888,
-          "upper": 1.0434356984677642
+          "estimate": 0.9935120896917035,
+          "lower": 0.8810544181342248,
+          "upper": 1.1059697612491821
         },
         "pairedBrierDifference": {
-          "estimate": -0.06262589636972453,
-          "lower": -0.11871374181187813,
-          "upper": -0.006538050927570933
+          "estimate": -0.03639189226513381,
+          "lower": -0.09050313319885674,
+          "upper": 0.01771934866858911
         }
       },
       "reasons": [
@@ -1001,8 +1001,8 @@
         "UNCALIBRATED",
         "SMALL_SAMPLE"
       ],
-      "evaluationSetHash": "73dd69879a98e81068737959203b2b0b4210f98cec87cd4363dc1574a12ca0d7",
-      "detailsHash": "244bebf2eedf5ad9a01dab8715357d6ff1c7f3407ceb63cb9283aa9ac4232679"
+      "evaluationSetHash": "67c1a4b39922f1f570e065073775fc2d0de0885f4e2fce5148b5cffbeb5e2f7c",
+      "detailsHash": "c8a2f61312ca76da8988ec290bf74c58ae428bff137c1e50cd3abd96ffedc3bb"
     },
     {
       "source": "thesportsdb-free",
@@ -1150,13 +1150,13 @@
     }
   ],
   "prospective": {
-    "asOf": "2026-10-31T09:10:01.404Z",
+    "asOf": "2026-11-01T07:44:12.312Z",
     "status": "NO_SETTLED_PROSPECTIVE_SAMPLES",
     "evaluated": 0,
     "horizonHours": 1,
     "toleranceHours": 1,
     "minimumPerLeague": 200,
-    "ledgerSnapshotHash": "175c0b30aaace7797cab3f467a07693fc2efb3564df778b5861f17350082c40b",
+    "ledgerSnapshotHash": "b8eebce6aa487bb5a09387b71edd007f538d2480972d180499d7aba759a44d24",
     "leagues": [
       {
         "league": "PL",
@@ -1190,8 +1190,8 @@
         "source": "openligadb",
         "evaluated": 0,
         "minimumSampleGap": 200,
-        "registeredUnsettledMatches": 9,
-        "legacyOrInvalidFreezeRecords": 9,
+        "registeredUnsettledMatches": 8,
+        "legacyOrInvalidFreezeRecords": 0,
         "releaseGate": "BLOCKED"
       },
       {

@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "kind": "model-experiment-evidence",
+  "historicalOnly": true,
+  "releaseGate": "BLOCKED",
+  "calibrated": false,
+  "independentEvidence": false,
+  "generatedAt": "2026-10-31T10:11:44.696Z",
+  "protocolCreatedAt": "2026-10-31T10:11:29.548Z",
+  "dataAsOf": "2026-10-31T10:05:56.989Z",
+  "scope": {
+    "source": "openligadb",
+    "league": "BL1",
+    "horizonHours": 24
+  },
+  "binding": {
+    "protocolHash": "811c5722663d39fbca163f82fdf7a962a3e3bc8c9582535205b0cc39c8e84595",
+    "protocolFileSha256": "1bb95712c37b22c8cc835aa99fb188bb1251ce3d780bb5e8487fca0891f42878",
+    "resultFileSha256": "71c9ec6268b44ff3a977384c7396146ea0e1b2a6b1c13407c27082e26989e08f",
+    "rawInputSha256": "e4f89bb9981180141b8ea3a03ece15086b603322847b3c1fada0c68b303b3ec7",
+    "normalizedHistoryHash": "586bfe670497cb279d0438fb8d482f48c5435dadbd58ab1401c63088266f0ad5",
+    "experimentCodeHash": "1b4a43bd1a2704e361724f22edba29992689bf155858225caec887d16ae3a53e",
+    "baselineModelHash": "5bb4b076a15c3044d258858947b1a6487ad91dc5718867ccec8bbf9daf170a85"
+  },
+  "samples": {
+    "input": 982,
+    "warmup": 392,
+    "calibration": {
+      "eligible": 391,
+      "evaluated": 383,
+      "skipped": 8
+    },
+    "holdout": {
+      "eligible": 199,
+      "evaluated": 182,
+      "skipped": 17,
+      "rate": 0.914572864321608
+    },
+    "asObserved": {
+      "calibration": 0,
+      "holdout": 0
+    }
+  },
+  "models": {
+    "baseline": {
+      "id": "venue-poisson-v2",
+      "version": 2
+    },
+    "candidate": {
+      "id": "poisson-temperature-v1",
+      "temperature": 1.099683781628073,
+      "inverseTemperature": 0.909352321736989
+    }
+  },
+  "holdout": {
+    "baseline": {
+      "accuracy": 0.532967032967033,
+      "brier": 0.5870966384997718,
+      "logLoss": 0.9870741508446854,
+      "macroECE": 0.039650434747900885
+    },
+    "candidate": {
+      "accuracy": 0.532967032967033,
+      "brier": 0.588516317635877,
+      "logLoss": 0.989021812622416,
+      "macroECE": 0.03842170299771142
+    },
+    "candidateMinusBaseline": {
+      "accuracy": 0,
+      "brier": 0.0014196791361051897,
+      "logLoss": 0.001947661777730536,
+      "macroECE": -0.001228731750189463
+    },
+    "pairedIntervals": {
+      "brier": {
+        "estimate": 0.0014196791361050845,
+        "lower": -0.002238712462550066,
+        "upper": 0.004736562803162819
+      },
+      "logLoss": {
+        "estimate": 0.0019476617777305723,
+        "lower": -0.003699498415005648,
+        "upper": 0.0068323162421074475
+      }
+    },
+    "uncertainty": {
+      "method": "paired-UTC-week-cluster-percentile-bootstrap",
+      "blocks": 23,
+      "replicates": 2000,
+      "confidenceLevel": 0.95
+    }
+  },
+  "decision": {
+    "status": "NOT_ADOPTED",
+    "candidateAdopted": false,
+    "retainedModel": "venue-poisson-v2",
+    "reasons": [
+      "NO_PROPER_SCORE_IMPROVEMENT",
+      "NO_INDEPENDENT_CONFIRMATION",
+      "FORMAL_RELEASE_BLOCKED"
+    ]
+  },
+  "limitations": [
+    "982是历史输入数量，不是留出评估样本；各阶段不可相加作为独立验证。",
+    "182/199表示预先固定的199场留出中182场可评估、17场因缺项排除；当前赛事预测不在此资产中。",
+    "这是已修订历史快照；本次获取时间不能证明过去的数据可见性，严格asObserved校准0场、留出0场。",
+    "留出历史此前已被查看，结果不是独立确认；首次结果完整保留，没有根据留出成绩重复调参。",
+    "温度缩放保留方向排序，不能提升argmax方向命中率；ECE略降不等于已校准。",
+    "差值为候选减基线，Brier和Log loss负值才较好；近似区间不能消除跨周球队相关或跨赛季变化。"
+  ]
+}

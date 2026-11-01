@@ -7,16 +7,24 @@ import { runOrchestration, parseOrchestrationArgs } from '../orchestrate.mjs';
 import { runHosted, allowedStatePath, createStateSession } from '../hosted.mjs';
 import { readPredictionLedger } from '../prediction-ledger.mjs';
 import { requireGreenForecastDelivery } from '../publication-release-gate.mjs';
+import { createArchiveShard } from '../state-archive.mjs';
 
 const NOW = Date.parse('2026-10-31T04:00:00.000Z'), at = offset => new Date(NOW + offset).toISOString();
 async function workspace(t) { const dir = await mkdtemp(join(tmpdir(), 'private-research-')); t.after(() => rm(dir, { recursive: true, force: true })); return dir; }
 function backend() {
-  let state = null; const paths = [];
+  let state = null; const paths = [], objects = new Map();
   return { paths, get state() { return state; }, async request(path, { method = 'GET', body } = {}) {
-    paths.push(path); assert.equal(path, '/internal/state', 'Private research can only call durable state, never publications or notifications');
+    paths.push(path);
+    if (/^\/internal\/state\/objects\/[a-f0-9]{64}\/[a-f0-9]{64}$/.test(path)) {
+      if (method === 'GET') return structuredClone(objects.get(path));
+      const shard = createArchiveShard(body.epoch, body.files); assert.equal(path.split('/').at(-1), shard.descriptor.sha256);
+      objects.set(path, structuredClone(body)); return { version: 1, epoch: body.epoch, ...shard.descriptor };
+    }
+    assert.equal(path, '/internal/state', 'Private research can only call durable state, never publications or notifications');
     if (method === 'GET') return structuredClone(state);
     assert.equal(method, 'PUT'); assert.equal(body.expectedRevision, state?.revision || 0);
-    state = { revision: body.expectedRevision + 1, files: structuredClone(body.files) }; return { revision: state.revision };
+    state = { revision: body.expectedRevision + 1, files: structuredClone(body.files),
+      ...(body.version === 2 ? { version: 2, archive: structuredClone(body.archive) } : {}) }; return { revision: state.revision };
   } };
 }
 function source(clock, settled = false) {

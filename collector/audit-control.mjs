@@ -93,12 +93,12 @@ function assessResult(spec, result) {
 const roleDefinitions = [
   ['A1', '总控', '合同、分环节审计、证据归属与发布门槛', null, '核对各环节失败与缺口；保持 RELEASE_GATE=BLOCKED，完成独立验收后再另行评审。'],
   ['A2', '数据来源', '来源授权、覆盖、冷却、时效及采集边界', 'source-readiness', '按来源和联赛补齐真实可用证据；授权、赛程覆盖和盘口可用性分别验收。'],
-  ['A3', '数据与持久状态', '规范赛事身份、修订、历史、回放及账本容量', 'state-capacity', '先验证独立归档与恢复，再迁移热状态；保留未评分预测及其机会记录。'],
+  ['A3', '数据与溯源', '规范赛事身份、修订、历史及可取回的冻结输入', null, '另行核验身份映射、输入摘要、时间可见性与原始数据可取回性；容量由A7核验。'],
   ['A4', '模型', '固定提前量、冻结预测、前瞻评分、校准与基准比较', 'model-readiness', '按同源同联赛固定24小时窗口积累可验证前瞻样本，补齐输入可见性、校准与冻结基准证据。'],
   ['A5', '盘口', '最新盘口状态、独立来源、赛事修订绑定及真实初盘', 'market-readiness', '逐场核验同一盘口的独立来源、时效和真实初盘；未知或缺失证据继续阻断。'],
-  ['A6', '交付', '同一报告发布、网站回读、通知防重及回执', null, '另行执行交付故障演练与同reportId回读核验；本工具不发送或发布。'],
-  ['A7', '运行保障', '调度、持久化、恢复、容量及运行身份', null, '另行核验真实部署、调度间隔、恢复演练与运行身份；本工具不证明线上运行状态。'],
-  ['A8', '网站', '展示校验、过期状态、刷新失败及浏览器验收', null, '另行执行浏览器、鉴权和last-good验收；本工具不代替网站测试。'],
+  ['A6', '产品与交付', '中文Web和Telegram、同一报告展示、通知防重及回执', null, '另行执行手机/桌面、交付故障与同reportId回读验收；本工具不发送或发布。'],
+  ['A7', '运行保障', '调度、持久化、恢复、容量及运行身份', 'state-capacity', '容量证据只对应指定状态根；另行核验真实部署、调度、重启与回滚，不据此声称线上通过。'],
+  ['A8', '独立质量与安全', '独立复算、回归、安全及商业验收，不验收自己的关键实现', null, '独立核验数据/模型/版本与完整交付；四项离线工具不替代完整质量验收。'],
 ];
 function rolesFor(checks) {
   return roleDefinitions.map(([id, name, responsibility, tool, nextStep]) => {
@@ -140,7 +140,7 @@ export async function runAuditControl(options, { runTool = executeAuditTool, clo
     mode: 'offline-read-only', inputs: { reportDir: paths.reportDir, stateRoot: paths.stateRoot, ledgerDir: join(paths.reportDir, 'forecast-ledger') },
     summary: { tools: checks.length, completed: checks.filter(row => row.executionStatus === 'completed').length,
       failed: checks.filter(row => row.executionStatus === 'failed').length }, checks, roles: rolesFor(checks),
-    limitations: ['Subprocess completion never means release readiness.', 'A6, A7 and A8 require separate delivery, operations and browser evidence.',
+    limitations: ['Subprocess completion never means release readiness.', 'A3, A6 and A8 require separate provenance, delivery and independent acceptance evidence; A7 capacity evidence is not operational acceptance.',
       'Each source retains its own report/cohort scope; metrics from separate pipelines are not summed.'] };
   await writeFile(join(paths.outDir, 'audit-control.json'), `${JSON.stringify(audit, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
   await writeFile(join(paths.outDir, 'progress.md'), progressMarkdown(audit), { flag: 'wx', mode: 0o600 });

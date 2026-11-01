@@ -106,3 +106,16 @@ test('unrecognized diagnostic text and configuration extras are never echoed', (
   const audit = auditSourceReadiness(input);
   assert.ok(!JSON.stringify(audit).includes('synthetic-secret'));
 });
+
+test('Macau production origin evidence never asserts quote coverage, current licensing or a live source from registration', () => {
+  const input = example();
+  input.report.diagnostics.push({ id: 'macauslot', status: 'pending', code: 'incomplete_market', httpStatus: 200, checkedAt: NOW });
+  const source = auditSourceReadiness(input).sources.find(row => row.id === 'macauslot');
+  assert.equal(source.network.status, 'responded');
+  assert.ok(source.network.codes.includes('incomplete_market'));
+  assert.equal(source.productionOrigin.group, 'macauslot-official');
+  assert.equal(source.productionOrigin.evidence[0].documentDate, '2019-07-23');
+  assert.equal(source.authorization.verifiedGrant, null);
+  assert.equal(source.authorization.redistributionRights, 'not-established-by-this-audit');
+  assert.ok(source.leagues.every(row => row.quotes.retainedPairedCount === 0));
+});

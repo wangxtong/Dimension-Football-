@@ -1,14 +1,16 @@
 import {fetchMarketSourceAudit} from './market-sources.mjs';
 import {fetchPredictionSignals} from './signals.mjs';
-import {withPublicCrawler} from './crawler.mjs';
+import {withPublicCrawler, CRAWLER_CODES} from './crawler.mjs';
 import {collectProviderEvidence} from './providers.mjs';
 import {fetchHkjcEvidence} from './hkjc.mjs';
+import {fetchMacauslotEvidence} from './macauslot.mjs';
 
 export {fetchFootballFixtures, fixtureLeagues} from './fixtures.mjs';
 export {fetchApiFootballFixtures, apiFootballLeagues} from './api-football.mjs';
 
 export const sourceCapabilities = Object.freeze({
   hkjc: '香港赛马会官方公开 HDC 全场两方盘口；第一方现售快照，独立于 Titan007 转发渠道。保留官方池 updateAt 与当前响应时点，不生成初盘。',
+  macauslot: 'Macau SLOT 官方资讯站赛前全场亚洲盘；来源更新时间仅取真实响应 Last-Modified，独立生产渠道登记不等于商业授权；无真实初盘则保留缺项。',
   titan007: '读取球探公开 M88、12Bet、SBOBET 的赛前全场亚洲盘。三家公司共享球探采集渠道，独立来源组均为 titan007；不含皇冠。',
   statarea: '读取公开页面的五大联赛赛前 1X2 模型概率，仅覆盖已发布的当日至未来 3 天页面；不是亚洲盘赢盘概率。',
   tiantian: '仅监测天天盈球公开免费赛前列表；具体预测格式未核验，不生成预测信号。',
@@ -57,12 +59,32 @@ export async function collectPublicEvidence({fixtures = [], nowISO = new Date().
     fixtureDiagnostics: markets.fixtureDiagnostics};
 }
 
-export async function collectCrawledEvidence({fixtures, nowISO, ...crawlerOptions}) {
+export async function collectCrawledEvidence({fixtures, nowISO, includeMacauslot = false, ...crawlerOptions}) {
   const {result, crawler} = await withPublicCrawler(crawlerOptions,
-    fetchImpl => collectPublicEvidence({fixtures, nowISO, fetchImpl}));
+    async fetchImpl => {
+      if (!includeMacauslot) return collectPublicEvidence({fixtures, nowISO, fetchImpl});
+      // Both public lanes share one robots policy, per-origin queues and total
+      // request budget. The adapter never receives an unrestricted transport.
+      const macauFetch = (url, init) => fetchImpl(url, init);
+      macauFetch.timeoutMs = 30_000; // Includes 10s robots pacing + a bounded 12s response.
+      const outcomes = await Promise.allSettled([
+        collectPublicEvidence({ fixtures, nowISO, fetchImpl }),
+        fetchMacauslotEvidence({ fixtures, nowISO, fetchImpl: macauFetch,
+          clock: crawlerOptions.clock, signal: crawlerOptions.signal, remaining: crawlerOptions.remaining,
+          cooldownStatePath: crawlerOptions.statePath ? `${crawlerOptions.statePath}.macauslot-cooldown.json` : undefined }),
+      ]);
+      const data = outcomes.map((row, index) => row.status === 'fulfilled' ? row.value
+        : { quotes: [], signals: [], diagnostics: [{ id: index ? 'macauslot' : 'public-crawler', status: 'failed',
+          code: CRAWLER_CODES.has(row.reason?.code) ? row.reason.code
+            : ['SOURCE_COOLDOWN_INVALID', 'SOURCE_COOLDOWN_UNREADABLE', 'COLLECTION_ALREADY_LOCKED'].includes(row.reason?.message)
+              ? row.reason.message : 'COLLECTION_FAILED', checkedAt: nowISO }] });
+      return { quotes: data.flatMap(row => row.quotes || []), signals: data.flatMap(row => row.signals || []),
+        marketStates: data.flatMap(row => row.marketStates || []), diagnostics: data.flatMap(row => row.diagnostics || []),
+        fixtureDiagnostics: data.flatMap(row => row.fixtureDiagnostics || []) };
+    });
   const formatCodes = new Set(['invalid_schedule', 'invalid_snapshot', 'prediction_format_not_verified', 'stale_page']);
-  crawler.parserIssues = result.diagnostics.filter(row => formatCodes.has(row.note))
-    .map(row => ({sourceId: row.sourceId || row.id, code: row.note}));
+  crawler.parserIssues = result.diagnostics.filter(row => formatCodes.has(row.code || row.note))
+    .map(row => ({sourceId: row.sourceId || row.id, code: row.code || row.note}));
   return {...result, crawler};
 }
 
@@ -71,7 +93,7 @@ export async function collectCrawledEvidence({fixtures, nowISO, ...crawlerOption
  */
 export async function collectIntegratedEvidence({ fixtures, nowISO, env, providerStatePath, providerPolicy, ...crawlerOptions }) {
   const results = await Promise.allSettled([
-    collectCrawledEvidence({ fixtures, nowISO, ...crawlerOptions }),
+    collectCrawledEvidence({ fixtures, nowISO, ...crawlerOptions, includeMacauslot: true }),
     collectProviderEvidence({ fixtures, nowISO, env, statePath: providerStatePath, policy: providerPolicy,
       fetchImpl: crawlerOptions.fetchImpl, signal: crawlerOptions.signal, clock: crawlerOptions.clock, remaining: crawlerOptions.remaining }),
     fetchHkjcEvidence({ fixtures, nowISO, cooldownStatePath: crawlerOptions.statePath ? `${crawlerOptions.statePath}.hkjc-cooldown.json` : undefined,
@@ -84,5 +106,5 @@ export async function collectIntegratedEvidence({ fixtures, nowISO, env, provide
         'SOURCE_COOLDOWN_INVALID', 'SOURCE_COOLDOWN_UNREADABLE', 'COLLECTION_ALREADY_LOCKED'].includes(r.reason?.message)
         ? r.reason.message : 'COLLECTION_FAILED', checkedAt: nowISO }] });
   return { quotes: data.flatMap(r => r.quotes), marketStates: data.flatMap(r => r.marketStates || []), signals: data.flatMap(r => r.signals), diagnostics: data.flatMap(r => r.diagnostics),
-    fixtureDiagnostics: [...(data[0].fixtureDiagnostics || []), ...(data[2].fixtureDiagnostics || [])], crawler: data[0].crawler || null, providers: data[1].providers || null };
+    fixtureDiagnostics: data.flatMap(row => row.fixtureDiagnostics || []), crawler: data[0].crawler || null, providers: data[1].providers || null };
 }
