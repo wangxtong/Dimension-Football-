@@ -63,7 +63,9 @@ jobs:
         if: always() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_TELEGRAM_ENABLED == 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 群 ID 不是凭据（发消息仍需 bot token），放仓库变量便于审计与快速修正；
+          # 之前 Secrets 里的值与真实群不匹配，Telegram 返回 400 chat not found。
+          TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID || secrets.TELEGRAM_CHAT_ID }}
         run: node collector/publish-research-telegram.mjs --root "$RUNNER_TEMP/dimension-live"
       - name: 北京时间 09 点后核验并发送当天赛事与数据状态日报
         if: success() && env.HOSTED_MODE == 'observations'
