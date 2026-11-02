@@ -173,6 +173,19 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
         const value = await readJson(resolve(cwd, env.HISTORY_FILE)); imported = Array.isArray(value) ? value : value?.history;
         if (!Array.isArray(imported)) throw new Error('INVALID_HISTORY_FILE');
       }
+      // fetchPublicResults 只产出 openligadb(BL1) 结果；而真实冻结预测大多来自
+      // football-data.org（source 不同即永不结算）。这里用同一 football-data 账号
+      // 补同源结果，否则命中率/Brier/LogLoss 永远不会累计。
+      const resultsKey = [env.FOOTBALL_DATA_API_KEY, env.FOOTBALL_DATA_API_TOKEN]
+        .find(value => typeof value === 'string' && value.trim());
+      if (resultsKey) {
+        try {
+          const observedAt = new Date(clock()).toISOString();
+          const fd = await dep.collectHistory({ apiKey: resultsKey.trim(), nowISO: clock(),
+            fetchImpl, signal, timeoutMs: 12_000, days: 7 });
+          for (const row of fd?.history || []) imported.push({ ...row, resultObservedAt: observedAt, fetchedAt: observedAt });
+        } catch { /* 同源结果补齐失败时仍按既有 openligadb 流程结算 */ }
+      }
       const clean = mergedHistory(previous, [...publicResults.history, ...imported]), directory = resolve(out, 'forecast-ledger');
       let recorded = 0, scored = 0, skipped = clean.rejected + clean.logicalConflicts;
       for (const result of clean.matches) {
