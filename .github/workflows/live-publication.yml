@@ -55,8 +55,11 @@ jobs:
         # 没有 football-data 凭据时采集会退化成 openligadb + thesportsdb 免费样本，
         # 而研究冻结与结算都以 football-data 同源为准；缺这个 env 等于整条研究链路空转。
         env:
-          FOOTBALL_DATA_API_TOKEN: ${{ secrets.FOOTBALL_DATA_API_TOKEN }}
-          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+          # 优先仓库变量：本仓库的 Secrets 里没有 football-data 令牌，导致研究轨道
+          # 一直退化成 openligadb+thesportsdb 免费样本、冻结不出 football-data 场次。
+          # 恢复 Secrets 后可直接删掉变量，表达式无需再改。
+          FOOTBALL_DATA_API_TOKEN: ${{ vars.FOOTBALL_DATA_API_TOKEN || secrets.FOOTBALL_DATA_API_TOKEN }}
+          FOOTBALL_DATA_API_KEY: ${{ vars.FOOTBALL_DATA_API_KEY || secrets.FOOTBALL_DATA_API_KEY }}
         run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-live" --budget-minutes 3 --mode "$HOSTED_MODE"
       - name: 研究轨道生成每日1X2冻结快照和真实FT复盘（不触发正式预测外发）
         if: success() && env.HOSTED_MODE == 'research'
