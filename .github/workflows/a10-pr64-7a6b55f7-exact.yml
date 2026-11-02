@@ -22,6 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           test "$(git rev-parse HEAD)" = "7a6b55f71e3150fa3e2d7bf8f632229decc967aa"
           test -z "$(git status --porcelain)"
           mkdir -p "$RUNNER_TEMP/a10-evidence"
