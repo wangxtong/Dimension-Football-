@@ -73,7 +73,7 @@ jobs:
   # One bounded real public-source probe for THIS research PR only.
   # Does not change the default hosted collection schedule or send forecasts.
   scrapling-live-public:
-    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2') }}
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2' || github.head_ref == 'research/automatic-readback-v1') }}
     needs: [scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 9
@@ -162,7 +162,7 @@ jobs:
   stage1-private-research:
     # This PR-only job exercises user-approved private research, without
     # touching ECS, public website, Telegram, or protected source endpoints.
-    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2') }}
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2' || github.head_ref == 'research/automatic-readback-v1') }}
     needs: [scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 17
@@ -273,6 +273,33 @@ jobs:
             assert.equal(daily.prospective.thirtyDays.scored,0);
             assert.match(daily.disclaimer,/非投注建议/);
             console.log(JSON.stringify({research:"SAME_REPORT_REAL_SOURCE_FROZEN",sourceReportId:daily.sourceReportId,frozen:daily.forecasts.total,scored:daily.prospective.thirtyDays.scored,reportId:daily.reportId}));
+          '
+      - name: 真实采集训练 → venue-poisson-v2 冻结 → Web/TG同reportId → 另进程自动读回
+        shell: bash
+        run: |
+          set -euo pipefail
+          node collector/automatic-readback.mjs --produce "$RESEARCH_ROOT"
+          node collector/automatic-readback.mjs --verify "$RESEARCH_ROOT" > "$RESEARCH_ROOT/auto-readback-verified.json"
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import {readFileSync} from "node:fs";
+            const dir=process.env.RESEARCH_ROOT;
+            const read=JSON.parse(readFileSync(dir+"/reports/auto-readback/readback.json","utf8"));
+            const verified=JSON.parse(readFileSync(dir+"/auto-readback-verified.json","utf8"));
+            const tg=JSON.parse(readFileSync(dir+"/reports/auto-readback/telegram-draft.json","utf8"));
+            const original=JSON.parse(readFileSync(dir+"/reports/predictions.json","utf8"));
+            assert.ok(read.eligible>=1,"At least one REAL future match MUST be frozen and read back");
+            assert.equal(read.fixtures[0].modelId,"venue-poisson-v2");
+            assert.equal(read.sourceReportId,original.publication.reportId);
+            assert.equal(read.readbackId,verified.readbackId);
+            assert.equal(tg.reportId,read.readbackId);
+            assert.equal(verified.status,"VERIFIED_MACHINE_READBACK");
+            assert.equal(verified.siteDelivered,false);
+            assert.equal(verified.telegramSent,false);
+            console.log(JSON.stringify({status:"AUTO_ONE_MATCH_REPRODUCED",verified:true,
+              readbackId:read.readbackId,fixtureId:read.fixtures[0].fixtureId,
+              kickoff:read.fixtures[0].kickoff,modelId:read.fixtures[0].modelId,
+              count:read.eligible,within36h:read.within36h,siteDelivered:false,telegramSent:false}));
           '
       - name: 归档阶段一全部证据（仅私有Actions附件，不发布Web/Telegram）
         if: always()
