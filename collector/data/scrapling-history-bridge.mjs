@@ -139,8 +139,11 @@ export async function persistScraplingHistoryBatch({ directory, outputRoot } = {
   await mkdir(root, { recursive: true, mode: 0o700 });
   if (await realpath(root) !== root) invalid('OUTPUT_ROOT_INVALID');
   const content = Buffer.from(JSON.stringify(batch) + '\n');
+  // Raw bytes can be identical across different observation times. Preserve
+  // each normalized observation while keeping identical replays idempotent.
+  const normalizedSha256 = sha256(content);
   const destination = join(root, 'research-' + batch.source + '-' + batch.season
-    + '-' + batch.rawSha256 + '.json');
+    + '-' + batch.rawSha256 + '-' + normalizedSha256 + '.json');
   let created = false;
   try {
     const f = await open(destination, 'wx', 0o600);
@@ -153,7 +156,7 @@ export async function persistScraplingHistoryBatch({ directory, outputRoot } = {
   }
   return { status: 'RESEARCH_HISTORICAL_RAW_IMPORTED',
     source: batch.source, season: batch.season, outputFile: destination,
-    batchSha256: sha256(content), rawSha256: batch.rawSha256,
+    batchSha256: normalizedSha256, rawSha256: batch.rawSha256,
     records: batch.records.length, created, modelReadyForProspective: false,
     releaseGate: 'BLOCKED' };
 }
