@@ -172,10 +172,16 @@ const VENUES = {
   'West Ham United FC': { city: 'London', lat: 51.5085, lon: -0.1257, tz: 'Europe/London' },
   'Wolverhampton Wanderers FC': { city: 'Wolverhampton', lat: 52.5855, lon: -2.123, tz: 'Europe/London' },
   'Wrexham AFC': { city: 'Wrexham', lat: 53.0466, lon: -2.9913, tz: 'Europe/London' },
+  'Málaga CF': { city: 'Málaga', lat: 36.7213, lon: -4.4213, tz: 'Europe/Madrid' },
+  'CD Castellón': { city: 'Castellón de la Plana', lat: 39.9864, lon: -0.0513, tz: 'Europe/Madrid' },
+  'Real Sociedad B': { city: 'San Sebastián', lat: 43.3014, lon: -1.9736, tz: 'Europe/Madrid' },
 };
 
 // 数据源侧常见短名 -> 坐标表已登记的全名（由 team-names.mjs 别名分组自动派生）。
 const VENUE_ALIASES = {
+  'RC Deportivo La Coruña': 'RC Deportivo de La Coruña',
+  'Deportivo La Coruña': 'RC Deportivo de La Coruña',
+  'Real Racing Club de Santander': 'Racing de Santander',
   '1899 Hoffenheim': 'TSG 1899 Hoffenheim',
   'Alaves': 'Deportivo Alavés',
   'Angers': 'Angers SCO',
