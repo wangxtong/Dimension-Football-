@@ -93,7 +93,8 @@ class ScraplingArchiveTests(unittest.TestCase):
             now=datetime(2026, 11, 2, 4, tzinfo=timezone.utc), fetcher=fake, robots_checker=lambda url: True)
         self.assertEqual(raw, xml())
         self.assertEqual(len(requests), 1)
-        self.assertEqual(requests[0][1], {'follow_redirects': False, 'retries': 0,
+        self.assertEqual(requests[0][1], {'headers': {'User-Agent': module.SOURCE_AGENT},
+                                          'follow_redirects': False, 'retries': 0,
                                           'timeout': 8, 'stealthy_headers': False})
         self.assertTrue(fetched.startswith('2026-11-02T04:00:00'))
         self.assertTrue(server.startswith('2026-11-02T04:00:00'))
@@ -101,6 +102,67 @@ class ScraplingArchiveTests(unittest.TestCase):
         with self.assertRaisesRegex(module.ArchiveError, 'SOURCE_ACCESS_BLOCKED'):
             module.fetch_live('bbc-football-rss', None,
                 now=datetime(2026, 11, 2, 4, tzinfo=timezone.utc), fetcher=fake, robots_checker=lambda url: True)
+
+
+    def test_observation_clock_is_sampled_after_fetcher_returns(self):
+        completed = []
+        class Response:
+            status = 200
+            url = 'https://feeds.bbci.co.uk/sport/football/rss.xml'
+            body = xml()
+            headers = {'date': 'Mon, 02 Nov 2026 04:00:08 GMT'}
+        def fake(url, **kwargs):
+            self.assertEqual(kwargs['headers']['User-Agent'], module.SOURCE_AGENT)
+            completed.append('response')
+            return Response()
+        def clock():
+            self.assertEqual(completed, ['response'])
+            completed.append('clock')
+            return datetime(2026, 11, 2, 4, 0, 8, tzinfo=timezone.utc)
+        raw, fetched, server = module.fetch_live('bbc-football-rss', None,
+            fetcher=fake, robots_checker=lambda url: True, clock=clock)
+        self.assertEqual(raw, xml())
+        self.assertEqual(completed, ['response', 'clock'])
+        self.assertEqual(fetched, '2026-11-02T04:00:08.000000Z')
+        self.assertEqual(server, '2026-11-02T04:00:08.000000Z')
+
+    def test_live_receipt_requires_http_response_time_and_offline_never_claims_http(self):
+        raw = json.dumps([fixture()]).encode()
+        with self.assertRaisesRegex(module.ArchiveError, 'LIVE_RECEIPT_MISSING'):
+            module.store(raw, source='openligadb-bl1-history', season=2025,
+                fetched_at=NOW, out_root=self.tmp.name, mode='LIVE_SOURCE_HTTP')
+        with self.assertRaisesRegex(module.ArchiveError, 'SERVER_TIME_UNVERIFIED'):
+            module.store(raw, source='openligadb-bl1-history', season=2025,
+                fetched_at=NOW, out_root=self.tmp.name, mode='LIVE_SOURCE_HTTP',
+                response_at='2026-11-02T03:40:00Z')
+        with self.assertRaisesRegex(module.ArchiveError, 'OFFLINE_RECEIPT_INVALID'):
+            module.store(raw, source='openligadb-bl1-history', season=2025,
+                fetched_at=NOW, out_root=self.tmp.name, mode='OFFLINE_VERIFIED_INPUT',
+                response_at=NOW)
+
+    def test_verify_rejects_spoofed_http_claim_wrong_source_url_and_relabelled_directory(self):
+        raw = json.dumps([fixture()]).encode()
+        r = module.store(raw, source='openligadb-bl1-history', season=2025,
+            fetched_at=NOW, out_root=self.tmp.name, mode='OFFLINE_VERIFIED_INPUT')
+        path = Path(r['directory'])
+        receipt_path = path / 'receipt.json'
+        receipt = json.loads(receipt_path.read_text('utf-8'))
+        self.assertTrue(module.verify(path)['verified'])
+        receipt['observationMode'] = 'LIVE_SOURCE_HTTP'
+        receipt_path.write_text(json.dumps(receipt), encoding='utf-8')
+        with self.assertRaisesRegex(module.ArchiveError, 'RECEIPT_HTTP_INVALID'):
+            module.verify(path)
+        receipt['observationMode'] = 'OFFLINE_VERIFIED_INPUT'
+        receipt['requestedURL'] = 'https://unrelated.example.org/'
+        receipt_path.write_text(json.dumps(receipt), encoding='utf-8')
+        with self.assertRaisesRegex(module.ArchiveError, 'RECEIPT_IDENTITY_INVALID'):
+            module.verify(path)
+        receipt['requestedURL'] = module.target_url('openligadb-bl1-history', 2025)
+        receipt_path.write_text(json.dumps(receipt), encoding='utf-8')
+        moved = path.with_name('tampered-directory-name')
+        path.rename(moved)
+        with self.assertRaisesRegex(module.ArchiveError, 'RECEIPT_IDENTITY_INVALID'):
+            module.verify(moved)
 
     def test_bundesliga_ft_and_missing_are_distinguished_no_pregame_claim(self):
         raw = json.dumps([fixture(), {**fixture(), 'matchID': 43, 'matchIsFinished': False},
