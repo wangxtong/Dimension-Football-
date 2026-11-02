@@ -1,6 +1,7 @@
 import { validateBundle, validDate } from './report-schema.mjs';
 import { validateMarketObservation, validateObservationAcquisition } from './market-observation-schema.mjs';
 import { leagueName, teamName } from './locale-zh.mjs';
+import { validateDailyResearch, researchPanelData } from './research-daily-store.mjs';
 
 // Public identity only. Runtime credentials are never saved in the update ledger.
 export const TELEGRAM_BOT_ID = 8858788137;
@@ -102,8 +103,15 @@ function observation(bundle, now) {
 /** The only path from repository assets and a hosted bundle into presentation data.
  * Asset hashes pin reviewed historical snapshots; revised assets need explicit review.
  * No caller-supplied probabilities or mutable experiment objects are rendered. */
-export async function prepareTelegramBotContext({ bundle, assets = {}, daily, now = Date.now() } = {}) {
+export async function prepareTelegramBotContext({ bundle, assets = {}, daily, research, now = Date.now() } = {}) {
   if (!Number.isFinite(now)) throw Error('BOT_TIME_INVALID');
+  // Research is optional and read-only. It is re-validated here so a caller
+  // cannot hand the panel a partially checked object; any defect means "no data".
+  let researchPanel = null;
+  if (research !== undefined && research !== null) {
+    try { await validateDailyResearch(research, { now }); researchPanel = researchPanelData(research); }
+    catch { researchPanel = null; }
+  }
   let live = null;
   try { live = observation(bundle, now); if (await digest(JSON.stringify(live.report)) !== live.reportHash) live = null; } catch { /* fail closed, show diagnostics */ }
   const historical = {};
@@ -116,7 +124,7 @@ export async function prepareTelegramBotContext({ bundle, assets = {}, daily, no
   let dailyReceipt = dailyStatus(daily, now);
   if (dailyReceipt && live && dailyReceipt.reportId === live.reportId && dailyReceipt.reportHash !== live.reportHash) dailyReceipt = null;
   const context = freeze(structuredClone({ live, evaluation: historical['/evaluation-evidence.json'] || null,
-    experiment: historical['/model-experiment-evidence.json'] || null, daily: dailyReceipt, now }));
+    experiment: historical['/model-experiment-evidence.json'] || null, research: researchPanel, daily: dailyReceipt, now }));
   verifiedContexts.add(context); return context;
 }
 function keyboard(section, page, pages) {
@@ -132,6 +140,23 @@ function keyboard(section, page, pages) {
   rows.push([{ text: '🌐 打开完整看板', url: TELEGRAM_BOT_ORIGIN }]);
   return { inline_keyboard: rows };
 }
+const OUTCOME = Object.freeze({ home: '主胜', draw: '平局', away: '客胜' });
+const rate = value => Number.isFinite(value) ? (value * 100).toFixed(2) + '%' : '—';
+const score = value => Number.isFinite(value) ? value.toFixed(4) : '—';
+const beijingDate = now => new Date(now + 28800000).toISOString().slice(0, 10);
+const noSample = row => row.scored === 0;
+const sampleNote = row => row.sampleStatus === 'insufficient-prospective-sample' ? '（样本不足，仅描述性）' : '';
+function researchHeadline(research, now) {
+  return ['📄 研究日报：<code>' + research.reportId.slice(0, 12) + '</code>｜研究日 ' + research.beijingDay
+    + '｜生成 ' + time(research.generatedAt),
+  research.beijingDay === beijingDate(now) ? '🟡 研究参考：未校准，不是正式发布' : '🟠 历史研究日报（不是今天新预测）'];
+}
+function researchWindow(name, row) {
+  const head = '<b>' + name + '</b>：冻结 ' + row.eligibleFrozen + '｜已核账 ' + row.scored
+    + '｜待 FT ' + row.pending + '｜作废 ' + row.voided;
+  return noSample(row) ? [head, '样本不足，暂无可报告指标。']
+    : [head, '命中率 ' + rate(row.hitRate) + '｜Brier ' + score(row.brier) + '｜Log loss ' + score(row.logLoss) + sampleNote(row)];
+}
 const number = value => Number.isFinite(value) ? value.toFixed(4) : '待核验';
 const percent = value => Number.isFinite(value) ? (value * 100).toFixed(2) + '%' : '待核验';
 function scheduleFresh(live, now) { return !!live?.acquired && now - Date.parse(live.acquired.checkedAt) <= 1200000; }
@@ -140,7 +165,7 @@ function marketFresh(live, now) { return !!live?.market && now < Date.parse(live
 export function formatTelegramBotPanel({ context, section = 'menu', page = 0, now = context?.now } = {}) {
   if (!verifiedContexts.has(context) || !Object.hasOwn(SECTIONS, section) || !integer(page) || page > 999
     || !Number.isFinite(now) || now < context.now) throw Error('BOT_PANEL_INVALID');
-  const { live, evaluation, experiment } = context, report = live?.report;
+  const { live, evaluation, experiment, research } = context, report = live?.report;
   const daily = context.daily?.date === new Date(now + 28800000).toISOString().slice(0, 10) ? context.daily : null;
   let pages = 1, current = 0, lines = [`<b>${SECTIONS[section]}</b>`, '━━━━━━━━━━━━━━'];
   if (section === 'menu') lines.push('选择下方按钮，在机器人内查看分类报告。', '',
@@ -163,15 +188,50 @@ export function formatTelegramBotPanel({ context, section = 'menu', page = 0, no
     }
   }
   if (section === 'picks') {
-    lines.push('🔒 正式优选：尚未开放', '不以每日数量目标代替质量门槛。', '',
-      '① 模型前瞻与校准：尚未通过商业验收',
-      live?.market ? `② 双源对齐：原观察 ${live.market.alignedEligibleFixtureCount} 场${marketFresh(live, now) ? '' : '（已过期）'}` : '② 双源对齐：尚无可核验观察',
-      live?.market ? `③ 真实初盘：原观察 ${live.market.trueOpeningFixtureCount} 场${marketFresh(live, now) ? '' : '（已过期）'}` : '③ 真实初盘：证据待核验',
-      '', '盘口证据充分也不自动取得模型发布资格。');
+    lines.push('🔒 正式优选：尚未开放', '不以每日数量目标代替质量门槛。', '');
+    if (research) {
+      lines.push(...researchHeadline(research, now),
+        '🧊 赛前冻结研究预测：' + research.total + ' 场｜严格盘口正式推荐 0 场｜模型未校准', '');
+      const rows = research.candidates;
+      pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE)); current = Math.min(page, pages - 1);
+      if (rows.length) {
+        lines.push('🗓 第 ' + (current + 1) + '/' + pages + ' 页'
+          + (research.truncated ? '（仅展示前 ' + research.shown + ' 场，共 ' + research.total + ' 场）' : ''), '');
+        for (const row of rows.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)) lines.push(
+          '🏟 <b>' + label(teamName(row.home)) + ' vs ' + label(teamName(row.away)) + '</b>',
+          '   ' + label(leagueName(row.league)) + '｜开球 ' + time(row.kickoff) + '（北京时间）',
+          '   研究概率 主 ' + rate(row.probabilities.home) + ' / 平 ' + rate(row.probabilities.draw)
+            + ' / 客 ' + rate(row.probabilities.away),
+          '   研究方向：' + OUTCOME[row.selection] + '（研究参考）', '');
+      } else lines.push('本轮研究日报没有合格赛前冻结预测；不补场。', '');
+      lines.push('⚠️ 研究参考，非投注建议；未经校准，不构成正式预测发布。',
+        '盘口证据充分也不自动取得模型发布资格。');
+    } else {
+      lines.push('① 模型前瞻与校准：尚未通过商业验收',
+        live?.market ? '② 双源对齐：原观察 ' + live.market.alignedEligibleFixtureCount + ' 场' + (marketFresh(live, now) ? '' : '（已过期）') : '② 双源对齐：尚无可核验观察',
+        live?.market ? '③ 真实初盘：原观察 ' + live.market.trueOpeningFixtureCount + ' 场' + (marketFresh(live, now) ? '' : '（已过期）') : '③ 真实初盘：证据待核验',
+        '', '盘口证据充分也不自动取得模型发布资格。');
+    }
   }
   if (section === 'backtest') {
-    if (!evaluation) lines.push('⚠️ 历史回测资产尚未通过固定摘要校验，不显示估算指标。');
-    else {
+    if (research) {
+      const rows = research.prospective.byLeague30Days;
+      pages = Math.max(1, Math.ceil(rows.length / 2)); current = Math.min(page, pages - 1);
+      lines.push('🕒 研究前瞻账本（30 天窗口）', '赛前冻结 + 赛后实际 FT；与历史快照回放分开。',
+        ...researchHeadline(research, now), '');
+      for (const row of rows.slice(current * 2, (current + 1) * 2)) {
+        lines.push('<b>' + label(leagueName(row.league)) + '</b>｜冻结 ' + row.eligibleFrozen
+          + ' 场｜已评分 ' + row.scored + ' 场｜待 FT ' + row.pending + ' 场');
+        lines.push(noSample(row) ? '样本不足，暂无可报告指标（30 天窗口）。'
+          : '命中率 ' + rate(row.hitRate) + '｜Brier ' + score(row.brier) + '｜Log loss ' + score(row.logLoss) + sampleNote(row), '');
+      }
+      lines.push('30 天合计：冻结 ' + research.prospective.thirtyDays.eligibleFrozen + ' 场｜已评分 '
+        + research.prospective.thirtyDays.scored + ' 场',
+        '同场只计最早一次冻结；不同联赛方向不相加。Brier / Log loss 越低越好。',
+        '第 ' + (current + 1) + '/' + pages + ' 页', '研究参考，非投注建议；0 评分不代表准确率。');
+    } else if (!evaluation) {
+      lines.push('⚠️ 历史回测资产尚未通过固定摘要校验，不显示估算指标。');
+    } else {
       const groups = evaluation.groups.filter(g => g.purpose === 'reference-horizon' && g.horizonHours === 24);
       pages = Math.max(1, Math.ceil(groups.length / 2)); current = Math.min(page, pages - 1);
       lines.push('🕒 统一口径：赛前 24 小时', '历史快照回放，尚非独立前瞻成绩。', '');
@@ -194,10 +254,23 @@ export function formatTelegramBotPanel({ context, section = 'menu', page = 0, no
       `Log loss：${number(experiment.holdout.baseline.logLoss)} → ${number(experiment.holdout.candidate.logLoss)}`,
       '上述两项未改善，不能宣称准确率提升。', '', '这是历史研究，不是今日赛事预测。', `📦 实验归档：${time(experiment.generatedAt)}`);
   }
-  if (section === 'settlement') lines.push('🧾 生产前瞻账本：尚未接入本机器人', '待开赛、待赛果、已核账数量：暂不可核验。', '',
-    '历史隔离核账测试不计作生产成绩，也不证明公开推送。',
-    ...(evaluation ? [`📦 保留归档：${time(evaluation.prospective.asOf)}`, `该归档赛前 ${evaluation.prospective.horizonHours} 小时窗口已评分 ${evaluation.prospective.evaluated} 场；不是当前实时账本。`] : ['历史前瞻归档也暂未通过校验。']),
-    '', '下一步：持久保存赛前冻结记录，再绑定真实终场结果。');
+  if (section === 'settlement') {
+    if (research) {
+      const p = research.prospective;
+      lines.push('🧾 研究前瞻账本（商业发布 BLOCKED，非投注建议）', ...researchHeadline(research, now), '',
+        '口径：赛前冻结记录 + 赛后实际 FT；每场只计一次；保留冻结 ' + p.retainedFrozen + ' 场', '');
+      for (const [name, row] of [['当日（1 日）', p.oneDay], ['7 日', p.sevenDays], ['30 日', p.thirtyDays]])
+        lines.push(...researchWindow(name, row), '');
+      lines.push('<b>30 天分联赛</b>');
+      for (const row of p.byLeague30Days) lines.push(label(leagueName(row.league)) + '：冻结 '
+        + row.eligibleFrozen + ' 场｜已核账 ' + row.scored + ' 场｜待 FT ' + row.pending + ' 场');
+      lines.push('', '研究账本不是商业生产成绩，也不代表公开推送；历史隔离核账/模拟不计入。',
+        '下一步：持续持久保存赛前冻结记录，再绑定真实终场结果。');
+    } else lines.push('🧾 生产前瞻账本：尚未接入本机器人', '待开赛、待赛果、已核账数量：暂不可核验。', '',
+      '历史隔离核账测试不计作生产成绩，也不证明公开推送。',
+      ...(evaluation ? ['📦 保留归档：' + time(evaluation.prospective.asOf), '该归档赛前 ' + evaluation.prospective.horizonHours + ' 小时窗口已评分 ' + evaluation.prospective.evaluated + ' 场；不是当前实时账本。'] : ['历史前瞻归档也暂未通过校验。']),
+      '', '下一步：持久保存赛前冻结记录，再绑定真实终场结果。');
+  }
   if (section === 'sources') {
     if (!live) lines.push('⚠️ 当前来源报告不可核验，不能推断接口已接通。');
     else {
@@ -348,7 +421,7 @@ async function readBotStatus(env, { now = Date.now() } = {}, target = TELEGRAM_B
 export function createTelegramBotHandler({ verifiedTargetFingerprint = TELEGRAM_BOT_TARGET } = {}) {
   if (typeof verifiedTargetFingerprint !== 'string' || !/^[a-f0-9]{16}$/.test(verifiedTargetFingerprint)) throw Error('BOT_CONFIGURATION_INVALID');
   const handle = async function handle(request, env, { fetchImpl = fetch, now = Date.now(), loadBundle, wallClock = () => Date.now(),
-  assets = {}, loadObservationReceipt } = {}) {
+  assets = {}, loadObservationReceipt, loadResearch } = {}) {
   const started = wallClock(), currentTime = () => now + Math.max(0, wallClock() - started);
   if (request.method !== 'POST') return json({ ok: false, code: 'METHOD_NOT_ALLOWED' }, 405);
   const secret = env.TELEGRAM_WEBHOOK_SECRET, token = env.TELEGRAM_BOT_TOKEN;
@@ -383,10 +456,11 @@ export function createTelegramBotHandler({ verifiedTargetFingerprint = TELEGRAM_
         outcome = acknowledgement;
       }
       if (event.action !== 'callback' || outcome.status === 'accepted') {
-        let bundle = null, daily = null;
+        let bundle = null, daily = null, research = null;
         try { if (typeof loadBundle === 'function') bundle = await loadBundle(env, { now: currentTime() }); } catch { /* clear unavailable panel */ }
         try { if (typeof loadObservationReceipt === 'function') daily = await loadObservationReceipt(env, { now: currentTime() }); } catch { /* independent unavailable receipt */ }
-        const context = await prepareTelegramBotContext({ bundle, assets, daily, now: currentTime() });
+        try { if (typeof loadResearch === 'function') research = await loadResearch(env, { now: currentTime() }); } catch { /* optional research ledger */ }
+        const context = await prepareTelegramBotContext({ bundle, assets, daily, research, now: currentTime() });
         reportId = context.live?.reportId || null;
         const presentation = formatTelegramBotPanel({ context, section: event.section, page: event.page, now: currentTime() });
         outcome = await telegramCall(token, event.action === 'callback' ? 'editMessageText' : 'sendMessage',

@@ -106,6 +106,49 @@ export async function saveDailyResearch(env, report, { now = Date.now() } = {}) 
   fail('RESEARCH_POINTER_CONFLICT', 409);
 }
 
+const MAX_PANEL_CANDIDATES = 120;
+const panelStats = row => ({ days: row.days, fromDay: row.fromDay, toDay: row.toDay,
+  eligibleFrozen: row.eligibleFrozen, scored: row.scored, pending: row.pending, voided: row.voided,
+  hitRate: row.hitRate, brier: row.brier, logLoss: row.logLoss, sampleStatus: row.sampleStatus });
+const panelCandidate = row => row && LEAGUES.has(row.league) && SOURCES.has(row.source)
+  && typeof row.home === 'string' && row.home.length <= 200 && typeof row.away === 'string' && row.away.length <= 200
+  && goodTime(row.kickoff) && ['home', 'draw', 'away'].includes(row.selection) && row.probabilities
+  && ['home', 'draw', 'away'].every(key => prob(row.probabilities[key]));
+
+/** Read-only projection of an already-validated research report for presentation.
+ * It carries no release authority: callers must keep the BLOCKED / 非投注建议 wording.
+ * Returns null instead of guessing when any displayed statistic is malformed. */
+export function researchPanelData(report) {
+  if (!report || typeof report !== 'object' || Array.isArray(report)
+    || report.version !== 1 || report.kind !== 'research-daily-1x2' || report.mode !== 'research-reference'
+    || report.researchGate !== 'INDEPENDENT_OF_COMMERCIAL' || report.commercialReleaseGate !== 'BLOCKED'
+    || report.externalTelegramSent !== false || typeof report.disclaimer !== 'string'
+    || !report.disclaimer.includes('非投注建议') || !ID.test(report.reportId || '')
+    || !goodTime(report.generatedAt) || typeof report.beijingDay !== 'string'
+    || !report.forecasts || !count(report.forecasts.total) || !Array.isArray(report.forecasts.candidates)
+    || report.forecasts.total !== report.forecasts.candidates.length
+    || report.forecasts.isPublishedRecommendation !== false || !count(report.forecasts.skipped)
+    || !report.strictMarkets || report.strictMarkets.releasedCandidates !== 0
+    || !report.prospective || !count(report.prospective.retainedFrozen)
+    || ![report.prospective.oneDay, report.prospective.sevenDays, report.prospective.thirtyDays].every(validStats)
+    || !Array.isArray(report.prospective.byLeague30Days) || report.prospective.byLeague30Days.length !== 5
+    || !report.prospective.byLeague30Days.every(row => row && LEAGUES.has(row.league) && validStats(row))
+    || !report.forecasts.candidates.every(panelCandidate)) return null;
+  const candidates = report.forecasts.candidates.slice(0, MAX_PANEL_CANDIDATES).map(row => ({
+    source: row.source, league: row.league, home: row.home, away: row.away, kickoff: row.kickoff,
+    recordedAt: row.recordedAt, selection: row.selection,
+    probabilities: { home: row.probabilities.home, draw: row.probabilities.draw, away: row.probabilities.away } }));
+  const { oneDay, sevenDays, thirtyDays, byLeague30Days } = report.prospective;
+  return { reportId: report.reportId, generatedAt: report.generatedAt, beijingDay: report.beijingDay,
+    state: report.state, disclaimer: report.disclaimer, total: report.forecasts.total,
+    skipped: report.forecasts.skipped, shown: candidates.length, truncated: report.forecasts.total > candidates.length,
+    candidates,
+    prospective: { retainedFrozen: report.prospective.retainedFrozen,
+      provenance: report.prospective.provenance, uniqueFixtureRule: report.prospective.uniqueFixtureRule,
+      oneDay: panelStats(oneDay), sevenDays: panelStats(sevenDays), thirtyDays: panelStats(thirtyDays),
+      byLeague30Days: byLeague30Days.map(row => ({ league: row.league, ...panelStats(row) })) } };
+}
+
 export async function readDailyResearch(env) {
   const pointer = await getObject(env, pointerPath);
   if (!pointer) return null;
