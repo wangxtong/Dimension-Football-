@@ -72,8 +72,8 @@ async function telegram(token,chatId,presentation,fetchImpl){
   catch{return {status:'unknown',code:'HEARTBEAT_TELEGRAM_OUTCOME_UNKNOWN',messageId:null}}
   finally{clearTimeout(timer);ctrl.abort()}
 }
-export async function deliverHeartbeat(env,h,{now=clock(),fetchImpl=fetch,
-  targetFingerprint=targetFingerprint,verifiedBotId=verifiedBotId}={}){
+export async function deliverHeartbeat(env,h,{now=Date.now(),fetchImpl=fetch,
+  targetFingerprint=VERIFIED_TARGET_FINGERPRINT,verifiedBotId=VERIFIED_DAILY_BOT_ID}={}){
   if(!/^[a-f0-9]{16}$/.test(targetFingerprint)||!/^\d{5,20}$/.test(verifiedBotId)||!Number.isFinite(now))
     throw error('HEARTBEAT_CONFIG_INVALID');
   const startedAt=Date.now(),clock=()=>now+Math.max(0,Date.now()-startedAt);
