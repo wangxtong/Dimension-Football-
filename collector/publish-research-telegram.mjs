@@ -292,11 +292,14 @@ export async function settledToday({ root, beijingDay, limit = 8 } = {}) {
       const day = new Date(Date.parse(result.resultObservedAt) + 8 * 3600_000).toISOString().slice(0, 10);
       if (beijingDay && day !== beijingDay) continue;
       const actual = result.homeGoals > result.awayGoals ? 'home' : result.homeGoals === result.awayGoals ? 'draw' : 'away';
-      const hit = actual === prediction.selection;
+      // 账本记录里没有 selection 字段，只有 probabilities；按 argmax 还原预测方向。
+      const probs = prediction.probabilities || {};
+      const pick = ['home', 'draw', 'away'].reduce((best, key) => (probs[key] > (probs[best] ?? -1) ? key : best), 'home');
+      const hit = actual === pick;
       const name = names.get(prediction.fixtureId) || {};
       rows.push({ kickoff: prediction.kickoff, league: prediction.league,
         home: name.home || prediction.fixtureId, away: name.away || '—',
-        pick: OUTCOME_CN[prediction.selection] || prediction.selection,
+        pick: OUTCOME_CN[pick] || pick,
         actual: OUTCOME_CN[actual] || actual,
         score: result.homeGoals + ':' + result.awayGoals, hit });
     }
