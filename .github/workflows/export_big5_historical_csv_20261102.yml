@@ -1,0 +1,52 @@
+name: One-off Big Five Eight-Season CC0 CSV Export
+on:
+  push:
+    branches:
+      - artifact/big5-historical-csv-2018-2026
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout private isolated export script (no deploy)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download publicly licensed OpenFootball at pinned SHA
+        shell: bash
+        env:
+          UPSTREAM_SHA: e6744429ee395bc86f247348c6184bb08d4eb361
+        run: |
+          set -euo pipefail
+          src="$RUNNER_TEMP/openfootball-data"
+          git clone --quiet --depth 1 --branch master https://github.com/openfootball/football.json.git "$src"
+          if [ "$(git -C "$src" rev-parse HEAD)" != "$UPSTREAM_SHA" ]; then
+            git -C "$src" fetch --quiet --depth 1 origin "$UPSTREAM_SHA"
+            git -C "$src" checkout --quiet --detach "$UPSTREAM_SHA"
+          fi
+          test "$(git -C "$src" rev-parse HEAD)" = "$UPSTREAM_SHA"
+          test -f "$src/LICENSE.md"
+          test -f "$src/2018-19/en.1.json"
+          test -f "$src/2025-26/fr.1.json"
+          echo "PUBLIC_SOURCE_PIN_VERIFIED:$UPSTREAM_SHA"
+      - name: Generate 40 season CSVs, combined CSV, provenance and integrity ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/export_big5_historical_csv_20261102.py \
+            "$RUNNER_TEMP/openfootball-data" \
+            "$RUNNER_TEMP/Big5_2018-19_to_2025-26_40_CSV.zip" | tee "$RUNNER_TEMP/export-stats.json"
+          test -s "$RUNNER_TEMP/Big5_2018-19_to_2025-26_40_CSV.zip"
+          sha256sum "$RUNNER_TEMP/Big5_2018-19_to_2025-26_40_CSV.zip" | tee "$RUNNER_TEMP/export-zip-sha256.txt"
+      - name: Upload source-only user-requested archive (private CI artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Big5_2018-19_to_2025-26_40_CSV
+          path: |
+            ${{ runner.temp }}/Big5_2018-19_to_2025-26_40_CSV.zip
+            ${{ runner.temp }}/export-stats.json
+            ${{ runner.temp }}/export-zip-sha256.txt
+          if-no-files-found: error
+          retention-days: 2
