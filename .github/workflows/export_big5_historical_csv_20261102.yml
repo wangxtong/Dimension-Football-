@@ -4,7 +4,7 @@ on:
     branches:
       - artifact/big5-historical-csv-2018-2026
 permissions:
-  contents: read
+  contents: write
 jobs:
   export:
     runs-on: ubuntu-latest
@@ -13,7 +13,7 @@ jobs:
       - name: Checkout private isolated export script (no deploy)
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Download publicly licensed OpenFootball at pinned SHA
         shell: bash
         env:
@@ -50,3 +50,40 @@ jobs:
             ${{ runner.temp }}/export-zip-sha256.txt
           if-no-files-found: error
           retention-days: 2
+
+      - name: Verify and commit 40 CSV files and manifests to isolated dataset branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "artifact/big5-historical-csv-2018-2026"
+          path="research/datasets/big5-2018-19_to_2025-26"
+          mkdir -p "$path"
+          unzip -oq "$RUNNER_TEMP/Big5_2018-19_to_2025-26_40_CSV.zip" -d "$path"
+          python3 - "$path" <<'PY'
+          from pathlib import Path
+          import csv, hashlib, json, sys
+          root=Path(sys.argv[1])
+          manifest=json.loads((root/'MANIFEST.json').read_text())
+          csvs=sorted((root/'csv').rglob('*.csv'))
+          assert len(csvs)==40
+          assert manifest['statistics']=={'total_rows':14386,'ft_scored':14151,'ft_missing':235,'csv_count':40}
+          for q in manifest['source_coverage']:
+              p=root/q['GeneratedCSVPath']
+              assert p.is_file() and hashlib.sha256(p.read_bytes()).hexdigest()==q['GeneratedCSVSHA256']
+              with p.open(encoding='utf-8-sig',newline='') as h:
+                  rows=list(csv.DictReader(h))
+              assert len(rows)==q['Fixtures']
+              assert sum(r['FTRecordStatus']=='FT_REPORTED_BY_SOURCE' for r in rows)==q['FTRecorded']
+              assert sum(r['FTRecordStatus']!='FT_REPORTED_BY_SOURCE' for r in rows)==q['FTMissing']
+          print('IMPORT_VERIFIED:40_CSV:14386_ROWS:14151_FT:235_MISSING')
+          PY
+          git add -- "$path"
+          if git diff --cached --quiet; then
+            echo "DATASET_ALREADY_COMMITTED"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "data: archive 40 Big Five CC0 season CSVs [skip ci]"
+          git push origin HEAD:"refs/heads/${GITHUB_REF_NAME}"
+          echo "DATASET_PUSHED_TO_PRIVATE_ISOLATED_BRANCH"
