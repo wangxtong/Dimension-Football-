@@ -80,6 +80,12 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     const landing = view ? '/?view='+view+'#'+view : '/';
     const loginPath = view ? '/login?view='+view : '/login';
     const sameOrigin=request.headers.get('origin')===config.origin;
+    // This Worker flag is independent of the Actions scheduling variable. A
+    // stopped uploader MUST also revoke reads of existing Bucket snapshots.
+    const researchWebEnabled=env.HOSTED_PUBLICATION_ENABLED==='true'&&env.VANTIS_RESEARCH_WEB_ENABLED==='true';
+    if(!researchWebEnabled&&['/internal/research-daily','/api/research-daily',
+      '/research-daily.html','/research-daily-client.mjs'].includes(path))
+      return response(JSON.stringify({error:'RESEARCH_WEB_DISABLED'}),404,'application/json; charset=utf-8');
     if(env.HOSTED_PUBLICATION_ENABLED==='true'&&path.startsWith('/internal/')) {
       if(path==='/internal/research-daily') {
         if(!['GET','POST'].includes(method))return response(JSON.stringify({error:'METHOD_NOT_ALLOWED'}),405,'application/json; charset=utf-8');
@@ -199,7 +205,12 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     }
     const file=path==='/'?'/index.html':path;
     if(!Object.hasOwn(assets,file))return response('页面不存在。',404);
-    return response(method==='HEAD'?null:assets[file],200,file.endsWith('.mjs')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':file.endsWith('.json')?'application/json; charset=utf-8':'text/html; charset=utf-8');
+    // Hidden nav is presentation only. The per-route checks above are the
+    // actual read-time revocation; they apply to existing stored snapshots.
+    const visibleAsset=file==='/index.html'&&!researchWebEnabled
+      ?assets[file].replace('<a href="/research-daily.html"><span aria-hidden="true">▣</span> 每日胜平负研究</a>','')
+      :assets[file];
+    return response(method==='HEAD'?null:visibleAsset,200,file.endsWith('.mjs')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':file.endsWith('.json')?'application/json; charset=utf-8':'text/html; charset=utf-8');
   }};
 }
 export default createDashboard(typeof EMBEDDED_ASSETS==='undefined'?{}:EMBEDDED_ASSETS);
