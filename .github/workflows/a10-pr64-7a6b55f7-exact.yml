@@ -8,6 +8,8 @@ permissions:
 jobs:
   independently-reproduce:
     runs-on: ubuntu-latest
+    container:
+      image: node:24-bookworm
     timeout-minutes: 17
     steps:
       - name: Fresh exact target checkout, not source PR cache
@@ -103,7 +105,20 @@ jobs:
             fetchImpl:async()=>new Response(raw,{status:200,headers:{Date:'Wed, 01 Jan 2020 00:00:00 GMT'}})
           }),e=>e.code==='HISTORY_OBSERVATION_CLOCK_INVALID');
           console.log('PASS stale Date old fixture actually rejects at observation clock stage');
-          console.log('INDEPENDENT_PROBES_PASSED=5');
+          // Additional falsifiability test: source-local Oct 31 is UTC Nov 1.
+          // A correct UTC-month filter must EXCLUDE this row.
+          const beyondWindow=structuredClone(payload);
+          const offsetTime='2023-10-31T23:30:00-03:00';
+          beyondWindow.response[0].fixture.date=offsetTime;
+          beyondWindow.response[0].fixture.timestamp=Date.parse(offsetTime)/1000;
+          const {parseApiFootballHistoricalSnapshot}=await import('./collector/sources/api-football-historical.mjs');
+          const misdated=parseApiFootballHistoricalSnapshot(Buffer.from(JSON.stringify(beyondWindow)),{
+            league:'PL',season:2023,from:'2023-10-01',to:'2023-10-31',
+            nowISO,responseAt:nowISO
+          });
+          console.log('UTC_WINDOW_NEGATIVE actual acceptedFT='+misdated.acceptedFT+' expected 0');
+          assert.equal(misdated.acceptedFT,0,'provider local Oct31 but UTC Nov1 cannot be accepted');
+          console.log('INDEPENDENT_PROBES_PASSED=6');
           JSAUDIT
           code=$?
           echo "$code" > "$RUNNER_TEMP/a10-evidence/independent-probes-exit.txt"
@@ -113,7 +128,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: A10-PR64-7a6b55f7-exact-clean
+          name: A10-PR64-7a6b55f7-exact-container
           path: ${{ runner.temp }}/a10-evidence/
           retention-days: 30
           if-no-files-found: error
