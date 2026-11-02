@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { publishResearchTelegram } from '../publish-research-telegram.mjs';
+import { publishResearchTelegram, richHtml, telegramText } from '../publish-research-telegram.mjs';
 
 const NOW = '2026-11-02T02:10:00.000Z';
 function dailyReport(overrides = {}) {
@@ -56,6 +56,31 @@ test('research telegram sends the simplified-Chinese study digest exactly once a
   assert.equal(second.status, 'skipped'); assert.equal(second.code, 'ALREADY_SENT_TODAY');
   const receipt = JSON.parse(await readFile(join(root, 'reports/research-daily/telegram-receipt.json'), 'utf8'));
   assert.equal(receipt.status, 'accepted'); assert.equal(receipt.reportId, report.reportId);
+});
+
+
+test('research 1X2 direction precedes score references in rich and plain Telegram; no bet claim', () => {
+  const candidate = selection => ({ league: 'BL1', kickoff: '2026-11-04T18:00:00.000Z',
+    home: '主队', away: '客队', selection,
+    probabilities: { home: 0.22, draw: 0.26, away: 0.52 },
+    expectedGoals: { home: 1.1, away: 1.7 },
+    topScores: [{ home: 1, away: 2 }] });
+  const report = dailyReport({ forecasts: { total: 1, candidates: [candidate('away')] } }).report;
+  const rich = richHtml(report);
+  const plain = telegramText(report);
+  assert.match(rich, /🎯 研究方向：客胜（模型概率 52\.0%）/);
+  assert.match(plain, /🎯 研究方向：客胜（模型概率 52\.0%）/);
+  for (const content of [rich, plain]) {
+    assert.ok(content.indexOf('研究方向：客胜') < content.indexOf('辅助比分参考'),
+      'outcome must precede non-actionable score estimates');
+    assert.match(content, /研究参考，非投注建议/);
+    assert.doesNotMatch(content, /推荐下注|保本|必胜/);
+  }
+  const draw = dailyReport({ forecasts: { total: 1, candidates: [
+    { ...candidate('draw'), probabilities: { home: 0.2, draw: 0.54, away: 0.26 }, topScores: [] }
+  ] } }).report;
+  assert.match(richHtml(draw), /研究方向：平局（模型概率 54\.0%）/);
+  assert.match(telegramText(draw), /研究方向：平局（模型概率 54\.0%）/);
 });
 
 test('falls back to plain sendMessage when sendRichMessage is rejected', async t => {
