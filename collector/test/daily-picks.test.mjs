@@ -10,7 +10,7 @@ const match = (over = {}) => ({ matchId: 111, league: 'PL', home: '主队', away
 const forecast = (over = {}) => ({ matchId: 111, generatedAt: '2026-11-03T07:50:00.000Z',
   probabilities: { home: .65, draw: .20, away: .15 }, ...over });
 const result = (over = {}) => ({ matchId: 111, status: 'FT', homeGoals: 2, awayGoals: 1,
-  resultObservedAt: '2026-11-03T18:30:00.000Z', home: '主队', away: '客队', ...over });
+  resultObservedAt: '2026-11-03T18:30:00.000Z', kickoff, home: '主队', away: '客队', ...over });
 
 test('体彩三项让球平是一种全赢选择，绝不是亚盘走盘', () => {
   assert.deepEqual(settleHhad({ homeGoals: 2, awayGoals: 1, goalLine: -1, selection: 'draw', decimalOdds: 3.4 }),
@@ -113,4 +113,40 @@ test('1X2启发式只作为研究信号，永不宣称可校准的体彩概率',
   const p=pickSide({probabilities:{home:.5,draw:.3,away:.2},goalLine:-1});
   assert.equal(p.researchOnly,true);
   assert.notEqual(p.method,'calibrated-hhad');
+});
+
+test('不完整/隐式转换概率绝不能生成真实选项', () => {
+  for (const bad of [
+    {home: null, draw: .2, away: .8},
+    {home: '', draw: .2, away: .8},
+    {home: .5, draw: undefined, away: .5},
+    {home: .1, draw: .1, away: .1},
+    {home: 1.1, draw: 0, away: 0},
+  ]) {
+    assert.equal(pickSide({probabilities:bad,goalLine:-1}),null);
+    const x=buildDailyPicks({matches:[match()],forecasts:[forecast({probabilities:bad})],nowISO:now});
+    assert.equal(x.selected,0);
+  }
+});
+
+test('完整FT必须含双方身份、同一开球时间和至少90分钟赛果观察', () => {
+  const {picks}=buildDailyPicks({matches:[match()],forecasts:[forecast()],nowISO:now});
+  const invalidResults=[
+    result({home:undefined}),result({away:undefined}),result({home:''}),
+    result({kickoff:undefined}),result({kickoff:'2026-11-03T17:00:00.000Z'}),
+    result({resultObservedAt:'2026-11-03T16:30:00.000Z'}),
+  ];
+  for (const r of invalidResults) {
+    const s=settleDailyPicks({picks,results:[r]});
+    assert.equal(s.total,0);assert.equal(s.coverage.invalid,1);
+  }
+  assert.equal(settleDailyPicks({picks,results:[result({homeGoals:3,awayGoals:1})]}).wins,1);
+});
+
+test('冻结选项价格与市场原价不一致时拒绝ROI统计', () => {
+  const {picks}=buildDailyPicks({matches:[match()],forecasts:[forecast()],nowISO:now});
+  const drift=structuredClone(picks);
+  drift[0].pick.decimalOdds=3.99;
+  const s=settleDailyPicks({picks:drift,results:[result({homeGoals:3,awayGoals:1})]});
+  assert.equal(s.total,0);assert.equal(s.coverage.invalid,1);
 });
