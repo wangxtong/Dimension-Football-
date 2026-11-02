@@ -34,7 +34,8 @@ after(async () => { if (output) await rm(output, { recursive: true, force: true 
 
 function setup(now = NOW) {
   const env = { DASHBOARD_AUTH: JSON.stringify(auth), DASHBOARD_SESSION_SECRET: 'a2'.repeat(32), DASHBOARD_ORIGIN: ORIGIN,
-    HOSTED_PUBLICATION_ENABLED: 'true', BUCKET: new MemoryBucket(), REPORTS_PROBE_TOKEN: 'c3'.repeat(32) };
+    HOSTED_PUBLICATION_ENABLED: 'true', VANTIS_RESEARCH_WEB_ENABLED: 'true',
+    BUCKET: new MemoryBucket(), REPORTS_PROBE_TOKEN: 'c3'.repeat(32) };
   const keys = fakeKeys();
   const app = createDashboard(assets, { clock: () => now, fetchImpl: async (url, init) => {
     assert.equal(url, 'https://token.actions.githubusercontent.com/.well-known/jwks', 'No report or notification may use real network access in this test');
@@ -246,4 +247,45 @@ test('actual prematch prediction is displayed on research-only Web without a com
   assert.equal(visible.strictMarkets.releasedCandidates,0);
   assert.equal(visible.externalTelegramSent,false);
   assert.equal(env.BUCKET.rows.size,2);
+});
+
+test('A8 default-off Web switch prevents all research ingress, pages and stored readback without clearing unrelated data', async () => {
+  const { env, call, visit, login } = setup();
+  const nowISO = new Date(NOW).toISOString();
+  const report = buildDailyResearchReport({ ledger: { exists: true, events: [] }, nowISO, codeSha: 'a'.repeat(40) });
+  const cookie = await login();
+
+  delete env.VANTIS_RESEARCH_WEB_ENABLED;
+  for (const path of ['/internal/research-daily', '/api/research-daily', '/research-daily.html', '/research-daily-client.mjs']) {
+    const req = path.startsWith('/internal') ? call(path) : visit(path, cookie);
+    const disabled = await req;
+    assert.equal(disabled.status, 404, path + ' must fail closed without Site feature flag');
+    assert.equal((await disabled.json()).error, 'RESEARCH_WEB_DISABLED');
+  }
+  const blocked = await call('/internal/research-daily', { method: 'POST', body: report });
+  assert.equal(blocked.status, 404);
+  assert.equal(env.BUCKET.rows.size, 0, 'Default-off must not persist stale research input');
+  assert.equal((await visit('/', cookie)).status, 200);
+  assert.doesNotMatch(await (await visit('/', cookie)).text(), /href="\/research-daily.html"/);
+  env.VANTIS_RESEARCH_WEB_ENABLED = 'false';
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report })).status, 404);
+
+  env.VANTIS_RESEARCH_WEB_ENABLED = 'true';
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report })).status, 200);
+  assert.equal((await visit('/api/research-daily', cookie)).status, 200);
+  assert.equal(env.BUCKET.rows.size, 2);
+  assert.match(await (await visit('/', cookie)).text(), /href="\/research-daily.html"/);
+
+  // Disabling after a previously successful upload must revoke EVERY
+  // endpoint, even though the immutable report remains in storage.
+  env.VANTIS_RESEARCH_WEB_ENABLED = 'false';
+  for (const path of ['/internal/research-daily','/api/research-daily','/research-daily.html','/research-daily-client.mjs']) {
+    const response = path.startsWith('/internal') ? await call(path) : await visit(path, cookie);
+    assert.equal(response.status, 404, 'Existing Bucket state may never override disabled switch: '+path);
+  }
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report })).status, 404);
+  assert.equal(env.BUCKET.rows.size, 2, 'Emergency revoke does not rewrite historical evidence');
+  assert.equal((await visit('/api/report', cookie)).status !== 404, true, 'Original nonresearch route stays independent');
+  env.VANTIS_RESEARCH_WEB_ENABLED = 'true';
+  assert.deepEqual(await (await visit('/api/research-daily', cookie)).json(), report, 'Explicit reenable restores the same read-only report');
 });
