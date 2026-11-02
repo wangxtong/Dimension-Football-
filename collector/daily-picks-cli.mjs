@@ -53,6 +53,11 @@ async function main() {
     jcTotal:jc.matches.length, jcUpdatedAt:jc.updatedAt || null,
     modelFixtures:(predictions.fixtures || []).length,
     picksTotal:picks.total, matched, selected:picks.selected || 0,
+    inputTotal:picks.inputTotal, selectedAll:picks.selectedAll,
+    hiddenTotal:picks.hiddenTotal, hiddenSelected:picks.hiddenSelected,
+    // Do not hide the unfavourable/unselected rows behind --limit 10;
+    // this is a research snapshot, not yet an immutable raw market ledger.
+    allCandidates:picks.allPicks, excludedCandidates:picks.excludedCandidates,
     researchOnly:true, commercialReleaseGate:'BLOCKED',
     picks:picks.picks.map(p=>({matchId:p.matchId,league:p.league,home:p.home,away:p.away,kickoff:p.kickoff,
       pool:p.handicap.pool, goalLine:p.handicap.goalLine, odds:{home:p.handicap.home,draw:p.handicap.draw,away:p.handicap.away},
