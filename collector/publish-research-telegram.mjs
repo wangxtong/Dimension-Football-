@@ -209,6 +209,16 @@ function beijingShort(iso) {
   const pad = n => String(n).padStart(2, '0');
   return pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + ' ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
 }
+// 表格单元格里再省一个字都会影响是否折行：温度/风速/降水用最短写法。
+function weatherNarrow(row) {
+  const w = row.weather || {};
+  const parts = [];
+  if (typeof w.temperatureC === 'number' && Number.isFinite(w.temperatureC)) parts.push(w.temperatureC.toFixed(0) + '°C');
+  if (typeof w.windKmh === 'number' && Number.isFinite(w.windKmh)) parts.push('风' + w.windKmh.toFixed(0));
+  if (typeof w.precipitationProbabilityPct === 'number' && Number.isFinite(w.precipitationProbabilityPct))
+    parts.push('雨' + w.precipitationProbabilityPct.toFixed(0) + '%');
+  return parts.length ? parts.join(' ') : null;
+}
 function weatherCompact(row) {
   const w = row.weather;
   const parts = [];
@@ -259,18 +269,24 @@ export function richHtml(report) {
     '⚠️ 研究参考，非投注建议｜时间均为北京时间'];
   const candidates = report.forecasts.candidates || [];
   if (candidates.length) {
-    lines.push('', '<table bordered striped compact>', '<caption>今日研究冻结</caption>',
-      '<tr><th>赛事</th><th>开球</th><th>主</th><th>平</th><th>客</th><th>倾向</th><th>进球</th><th>大小</th><th>比分</th></tr>');
+    // 手机竖屏放不下 9 列：拆成「胜平负」和「进球比分」两张窄表，避免右侧被裁切。
+    lines.push('', '<table bordered striped compact>', '<caption>胜平负（研究参考）</caption>',
+      '<tr><th>联赛</th><th>赛事</th><th>主</th><th>平</th><th>客</th></tr>');
     for (const row of candidates) {
       const p = row.probabilities || {};
-      const league = LEAGUE_CN[row.league] || row.league;
+      lines.push('<tr><td>' + esc(LEAGUE_CN[row.league] || row.league) + '</td>'
+        + '<td>' + esc(teamName(row.home) + ' vs ' + teamName(row.away)) + '</td>'
+        + '<td>' + pctValue(p.home) + '</td><td>' + pctValue(p.draw) + '</td><td>' + pctValue(p.away) + '</td></tr>');
+    }
+    lines.push('</table>');
+    lines.push('', '<table bordered striped compact>', '<caption>进球 · 大小球 · 比分</caption>',
+      '<tr><th>赛事</th><th>开球</th><th>进球</th><th>大小</th><th>比分</th></tr>');
+    for (const row of candidates) {
       const eg = row.expectedGoals;
       const goals = eg && Number.isFinite(eg.home) && Number.isFinite(eg.away) ? eg.home + eg.away : null;
       const scores = Array.isArray(row.topScores) ? row.topScores.map(s => s.home + ':' + s.away).join(' ') : '';
-      lines.push('<tr><td>' + esc(league + ' ' + teamName(row.home) + ' vs ' + teamName(row.away)) + '</td>'
+      lines.push('<tr><td>' + esc(teamName(row.home)) + '</td>'
         + '<td>' + esc(beijingShort(row.kickoff).slice(6)) + '</td>'
-        + '<td>' + pctValue(p.home) + '</td><td>' + pctValue(p.draw) + '</td><td>' + pctValue(p.away) + '</td>'
-        + '<td>' + esc(OUTCOME_CN[row.selection] || row.selection || '—') + '</td>'
         + '<td>' + (eg ? eg.home.toFixed(1) + ':' + eg.away.toFixed(1) : '—') + '</td>'
         + '<td>' + (goals === null ? '—' : (goals >= 2.5 ? '大2.5' : '小2.5')) + '</td>'
         + '<td>' + esc(scores || '—') + '</td></tr>');
@@ -281,8 +297,8 @@ export function richHtml(report) {
       lines.push('', '<table bordered compact>', '<caption>开球时段天气</caption>',
         '<tr><th>赛事</th><th>天气</th><th>城市</th></tr>');
       for (const row of weatherRows) {
-        lines.push('<tr><td>' + esc(teamName(row.home) + ' vs ' + teamName(row.away)) + '</td>'
-          + '<td>' + esc(weatherCompact(row) || '—') + '</td>'
+        lines.push('<tr><td>' + esc(teamName(row.home)) + '</td>'
+          + '<td>' + esc(weatherNarrow(row) || '—') + '</td>'
           + '<td>' + esc(row.venue ? cityName(row.venue.city) || '—' : '—') + '</td></tr>');
       }
       lines.push('</table>');
