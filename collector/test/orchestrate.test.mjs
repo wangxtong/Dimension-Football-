@@ -157,3 +157,28 @@ test('results lane stores actual final scores and produces prospective horizon e
   const day = evaluation.groups.find(row => row.horizonHours === 24);
   assert.equal(day.coverage.evaluated, 1); assert.ok(day.metrics.brier >= 0);
 });
+
+test('results lane also settles football-data freeze via same-source results', async t => {
+  // 真实冻结预测多数来自 football-data.org，而 fetchPublicResults 只给 openligadb。
+  // lane 必须自己补同源结果，否则这些预测永远不会被评分。
+  const cwd = await workspace(t), directory = join(cwd, 'reports/forecast-ledger'), predictionAt = at(-2);
+  const f = { ...fixture(), id: 'fd-9', sourceFixtureId: 'fd-9', source: 'football-data.org', kickoff: at(-1) };
+  await appendPrediction({ directory, fixture: f, model: FORECAST_MODEL, reportId: 'a'.repeat(64), nowISO: predictionAt,
+    forecast: { fixtureId: f.id, status: 'forecast', generatedAt: predictionAt, trainingCutoff: predictionAt,
+      trainingHash: 'b'.repeat(64), probabilities: { home: .6, draw: .25, away: .15 },
+      freshness: { validUntil: new Date(Date.parse(predictionAt) + 3600000).toISOString() } } });
+  const outcome = await runOrchestration(args(cwd, 'results'), { ...common(cwd),
+    env: { FOOTBALL_DATA_API_TOKEN: 'test-token' }, dependencies: {
+      fetchPublicResults: async () => ({ history: [], diagnostics: [] }),
+      collectHistory: async () => ({ history: [{ id: f.id, source: f.source, league: f.league, season: f.season,
+        home: f.home, away: f.away, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, kickoff: f.kickoff,
+        status: 'FINISHED', period: 'full-time', homeGoals: 2, awayGoals: 0,
+        resultObservedAt: NOW, fetchedAt: NOW }], diagnostics: [] }),
+    } });
+  assert.equal(outcome.exitCode, 0);
+  const scores = (await readdir(join(directory))).length;
+  assert.ok(scores > 0, 'ledger must store the settled event');
+  const evaluation = await readJson(join(cwd, 'reports/prospective-evaluation.json'));
+  assert.equal(evaluation.summary.awaitingResultsBySource?.['football-data.org'] || 0, 0);
+  assert.ok(evaluation.summary.recordedScores >= 1, 'football-data freeze must be scored');
+});
