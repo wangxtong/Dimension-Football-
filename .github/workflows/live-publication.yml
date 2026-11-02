@@ -13,6 +13,10 @@ on:
     - cron: '*/5 * * * *'
     # 每日北京时间10:10一次研究冻结与赛后核账；不是24h SLA。
     - cron: '10 2 * * *'
+    # 补偿轮：GitHub schedule 可延迟/丢弃（实测该 workflow 一天只跑个位数）。
+    # 10:10 被丢掉时，10:40 这轮会补跑；若 10:10 已推送，跨 runner 的
+    # telegram-receipt（已随 state 持久化）会命中 BEDay+codeSha 幂等，不会重复发。
+    - cron: '40 2 * * *'
   push:
     branches: [main]
     paths:
@@ -40,7 +44,7 @@ jobs:
       # Collection/state can advance; publication requires the reviewed report gate.
       RELEASE_GATE: BLOCKED
       HOSTED_MARKET_OBSERVATIONS: 'true'
-      HOSTED_MODE: ${{ github.event_name == 'schedule' && github.event.schedule == '10 2 * * *' && 'research' || github.event_name == 'workflow_dispatch' && inputs.mode || 'observations' }}
+      HOSTED_MODE: ${{ github.event_name == 'schedule' && (github.event.schedule == '10 2 * * *' || github.event.schedule == '40 2 * * *') && 'research' || github.event_name == 'workflow_dispatch' && inputs.mode || 'observations' }}
     steps:
       - uses: actions/checkout@v6
         with:
