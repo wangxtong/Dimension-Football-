@@ -192,10 +192,10 @@ def robots_allows(url, *, open_request=None):
     return bool(parser.can_fetch(SOURCE_AGENT, url))
 
 
-def fetch_live(source, season, now=None, fetcher=None, robots_checker=None):
+def fetch_live(source, season, now=None, fetcher=None, robots_checker=None, clock=None):
     url = target_url(source, season)
-    if now is None:
-        now = datetime.now(timezone.utc)
+    # The observation clock is sampled only AFTER the HTTP body is available.
+    # A caller-supplied "now" is reserved for deterministic offline tests.
     if not (robots_checker or robots_allows)(url):
         fail('ROBOTS_DENIED')
     if fetcher is None:
@@ -205,7 +205,8 @@ def fetch_live(source, season, now=None, fetcher=None, robots_checker=None):
             fail('SCRAPLING_NOT_INSTALLED')
         fetcher = Fetcher.get
     try:
-        page = fetcher(url, follow_redirects=False, retries=0, timeout=8, stealthy_headers=False)
+        page = fetcher(url, headers={'User-Agent': SOURCE_AGENT},
+                       follow_redirects=False, retries=0, timeout=8, stealthy_headers=False)
     except Exception:
         fail('SOURCE_TRANSPORT_FAILED')
     status = getattr(page, 'status', None)
@@ -216,17 +217,20 @@ def fetch_live(source, season, now=None, fetcher=None, robots_checker=None):
     raw = getattr(page, 'body', None)
     if not isinstance(raw, bytes) or not raw or len(raw) > MAX_RAW_BYTES:
         fail('RAW_SIZE_INVALID')
+    completed_at = now if now is not None else (clock or (lambda: datetime.now(timezone.utc)))()
+    if not isinstance(completed_at, datetime) or completed_at.tzinfo is None:
+        fail('OBSERVATION_TIME_INVALID')
     headers = getattr(page, 'headers', None) or {}
     server_date = headers.get('date') or headers.get('Date')
     if not server_date:
         fail('SERVER_TIME_MISSING')
     try:
         dt = parsedate_to_datetime(server_date)
-        if dt.tzinfo is None or abs((now - dt.astimezone(timezone.utc)).total_seconds()) > 300:
+        if dt.tzinfo is None or abs((completed_at - dt.astimezone(timezone.utc)).total_seconds()) > 300:
             fail('SERVER_TIME_UNVERIFIED')
     except (ValueError, TypeError):
         fail('SERVER_TIME_INVALID')
-    return raw, utc_stamp(now.isoformat()), utc_stamp(dt.isoformat())
+    return raw, utc_stamp(completed_at.isoformat()), utc_stamp(dt.isoformat())
 
 def _write_new(path, data):
     fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
@@ -242,6 +246,16 @@ def store(raw, *, source, season, fetched_at, out_root, mode, response_at=None):
     if mode not in ('LIVE_SOURCE_HTTP', 'OFFLINE_VERIFIED_INPUT'):
         fail('MODE_INVALID')
     fetched_at = utc_stamp(fetched_at)
+    if mode == 'LIVE_SOURCE_HTTP':
+        if response_at is None:
+            fail('LIVE_RECEIPT_MISSING')
+        response_at = utc_stamp(response_at)
+        received = datetime.fromisoformat(response_at.replace('Z', '+00:00'))
+        completed = datetime.fromisoformat(fetched_at.replace('Z', '+00:00'))
+        if abs((completed - received).total_seconds()) > 300:
+            fail('SERVER_TIME_UNVERIFIED')
+    elif response_at is not None:
+        fail('OFFLINE_RECEIPT_INVALID')
     projection = normalize(raw, source, season, fetched_at)
     root = Path(out_root)
     if not root.is_absolute() or root.exists() and (root.is_symlink() or not root.is_dir()):
@@ -297,8 +311,33 @@ def verify(directory):
         projection = (path / 'projection.json').read_bytes()
     except (OSError, ValueError):
         fail('ARCHIVE_UNREADABLE')
-    if receipt.get('kind') != 'public-source-raw-receipt' or receipt.get('version') != 1:
+    if not isinstance(receipt, dict) or receipt.get('kind') != 'public-source-raw-receipt' or receipt.get('version') != 1:
         fail('RECEIPT_INVALID')
+    source, season, fetched_at = receipt.get('sourceId'), receipt.get('season'), receipt.get('fetchedAtUTC')
+    expected_url = target_url(source, season)
+    fetched = utc_stamp(fetched_at)
+    if (receipt.get('requestedURL') != expected_url or fetched != fetched_at
+            or path.name != h((source + '|' + str(season) + '|' + fetched + '|'
+                                + str(receipt.get('rawSha256'))).encode('utf-8'))
+            or path.parent.name != fetched[:10] or path.parent.parent.name != source):
+        fail('RECEIPT_IDENTITY_INVALID')
+    mode = receipt.get('observationMode')
+    if mode == 'LIVE_SOURCE_HTTP':
+        if type(receipt.get('httpStatus')) is not int or receipt['httpStatus'] != 200:
+            fail('RECEIPT_HTTP_INVALID')
+        server_at = utc_stamp(receipt.get('serverDateUTC'))
+        if abs((datetime.fromisoformat(server_at.replace('Z', '+00:00'))
+                - datetime.fromisoformat(fetched.replace('Z', '+00:00'))).total_seconds()) > 300:
+            fail('RECEIPT_TIME_INVALID')
+    elif mode == 'OFFLINE_VERIFIED_INPUT':
+        if receipt.get('httpStatus') is not None or receipt.get('serverDateUTC') is not None:
+            fail('OFFLINE_RECEIPT_INVALID')
+    else:
+        fail('RECEIPT_MODE_INVALID')
+    if (receipt.get('historicalPregameObserved') is not False
+            or receipt.get('containsVerifiedOdds') is not False
+            or receipt.get('releaseGate') != 'BLOCKED' or receipt.get('modelReady') is not False):
+        fail('RECEIPT_POLICY_INVALID')
     if h(raw) != receipt.get('rawSha256') or len(raw) != receipt.get('rawBytes'):
         fail('RAW_HASH_MISMATCH')
     if h(projection) != receipt.get('projectionSha256'):
