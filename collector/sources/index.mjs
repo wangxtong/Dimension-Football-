@@ -60,6 +60,8 @@ export async function collectPublicEvidence({fixtures = [], nowISO = new Date().
 }
 
 export async function collectCrawledEvidence({fixtures, nowISO, includeMacauslot = false, ...crawlerOptions}) {
+  // Deny unadmitted source before crawler, cached response and HTTP transport.
+  if (includeMacauslot) throw new Error('ACCESS_BLOCKED');
   const {result, crawler} = await withPublicCrawler(crawlerOptions,
     async fetchImpl => {
       if (!includeMacauslot) return collectPublicEvidence({fixtures, nowISO, fetchImpl});
@@ -93,7 +95,7 @@ export async function collectCrawledEvidence({fixtures, nowISO, includeMacauslot
  */
 export async function collectIntegratedEvidence({ fixtures, nowISO, env, providerStatePath, providerPolicy, ...crawlerOptions }) {
   const results = await Promise.allSettled([
-    collectCrawledEvidence({ fixtures, nowISO, ...crawlerOptions, includeMacauslot: true }),
+    collectCrawledEvidence({ fixtures, nowISO, ...crawlerOptions, includeMacauslot: false }),
     collectProviderEvidence({ fixtures, nowISO, env, statePath: providerStatePath, policy: providerPolicy,
       fetchImpl: crawlerOptions.fetchImpl, signal: crawlerOptions.signal, clock: crawlerOptions.clock, remaining: crawlerOptions.remaining }),
     fetchHkjcEvidence({ fixtures, nowISO, cooldownStatePath: crawlerOptions.statePath ? `${crawlerOptions.statePath}.hkjc-cooldown.json` : undefined,
@@ -105,6 +107,9 @@ export async function collectIntegratedEvidence({ fixtures, nowISO, env, provide
       code: ['PROVIDER_STATE_INVALID', 'PROVIDER_STATE_UNREADABLE', 'CRAWLER_STATE_INVALID', 'CRAWLER_STATE_UNREADABLE',
         'SOURCE_COOLDOWN_INVALID', 'SOURCE_COOLDOWN_UNREADABLE', 'COLLECTION_ALREADY_LOCKED'].includes(r.reason?.message)
         ? r.reason.message : 'COLLECTION_FAILED', checkedAt: nowISO }] });
-  return { quotes: data.flatMap(r => r.quotes), marketStates: data.flatMap(r => r.marketStates || []), signals: data.flatMap(r => r.signals), diagnostics: data.flatMap(r => r.diagnostics),
+  // A source blocked at ingress cannot count as an independent market group.
+  const admitted = row => row?.sourceId !== 'macauslot' && row?.id !== 'macauslot' && row?.provider !== 'macauslot-official';
+  const blockedDiagnostic = { id: 'macauslot', sourceId: 'macauslot', status: 'blocked', code: 'ACCESS_BLOCKED', checkedAt: nowISO };
+  return { quotes: data.flatMap(r => r.quotes).filter(admitted), marketStates: data.flatMap(r => r.marketStates || []).filter(admitted), signals: data.flatMap(r => r.signals).filter(admitted), diagnostics: [...data.flatMap(r => r.diagnostics).filter(admitted), blockedDiagnostic],
     fixtureDiagnostics: data.flatMap(row => row.fixtureDiagnostics || []), crawler: data[0].crawler || null, providers: data[1].providers || null };
 }
