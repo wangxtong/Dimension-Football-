@@ -1,88 +1,135 @@
-// 每日盘口清单：把「体彩让球盘」与「模型 1X2 概率」合成一张可回测的每日推荐表。
-// 设计目标对齐「每天 10 场 + 带盘口赔率 + 次日复盘」的形态，而不是只展示冻结计数。
-//
-// 结算口径（亚盘）：
-//   全赢  让球后主队胜出且净胜 > |goalLine|
-//   走盘  净胜 == |goalLine|
-//   全输  其余
-// 半赢/半输需要四分之一球盘（-0.25/-0.75），体彩 hhad 为整数/半球，暂不产生半赢半输。
-const OUTCOME = Object.freeze({ WIN: '全赢', PUSH: '走盘', LOSS: '全输' });
+// 研究参考：体彩 hhad 是含“让球平”的三项市场，绝不是二项亚洲让球盘。
+// 所有结算都以赛前冻结的 selection + 对应市场 + 90分钟官方FT结果为基础。
+// 本模块不向正式发布链路放行，不证明商业授权或模型已校准。
+const OUTCOME = Object.freeze({ WIN: '全赢', LOSS: '全输' });
+const SIDES = Object.freeze(['home', 'draw', 'away']);
+const validGoals = n => Number.isInteger(n) && n >= 0 && n <= 30;
+const validOdds = n => typeof n === 'number' && Number.isFinite(n) && n > 1 && n <= 100;
+const validId = n => (typeof n === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(n)) || Number.isSafeInteger(n) && n > 0;
+const validMarket = m => m && m.pool === 'hhad' && Number.isInteger(m.goalLine)
+  && validOdds(m.home) && validOdds(m.draw) && validOdds(m.away);
+const rounded = n => Math.round((n + Number.EPSILON) * 1e6) / 1e6;
 
-export function settleHandicap({ homeGoals, awayGoals, goalLine }) {
-  if (!Number.isInteger(homeGoals) || !Number.isInteger(awayGoals)) return null;
-  if (!Number.isFinite(goalLine)) return null;
-  const margin = homeGoals - awayGoals + goalLine;  // goalLine 为负表示主队让球
-  if (margin > 0) return { outcome: OUTCOME.WIN, margin };
-  if (margin === 0) return { outcome: OUTCOME.PUSH, margin };
-  return { outcome: OUTCOME.LOSS, margin };
+/**
+ * A three-selection handicap result is never a stake refund: when the adjusted
+ * score is tied, draw wins at its offered odds and home / away both lose.
+ * In particular hhad goalLine -1 is NOT Asian handicap -1.0.
+ */
+export function settleHhad({ homeGoals, awayGoals, goalLine, selection, decimalOdds } = {}) {
+  if (!validGoals(homeGoals) || !validGoals(awayGoals) || !Number.isInteger(goalLine)
+    || !SIDES.includes(selection) || !validOdds(decimalOdds)) return null;
+  const margin = homeGoals - awayGoals + goalLine;
+  const winningSelection = margin > 0 ? 'home' : margin < 0 ? 'away' : 'draw';
+  const won = winningSelection === selection;
+  return { selection, winningSelection, margin, outcome: won ? OUTCOME.WIN : OUTCOME.LOSS,
+    decimalOdds, profitUnits: won ? rounded(decimalOdds - 1) : -1 };
 }
 
-// 从 1X2 概率里挑「更可能的一侧」，并与让球盘对照给出倾向。
-// 注意：这是启发式映射，不是校准后的亚盘概率；输出必须标注为研究参考。
-export function pickSide({ probabilities, goalLine }) {
-  if (!probabilities || !Number.isFinite(goalLine)) return null;
+// 兼容原导出名称，但不再接受“无选择项就按主队结算”的错误调用。
+export const settleHandicap = settleHhad;
+
+// 原模型的1X2倾向只是旁路研究信号，未校准为体彩hhad概率，
+// 尤其不能用1X2的“平局”概率代替让球平。
+export function pickSide({ probabilities, goalLine } = {}) {
+  if (!probabilities || !Number.isInteger(goalLine)) return null;
   const home = Number(probabilities.home), draw = Number(probabilities.draw), away = Number(probabilities.away);
   if (![home, draw, away].every(v => Number.isFinite(v) && v >= 0)) return null;
   const total = home + draw + away;
   if (!(total > 0)) return null;
   const h = home / total, d = draw / total, a = away / total;
-  if (goalLine < 0) {
-    // 主队让球：需要主队赢超过让球数。用「主胜概率 × 净胜余量」的粗代理。
-    const edge = h - d * 0.5;
-    return { side: edge >= a ? 'home' : 'away', confidence: Math.round(Math.max(edge, a) * 1000) / 10 };
-  }
-  if (goalLine > 0) {
-    const edge = a - d * 0.5;
-    return { side: edge >= h ? 'away' : 'home', confidence: Math.round(Math.max(edge, h) * 1000) / 10 };
-  }
-  return { side: h >= a ? 'home' : 'away', confidence: Math.round(Math.max(h, a) * 1000) / 10 };
+  let homeProxy = h, awayProxy = a;
+  if (goalLine < 0) homeProxy = h - d * 0.5;
+  if (goalLine > 0) awayProxy = a - d * 0.5;
+  return { side: homeProxy >= awayProxy ? 'home' : 'away',
+    confidence: rounded(Math.max(homeProxy, awayProxy) * 100),
+    market: 'hhad', method: 'UNCALIBRATED_1X2_PROXY_NOT_HHAD_PROBABILITY',
+    researchOnly: true };
 }
 
-// 组装每日清单：只保留有让球盘、且比赛尚未开赛的场次。
+/** Always include unselected matches in coverage; never promote missing model data to a pick. */
 export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 10 } = {}) {
   const now = Date.parse(nowISO);
-  if (!Number.isFinite(now)) return { picks: [], skipped: 'INVALID_NOW' };
+  if (!Number.isFinite(now) || !Array.isArray(matches) || !Array.isArray(forecasts)
+    || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) return { picks: [], total: 0, skipped: 'INVALID_INPUT' };
   const byKey = new Map();
   for (const f of forecasts) {
-    const key = String(f.fixtureKey || f.matchId || '');
-    if (key) byKey.set(key, f);
+    const key = f && (f.fixtureKey ?? f.matchId);
+    if (key !== undefined && key !== null && validId(key)) byKey.set(String(key), f);
   }
-  const picks = [];
+  const picks = [], seen = new Set();
   for (const m of matches) {
-    if (!m || !m.handicap) continue;
+    if (!m || !validId(m.matchId) || !validMarket(m.handicap)) continue;
     const kickoff = Date.parse(m.kickoff);
-    if (!Number.isFinite(kickoff) || kickoff <= now) continue;   // 只取未开赛
-    const forecast = byKey.get('jc-' + m.matchId) || byKey.get(String(m.matchId)) || null;
-    const pick = forecast ? pickSide({ probabilities: forecast.probabilities, goalLine: m.handicap.goalLine }) : null;
-    picks.push({
-      matchId: m.matchId, league: m.league, home: m.home, away: m.away, kickoff: m.kickoff,
-      handicap: { goalLine: m.handicap.goalLine, home: m.handicap.home, draw: m.handicap.draw, away: m.handicap.away,
+    if (!Number.isFinite(kickoff) || kickoff <= now) continue;
+    const id = String(m.matchId);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const forecast = byKey.get('jc-' + id) || byKey.get(id) || null;
+    // Only pre-match source versions may be used; unknown timestamps must be explicit.
+    const asOf = forecast?.generatedAt ?? forecast?.recordedAt ?? null;
+    const asOfMs = typeof asOf === 'string' ? Date.parse(asOf) : NaN;
+    const isPrematch = Number.isFinite(asOfMs) && asOfMs <= now && asOfMs < kickoff;
+    const modelPick = isPrematch ? pickSide({ probabilities: forecast.probabilities, goalLine: m.handicap.goalLine }) : null;
+    const pick = modelPick ? { ...modelPick, decimalOdds: m.handicap[modelPick.side] } : null;
+    picks.push({ matchId: m.matchId, league: m.league, home: m.home, away: m.away, kickoff: m.kickoff,
+      handicap: { source: m.handicap.source, pool: 'hhad', goalLine: m.handicap.goalLine,
+        home: m.handicap.home, draw: m.handicap.draw, away: m.handicap.away,
         updatedAt: m.handicap.updatedAt || null },
       homeRank: m.homeRank || null, awayRank: m.awayRank || null,
-      ...(forecast ? { probabilities: forecast.probabilities, pick } : { pick: null }),
-    });
+      ...(isPrematch ? { probabilities: forecast.probabilities } : {}),
+      predictionFrozenAt: isPrematch ? asOf : null, pick });
   }
-  picks.sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff));
-  return { picks: picks.slice(0, limit), total: picks.length };
+  picks.sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff) || String(a.matchId).localeCompare(String(b.matchId)));
+  return { picks: picks.slice(0, limit), total: picks.length,
+    selected: picks.filter(p => p.pick).length,
+    withoutModel: picks.filter(p => !p.pick).length,
+    market: 'sporttery-hhad-three-way', researchOnly: true };
 }
 
-// 次日复盘：对已完赛且有让球盘的场次逐场结算，累计命中率。
+/** Read-only tally: unresolved, duplicate and unselected rows are never wins or losses. */
 export function settleDailyPicks({ picks = [], results = [] } = {}) {
+  if (!Array.isArray(picks) || !Array.isArray(results)) return { rows: [], error: 'INVALID_INPUT' };
   const byMatch = new Map();
-  for (const r of results) {
-    const key = String(r.matchId || r.fixtureKey || '');
-    if (key) byMatch.set(key, r);
+  for (const result of results) {
+    const id = result && (result.matchId ?? result.fixtureKey);
+    if (!validId(id)) continue;
+    const key = String(id).replace(/^jc-/, '');
+    const item = byMatch.get(key) || [];
+    item.push(result);
+    byMatch.set(key, item);
   }
-  const rows = [];
+  const seen = new Set(), rows = [];
+  let unselected = 0, pending = 0, invalid = 0, duplicate = 0;
   for (const p of picks) {
-    const r = byMatch.get('jc-' + p.matchId) || byMatch.get(String(p.matchId));
-    if (!r) continue;
-    const settled = settleHandicap({ homeGoals: r.homeGoals, awayGoals: r.awayGoals, goalLine: p.handicap.goalLine });
-    if (!settled) continue;
-    rows.push({ ...p, actual: { homeGoals: r.homeGoals, awayGoals: r.awayGoals }, ...settled });
+    if (!p || !validId(p.matchId)) { invalid++; continue; }
+    const id = String(p.matchId);
+    if (seen.has(id)) { duplicate++; continue; }
+    seen.add(id);
+    if (!validMarket(p.handicap) || p.pick?.market !== 'hhad' || !SIDES.includes(p.pick?.side)) {
+      unselected++; continue;
+    }
+    const matched = byMatch.get(id) || [];
+    if (!matched.length) { pending++; continue; }
+    if (matched.length !== 1) { duplicate++; continue; }
+    const r = matched[0];
+    // Require an observed *full-time* result, not a live score or a synthetic winner.
+    const resultAt = Date.parse(r.resultObservedAt);
+    const kickoff = Date.parse(p.kickoff);
+    const frozenAt = Date.parse(p.predictionFrozenAt);
+    if (!['FT', 'FINISHED'].includes(r.status) || !Number.isFinite(resultAt)
+      || !Number.isFinite(kickoff) || !Number.isFinite(frozenAt)
+      || !(frozenAt < kickoff && kickoff <= resultAt)
+      || r.home && r.home !== p.home || r.away && r.away !== p.away) { invalid++; continue; }
+    const decimalOdds = p.handicap[p.pick.side];
+    const settled = settleHhad({ homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+      goalLine: p.handicap.goalLine, selection: p.pick.side, decimalOdds });
+    if (!settled) { invalid++; continue; }
+    rows.push({ ...p, actual: { homeGoals: r.homeGoals, awayGoals: r.awayGoals, observedAt: r.resultObservedAt }, ...settled });
   }
-  const decided = rows.filter(r => r.outcome !== OUTCOME.PUSH);
-  const wins = decided.filter(r => r.outcome === OUTCOME.WIN);
-  const hitRate = decided.length ? Math.round((wins.length / decided.length) * 10000) / 100 : null;
-  return { rows, total: rows.length, decided: decided.length, wins: wins.length, pushes: rows.length - decided.length, hitRate };
+  const wins = rows.filter(r => r.outcome === OUTCOME.WIN).length;
+  const hitRate = rows.length ? rounded(wins / rows.length * 100) : null;
+  return { market: 'hhad-three-way', researchOnly: true, rows, total: rows.length, decided: rows.length,
+    wins, losses: rows.length - wins, pushes: 0, hitRate,
+    profitUnits: rounded(rows.reduce((sum, r) => sum + r.profitUnits, 0)),
+    coverage: { inputPicks: picks.length, selected: seen.size - unselected, unselected, pending, invalid, duplicate } };
 }
