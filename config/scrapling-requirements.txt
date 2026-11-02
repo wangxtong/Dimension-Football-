@@ -1,0 +1,4 @@
+# Optional, isolated Python 3.10+ research crawler. Not installed in ECS/main collector automatically.
+# Scrapling v0.5 is the checked GitHub release (2026-10-17). Normal HTTP Fetcher only;
+# browser/StealthyFetcher/CAPTCHA solving are not enabled by this integration.
+scrapling[fetchers]==0.5
