@@ -1,0 +1,1412 @@
+{
+  "provenance": {
+    "kind": "official-public-snapshot-excerpt",
+    "simulation": false,
+    "actionRunId": 41359658475,
+    "artifactMember": "state/market-observation-crawler.json",
+    "selection": "Four original event objects and matching configs; original AH markets including alternatives, no generated prices or opening records. Keyword metadata is human-reviewed corroboration for exact aliases, never a runtime matching rule.",
+    "events": {
+      "url": "https://www.macauslot.com/soccer/json/realtime/threeinone_event_cn_fb.json",
+      "cachedTextSha256": "b63e11e77b53ce31b355af0c953a745eb5ebe778bf62163093bc436022ba9c80",
+      "fetchedAt": "2026-11-01T22:57:16.711Z",
+      "headers": {
+        "date": "Sun, 01 Nov 2026 22:57:16 GMT",
+        "last-modified": "Sun, 01 Nov 2026 22:56:06 GMT",
+        "etag": "\"7b86d0-35efc-65f3eef3c6ddd\"",
+        "content-type": "application/json",
+        "vary": "Accept-Encoding"
+      }
+    },
+    "odds": {
+      "url": "https://www.macauslot.com/soccer/json/realtime/threeinone_odds_cn_fb.json",
+      "cachedTextSha256": "6a494864b2cd5f147f7771cdb5fa2d74777aabb8fac928ce6935f373a2b1893d",
+      "fetchedAt": "2026-11-01T22:57:26.860Z",
+      "headers": {
+        "date": "Sun, 01 Nov 2026 22:57:26 GMT",
+        "last-modified": "Sun, 01 Nov 2026 22:56:06 GMT",
+        "etag": "\"7b86c6-a8fc7-65f3eef3c8d1d\"",
+        "content-type": "application/json",
+        "vary": "Accept-Encoding"
+      }
+    }
+  },
+  "fixtures": [
+    {
+      "id": "tsdb-2494080",
+      "sourceFixtureId": "2494080",
+      "league": "PL",
+      "home": "Newcastle United",
+      "away": "Everton",
+      "homeTeamId": "134777",
+      "awayTeamId": "133615",
+      "season": "2026-2027",
+      "kickoff": "2026-11-02T20:00:00.000Z",
+      "status": "SCHEDULED",
+      "source": "thesportsdb-free",
+      "updatedAt": "2026-11-01T22:57:14.735Z",
+      "fetchedAt": "2026-11-01T22:57:14.735Z",
+      "observedAt": "2026-11-01T22:57:14.735Z",
+      "sourceUpdatedAt": null,
+      "canonicalMatchId": "evt_902049a11f4109866a504d5adb04de6d4beb5a3771ab99d578df14a17346b590",
+      "identityScope": "source",
+      "identityRevision": "74f620cdca4c2d4505f5a0e4ad164655acb8ef5afec19789f76a8fdb1157c378",
+      "revisionId": "274af5eab33efa25091a41d81b8af3569f0b99ee95492586ebf6e88cc125157a",
+      "recordHash": "a72241065939df324e7ad06b43999836a7dca74c894c5d51da426e59d94e8199"
+    },
+    {
+      "id": "tsdb-2506274",
+      "sourceFixtureId": "2506274",
+      "league": "PD",
+      "home": "Deportivo de A Coruña",
+      "away": "Osasuna",
+      "homeTeamId": "133816",
+      "awayTeamId": "133730",
+      "season": "2026-2027",
+      "kickoff": "2026-11-02T20:00:00.000Z",
+      "status": "SCHEDULED",
+      "source": "thesportsdb-free",
+      "updatedAt": "2026-11-01T22:57:14.877Z",
+      "fetchedAt": "2026-11-01T22:57:14.877Z",
+      "observedAt": "2026-11-01T22:57:14.877Z",
+      "sourceUpdatedAt": null,
+      "canonicalMatchId": "evt_7edfe28907d1056f18a2fbbc4a9d99c3e320b0cc500630a25cc3b03b1c7c2f3d",
+      "identityScope": "source",
+      "identityRevision": "8912f880f39472e3415ef0b52aaca5d8c34564a937f7c0f0d1b2603c632e2107",
+      "revisionId": "ba2f39744b7c36a6c6e6e15f1adc87f9a32dd01227eaef4a968341d34731ed55",
+      "recordHash": "7b0ac810e1efea1251c56168bdeb1cde2c1f4db8a0130dcc67b0a8fde448f276"
+    },
+    {
+      "id": "tsdb-2482229",
+      "sourceFixtureId": "2482229",
+      "league": "SA",
+      "home": "Sassuolo",
+      "away": "Fiorentina",
+      "homeTeamId": "133701",
+      "awayTeamId": "133674",
+      "season": "2026-2027",
+      "kickoff": "2026-11-02T17:30:00.000Z",
+      "status": "SCHEDULED",
+      "source": "thesportsdb-free",
+      "updatedAt": "2026-11-01T22:57:15.018Z",
+      "fetchedAt": "2026-11-01T22:57:15.018Z",
+      "observedAt": "2026-11-01T22:57:15.018Z",
+      "sourceUpdatedAt": null,
+      "canonicalMatchId": "evt_868d96007a6f27125d3a99d36f93474f3c2737a4f9f0e5ff5a5b85f1d3fde246",
+      "identityScope": "source",
+      "identityRevision": "9b2060ebf1dc2c6161df27b0771d549449186a39d470c05a4552f31e68cdaac5",
+      "revisionId": "cf18b4c5aff345b949eb48fae12077f2ab35af64a1ddc81cd99f8595e61ee63b",
+      "recordHash": "c5732cc622b24a86ef3b2dbc5438a75c2d9871f47748a86fdd13a20f643cbf27"
+    },
+    {
+      "id": "tsdb-2489539",
+      "sourceFixtureId": "2489539",
+      "league": "FL1",
+      "home": "Lorient",
+      "away": "Brest",
+      "homeTeamId": "133715",
+      "awayTeamId": "133704",
+      "season": "2026-2027",
+      "kickoff": "2026-11-02T19:45:00.000Z",
+      "status": "SCHEDULED",
+      "source": "thesportsdb-free",
+      "updatedAt": "2026-11-01T22:57:15.160Z",
+      "fetchedAt": "2026-11-01T22:57:15.160Z",
+      "observedAt": "2026-11-01T22:57:15.160Z",
+      "sourceUpdatedAt": null,
+      "canonicalMatchId": "evt_b07db0deccfbf3361e07657e8ab22cc93bc05fd3ef48767b1aebfbef6b4e18f7",
+      "identityScope": "source",
+      "identityRevision": "16316ace70e8444e809ed5ad80dfcb4ee1f93c04feface8135c732e72fca5345",
+      "revisionId": "5285316e2f82f1c3177b43c5f81d12d0711d885481bb5567e87d08db4712a5f5",
+      "recordHash": "ae1675098379fa7824d922a49fce070e12c46de5738cad14b304b099a682eb4a"
+    }
+  ],
+  "options": {
+    "observedAt": "2026-11-01T22:57:26.864Z",
+    "sourceUpdatedAt": "2026-11-01T22:56:06.000Z",
+    "sourceAsOf": "2026-11-01T22:57:26.000Z",
+    "scheduleUpdatedAt": "2026-11-01T22:56:06.000Z",
+    "scheduleAsOf": "2026-11-01T22:57:16.000Z",
+    "scheduleObservedAt": "2026-11-01T22:57:16.711Z"
+  },
+  "events": {
+    "systime": "2026-11-02 06:56:03",
+    "data": [
+      {
+        "event": {
+          "away_team": "費倫天拿",
+          "away_team_Id": "1685202817030004737",
+          "bdSportId": "1",
+          "currentState": "0",
+          "desc": "莎索羅 對 費倫天拿",
+          "displayed": "Y",
+          "ev_id": "2063121627711733761",
+          "ev_type_id": "2087133342966042626",
+          "eventType": {
+            "class_id": "1",
+            "disporder": "90",
+            "ev_type_id": "2087133342966042626",
+            "ht_minutes": "N",
+            "logo_path": "http://itest.macau-slot.com/up/flags/ITA1.png",
+            "name": "意大利甲組聯賽",
+            "translateName": {
+              "CN": "意大利甲組聯賽"
+            }
+          },
+          "has_bet_in_run": "Y",
+          "home_team": "莎索羅",
+          "home_team_id": "1685202821496938498",
+          "markets": [],
+          "result": "-",
+          "session_minutes": "",
+          "shortcut": "14692",
+          "start_time": "2026-11-03 01:30:00",
+          "state": "-",
+          "status": "A",
+          "teams": [],
+          "translateName": {
+            "awayTeam": {
+              "ZHT": "費倫天拿"
+            },
+            "homeTeam": {
+              "ZHT": "莎索羅"
+            },
+            "eventType": {
+              "CN": "意大利甲組聯賽"
+            },
+            "keyWord": " Italy Serie A  ITA1  意大利甲组联赛  意甲  意大利甲組聯賽  意甲  Sassuolo  Sassuolo  莎索罗  莎索罗  莎索羅  莎索羅  Fiorentina  Fiorentina  费伦天拿  费伦天拿  費倫天拿  費倫天拿  意大利甲組聯賽  Italy Serie A  意大利甲组联赛 ",
+            "bdUqTournament": {
+              "ZHT": "意大利甲組聯賽"
+            }
+          },
+          "updateTime": 1793289298000,
+          "version": 8
+        }
+      },
+      {
+        "event": {
+          "away_team": "比斯特",
+          "away_team_Id": "1685170738563182594",
+          "bdSportId": "1",
+          "currentState": "0",
+          "desc": "羅連安特 對 比斯特",
+          "displayed": "Y",
+          "ev_id": "2115321997586767873",
+          "ev_type_id": "2087133582506938370",
+          "eventType": {
+            "class_id": "1",
+            "disporder": "120",
+            "ev_type_id": "2087133582506938370",
+            "ht_minutes": "N",
+            "logo_path": "http://itest.macau-slot.com/up/flags/FRA1.png",
+            "name": "法國甲組聯賽",
+            "translateName": {
+              "CN": "法國甲組聯賽"
+            }
+          },
+          "has_bet_in_run": "N",
+          "home_team": "羅連安特",
+          "home_team_id": "1685202801649491970",
+          "markets": [],
+          "result": "-",
+          "session_minutes": "",
+          "shortcut": "14560",
+          "start_time": "2026-11-03 03:45:00",
+          "state": "-",
+          "status": "A",
+          "teams": [],
+          "translateName": {
+            "awayTeam": {
+              "ZHT": "比斯特"
+            },
+            "homeTeam": {
+              "ZHT": "羅連安特"
+            },
+            "eventType": {
+              "CN": "法國甲組聯賽"
+            },
+            "keyWord": " France Ligue 1  FRA1  法国甲组联赛  法甲  法國甲組聯賽  法甲  Lorient  Lorient  罗连安特  罗连安特  羅連安特  羅連安特  Brest  Brest  比斯特  比斯特  比斯特  比斯特  法國甲組聯賽  France Ligue 1  法国甲组联赛 ",
+            "bdUqTournament": {
+              "ZHT": "法國甲組聯賽"
+            }
+          },
+          "updateTime": 1793178897000,
+          "version": 9
+        }
+      },
+      {
+        "event": {
+          "away_team": "愛華頓",
+          "away_team_Id": "1685170569474011138",
+          "bdSportId": "1",
+          "currentState": "0",
+          "desc": "紐卡素 對 愛華頓",
+          "displayed": "Y",
+          "ev_id": "2068079849593831425",
+          "ev_type_id": "2083053852946964481",
+          "eventType": {
+            "class_id": "1",
+            "disporder": "80",
+            "ev_type_id": "2083053852946964481",
+            "ht_minutes": "N",
+            "logo_path": "http://itest.macau-slot.com/up/flags/ENG1.jpg",
+            "name": "英格蘭超級聯賽",
+            "translateName": {
+              "CN": "英格蘭超級聯賽"
+            }
+          },
+          "has_bet_in_run": "Y",
+          "home_team": "紐卡素",
+          "home_team_id": "1685170571566968833",
+          "markets": [],
+          "result": "-",
+          "session_minutes": "",
+          "shortcut": "14698",
+          "start_time": "2026-11-03 04:00:00",
+          "state": "-",
+          "status": "A",
+          "teams": [],
+          "translateName": {
+            "awayTeam": {
+              "ZHT": "愛華頓"
+            },
+            "homeTeam": {
+              "ZHT": "紐卡素"
+            },
+            "eventType": {
+              "CN": "英格蘭超級聯賽"
+            },
+            "keyWord": " England Premier League  ENG1  英格兰超级联赛  英超  英格蘭超級聯賽  英超  Newcastle Utd  Newcastle Utd  纽卡素  纽卡素  紐卡素  紐卡素  Everton  Everton  爱华顿  爱华顿  愛華頓  愛華頓  英格蘭超級聯賽  England Premier League  英格兰超级联赛 ",
+            "bdUqTournament": {
+              "ZHT": "英格蘭超級聯賽"
+            }
+          },
+          "updateTime": 1793312668000,
+          "version": 9
+        }
+      },
+      {
+        "event": {
+          "away_team": "奧沙辛拿",
+          "away_team_Id": "1685170608841748482",
+          "bdSportId": "1",
+          "currentState": "0",
+          "desc": "拉科魯尼亞 對 奧沙辛拿",
+          "displayed": "Y",
+          "ev_id": "2072430195359285249",
+          "ev_type_id": "2084520115148034049",
+          "eventType": {
+            "class_id": "1",
+            "disporder": "100",
+            "ev_type_id": "2084520115148034049",
+            "ht_minutes": "N",
+            "logo_path": "http://itest.macau-slot.com/up/flags/SPN1.png",
+            "name": "西班牙甲組聯賽",
+            "translateName": {
+              "CN": "西班牙甲組聯賽"
+            }
+          },
+          "has_bet_in_run": "Y",
+          "home_team": "拉科魯尼亞",
+          "home_team_id": "1685202855651155970",
+          "markets": [],
+          "result": "-",
+          "session_minutes": "",
+          "shortcut": "14173",
+          "start_time": "2026-11-03 04:00:00",
+          "state": "-",
+          "status": "A",
+          "teams": [],
+          "translateName": {
+            "awayTeam": {
+              "ZHT": "奧沙辛拿"
+            },
+            "homeTeam": {
+              "ZHT": "拉科魯尼亞"
+            },
+            "eventType": {
+              "CN": "西班牙甲組聯賽"
+            },
+            "keyWord": " Spain LALIGA  SPN1  西班牙甲组联赛  西甲  西班牙甲組聯賽  西甲  Deportivo A Coruna  Deportivo A Coruna  拉科鲁尼亚  拉科鲁尼亚  拉科魯尼亞  拉科魯尼亞  Osasuna  Osasuna  奥沙辛拿  奥沙辛拿  奧沙辛拿  奧沙辛拿  西班牙甲組聯賽  Spain LALIGA  西班牙甲组联赛 ",
+            "bdUqTournament": {
+              "ZHT": "西班牙甲組聯賽"
+            }
+          },
+          "updateTime": 1793009579000,
+          "version": 4
+        }
+      }
+    ],
+    "odds_config": [
+      {
+        "FIXTURE_ID": 526182,
+        "BIR": 1,
+        "HTB": 0,
+        "MB": "1",
+        "S": 2,
+        "ML": 0,
+        "DISPLAY_LINEUP": 0,
+        "FT_SHOW": 1,
+        "HL": 2,
+        "TS": "英超",
+        "SS": "英超",
+        "ES": "ENG1",
+        "HC": "ff3333",
+        "HR": "12",
+        "AR": "14",
+        "LO": "1535|2017",
+        "CID": 1,
+        "PID": null,
+        "PD": null,
+        "BETTING_ID": "2068079849593831425"
+      },
+      {
+        "FIXTURE_ID": 526302,
+        "BIR": 1,
+        "HTB": 0,
+        "MB": "1",
+        "S": 2,
+        "ML": 0,
+        "DISPLAY_LINEUP": 0,
+        "FT_SHOW": 1,
+        "HL": 2,
+        "TS": "西甲",
+        "SS": "西甲",
+        "ES": "SPN1",
+        "HC": "006633",
+        "HR": "12",
+        "AR": "14",
+        "LO": "196|398|2017",
+        "CID": 3,
+        "PID": null,
+        "PD": null,
+        "BETTING_ID": "2072430195359285249"
+      },
+      {
+        "FIXTURE_ID": 526017,
+        "BIR": 0,
+        "HTB": 0,
+        "MB": "1",
+        "S": 2,
+        "ML": 0,
+        "DISPLAY_LINEUP": 0,
+        "FT_SHOW": 0,
+        "HL": 2,
+        "TS": "法甲",
+        "SS": "法甲",
+        "ES": "FRA1",
+        "HC": "663333",
+        "HR": "10",
+        "AR": "13",
+        "LO": null,
+        "CID": 24,
+        "PID": null,
+        "PD": null,
+        "BETTING_ID": "2115321997586767873"
+      },
+      {
+        "FIXTURE_ID": 526254,
+        "BIR": 1,
+        "HTB": 0,
+        "MB": "1",
+        "S": 2,
+        "ML": 0,
+        "DISPLAY_LINEUP": 0,
+        "FT_SHOW": 1,
+        "HL": 2,
+        "TS": "意甲",
+        "SS": "意甲",
+        "ES": "ITA1",
+        "HC": "0066FF",
+        "HR": "15",
+        "AR": "17",
+        "LO": "195|2355|2017",
+        "CID": 46,
+        "PID": null,
+        "PD": null,
+        "BETTING_ID": "2063121627711733761"
+      }
+    ]
+  },
+  "odds": {
+    "errorCode": "success",
+    "data": [
+      {
+        "displayed": "Y",
+        "ev_id": "2063121627711733761",
+        "status": "A",
+        "markets": [
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "0/-0.5",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2063121627711733761",
+            "ev_mkt_id": "2115687621549146113",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "0/+0.5",
+            "hilo_type": "0",
+            "is_current": "1",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "莎索羅",
+                "displayed": "Y",
+                "ev_id": "2063121627711733761",
+                "ev_oc_id": "df357d232a65377d0bb1d1f3050711b8",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "800.000",
+                "name": "主",
+                "rate": "1.800",
+                "status": "A",
+                "translateName": {
+                  "CN": "莎索羅"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "費倫天拿",
+                "displayed": "Y",
+                "ev_id": "2063121627711733761",
+                "ev_oc_id": "9d02ce9959ac41f78393f17c0fc6e17a",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "1040.000",
+                "name": "客",
+                "rate": "2.040",
+                "status": "A",
+                "translateName": {
+                  "CN": "費倫天拿"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 9
+          },
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "0",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2063121627711733761",
+            "ev_mkt_id": "2116050425673003010",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "0",
+            "hilo_type": "1",
+            "is_current": "0",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "莎索羅",
+                "displayed": "Y",
+                "ev_id": "2063121627711733761",
+                "ev_oc_id": "092774494508b6732944c0cd59624c38",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "1080.000",
+                "name": "主",
+                "rate": "2.080",
+                "status": "A",
+                "translateName": {
+                  "CN": "莎索羅"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "費倫天拿",
+                "displayed": "Y",
+                "ev_id": "2063121627711733761",
+                "ev_oc_id": "e5e18c2d7701e4fb30d687040ee78663",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "760.000",
+                "name": "客",
+                "rate": "1.760",
+                "status": "A",
+                "translateName": {
+                  "CN": "費倫天拿"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 5
+          },
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "-0.5",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2063121627711733761",
+            "ev_mkt_id": "2116050425677197315",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "+0.5",
+            "hilo_type": "-1",
+            "is_current": "0",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "莎索羅",
+                "displayed": "Y",
+                "ev_id": "2063121627711733761",
+                "ev_oc_id": "d497bfdfe6500b809052efc384c772d2",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "600.000",
+                "name": "主",
+                "rate": "1.600",
+                "status": "A",
+                "translateName": {
+                  "CN": "莎索羅"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "費倫天拿",
+                "displayed": "Y",
+                "ev_id": "2063121627711733761",
+                "ev_oc_id": "dc563d5437f78e9fd25769aedb4ffa96",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "1240.000",
+                "name": "客",
+                "rate": "2.240",
+                "status": "A",
+                "translateName": {
+                  "CN": "費倫天拿"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 8
+          }
+        ]
+      },
+      {
+        "displayed": "Y",
+        "ev_id": "2115321997586767873",
+        "status": "A",
+        "markets": [
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "0/+0.5",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2115321997586767873",
+            "ev_mkt_id": "2115338320667934722",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "0/-0.5",
+            "hilo_type": "0",
+            "is_current": "1",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "羅連安特",
+                "displayed": "Y",
+                "ev_id": "2115321997586767873",
+                "ev_oc_id": "8560f981be169aa07fe31f5cbec351ee",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "1080.000",
+                "name": "主",
+                "rate": "2.08",
+                "status": "A",
+                "translateName": {
+                  "CN": "羅連安特"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "比斯特",
+                "displayed": "Y",
+                "ev_id": "2115321997586767873",
+                "ev_oc_id": "d19739a8173baacff2e1fde0daef751a",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "760.000",
+                "name": "客",
+                "rate": "1.76",
+                "status": "A",
+                "translateName": {
+                  "CN": "比斯特"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 4
+          },
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "+0.5",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2115321997586767873",
+            "ev_mkt_id": "2115463804019785729",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "-0.5",
+            "hilo_type": "1",
+            "is_current": "0",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "羅連安特",
+                "displayed": "Y",
+                "ev_id": "2115321997586767873",
+                "ev_oc_id": "d4f56cda866e01835ae220004114ce53",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "1340.000",
+                "name": "主",
+                "rate": "2.340",
+                "status": "A",
+                "translateName": {
+                  "CN": "羅連安特"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "比斯特",
+                "displayed": "Y",
+                "ev_id": "2115321997586767873",
+                "ev_oc_id": "040e82497d6f99d308f0afc230091e0d",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "500.000",
+                "name": "客",
+                "rate": "1.500",
+                "status": "A",
+                "translateName": {
+                  "CN": "比斯特"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 8
+          },
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "0",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2115321997586767873",
+            "ev_mkt_id": "2115463804019785732",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "0",
+            "hilo_type": "-1",
+            "is_current": "0",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "羅連安特",
+                "displayed": "Y",
+                "ev_id": "2115321997586767873",
+                "ev_oc_id": "824e110c1ae0b3c55010061c191070f2",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "740.000",
+                "name": "主",
+                "rate": "1.740",
+                "status": "A",
+                "translateName": {
+                  "CN": "羅連安特"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "比斯特",
+                "displayed": "Y",
+                "ev_id": "2115321997586767873",
+                "ev_oc_id": "e57d300e6fa33e4e303a8ac777e208e8",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "1100.000",
+                "name": "客",
+                "rate": "2.100",
+                "status": "A",
+                "translateName": {
+                  "CN": "比斯特"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 5
+          }
+        ]
+      },
+      {
+        "displayed": "Y",
+        "ev_id": "2068079849593831425",
+        "status": "A",
+        "markets": [
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "0/+0.5",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2068079849593831425",
+            "ev_mkt_id": "2115687636631863297",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "0/-0.5",
+            "hilo_type": "0",
+            "is_current": "1",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "紐卡素",
+                "displayed": "Y",
+                "ev_id": "2068079849593831425",
+                "ev_oc_id": "f419173aeb01fb97028dcd458fade56c",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "1060.000",
+                "name": "主",
+                "rate": "2.060",
+                "status": "A",
+                "translateName": {
+                  "CN": "紐卡素"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "愛華頓",
+                "displayed": "Y",
+                "ev_id": "2068079849593831425",
+                "ev_oc_id": "c46619e9147445a0f465d9c803bcefd1",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "780.000",
+                "name": "客",
+                "rate": "1.78",
+                "status": "A",
+                "translateName": {
+                  "CN": "愛華頓"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 8
+          },
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "+0.5",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2068079849593831425",
+            "ev_mkt_id": "2115939773554941954",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "-0.5",
+            "hilo_type": "1",
+            "is_current": "0",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "紐卡素",
+                "displayed": "Y",
+                "ev_id": "2068079849593831425",
+                "ev_oc_id": "e1d71420397c47dba067c7d7aaa98adf",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "1260.000",
+                "name": "主",
+                "rate": "2.260",
+                "status": "A",
+                "translateName": {
+                  "CN": "紐卡素"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "愛華頓",
+                "displayed": "Y",
+                "ev_id": "2068079849593831425",
+                "ev_oc_id": "60e684d16010c3f123841ddf242040f8",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "580.000",
+                "name": "客",
+                "rate": "1.58",
+                "status": "A",
+                "translateName": {
+                  "CN": "愛華頓"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 15
+          },
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "0",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2068079849593831425",
+            "ev_mkt_id": "2115939773554941957",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "0",
+            "hilo_type": "-1",
+            "is_current": "0",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "紐卡素",
+                "displayed": "Y",
+                "ev_id": "2068079849593831425",
+                "ev_oc_id": "ae595f032b473f6e6603582c1f12f178",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "740.000",
+                "name": "主",
+                "rate": "1.740",
+                "status": "A",
+                "translateName": {
+                  "CN": "紐卡素"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "愛華頓",
+                "displayed": "Y",
+                "ev_id": "2068079849593831425",
+                "ev_oc_id": "60d6970766b8310a807b4612c8fb8cb2",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "1100.000",
+                "name": "客",
+                "rate": "2.1",
+                "status": "A",
+                "translateName": {
+                  "CN": "愛華頓"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 14
+          }
+        ]
+      },
+      {
+        "displayed": "Y",
+        "ev_id": "2072430195359285249",
+        "status": "A",
+        "markets": [
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "0/+0.5",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2072430195359285249",
+            "ev_mkt_id": "2114622700357664769",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "0/-0.5",
+            "hilo_type": "0",
+            "is_current": "1",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "拉科魯尼亞",
+                "displayed": "Y",
+                "ev_id": "2072430195359285249",
+                "ev_oc_id": "50a3d68d02f0d153ac934c447c773425",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "870.000",
+                "name": "主",
+                "rate": "1.87",
+                "status": "A",
+                "translateName": {
+                  "CN": "拉科魯尼亞"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "奧沙辛拿",
+                "displayed": "Y",
+                "ev_id": "2072430195359285249",
+                "ev_oc_id": "2e64921e84babd3ff6d9aef72bd55b6c",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "970.000",
+                "name": "客",
+                "rate": "1.97",
+                "status": "A",
+                "translateName": {
+                  "CN": "奧沙辛拿"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 4
+          },
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "+0.5",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2072430195359285249",
+            "ev_mkt_id": "2114745037885472770",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "-0.5",
+            "hilo_type": "1",
+            "is_current": "0",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "拉科魯尼亞",
+                "displayed": "Y",
+                "ev_id": "2072430195359285249",
+                "ev_oc_id": "54bda019cf1ce8c87c828549f5fd99ca",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "1120.000",
+                "name": "主",
+                "rate": "2.120",
+                "status": "A",
+                "translateName": {
+                  "CN": "拉科魯尼亞"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "奧沙辛拿",
+                "displayed": "Y",
+                "ev_id": "2072430195359285249",
+                "ev_oc_id": "47b30a887c7e3b976583c9f9a7d68c6b",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "720.000",
+                "name": "客",
+                "rate": "1.720",
+                "status": "A",
+                "translateName": {
+                  "CN": "奧沙辛拿"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 7
+          },
+          {
+            "acc_min_hi": "1",
+            "acc_min_lo": "1",
+            "away_hcap_disp": "0",
+            "bet_in_run": "Y",
+            "channels": "HWIP",
+            "displayed": "Y",
+            "ev_id": "2072430195359285249",
+            "ev_mkt_id": "2114745037885472773",
+            "ev_oc_grp_id": "1669598010636914690",
+            "hcap_disp": "0",
+            "hilo_type": "-1",
+            "is_current": "0",
+            "name": "讓球盤",
+            "oc_grp_tag": "",
+            "outcomeGroup": {
+              "disporder": "10",
+              "ev_class_id": "18",
+              "ev_oc_grp_id": "1669598010636914690",
+              "name": "讓球盤",
+              "sort": "AH",
+              "tag": ""
+            },
+            "outcomes": [
+              {
+                "desc": "拉科魯尼亞",
+                "displayed": "Y",
+                "ev_id": "2072430195359285249",
+                "ev_oc_id": "52e3bc2f482981d20df30a10aca6c05b",
+                "fb_result": "H",
+                "lp_den": "1000",
+                "lp_num": "540.000",
+                "name": "主",
+                "rate": "1.540",
+                "status": "A",
+                "translateName": {
+                  "CN": "拉科魯尼亞"
+                },
+                "type": "H"
+              },
+              {
+                "desc": "奧沙辛拿",
+                "displayed": "Y",
+                "ev_id": "2072430195359285249",
+                "ev_oc_id": "14bf3aeea2a5af6cc4d75eebc7dac4cd",
+                "fb_result": "A",
+                "lp_den": "1000",
+                "lp_num": "1300.000",
+                "name": "客",
+                "rate": "2.300",
+                "status": "A",
+                "translateName": {
+                  "CN": "奧沙辛拿"
+                },
+                "type": "A"
+              }
+            ],
+            "sort": "AH",
+            "status": "A",
+            "translateName": {
+              "CN": "讓球盤"
+            },
+            "version": 11
+          }
+        ]
+      }
+    ]
+  },
+  "otherEvidence": {
+    "quotes": [
+      {
+        "fixtureId": "tsdb-2482229",
+        "fixtureSnapshot": {
+          "id": "tsdb-2482229",
+          "home": "Sassuolo",
+          "away": "Fiorentina",
+          "league": "SA",
+          "kickoff": "2026-11-02T17:30:00.000Z",
+          "source": "thesportsdb-free"
+        },
+        "sourceId": "hkjc",
+        "bookmaker": "HKJC",
+        "market": "asian-handicap",
+        "period": "full-time",
+        "selection": "home",
+        "handicap": 0.25,
+        "decimalOdds": 1.81,
+        "observedAt": "2026-11-01T22:57:15.835Z",
+        "sourceUpdatedAt": "2026-10-30T11:30:03.751Z",
+        "providerPoolUpdatedAt": "2026-10-30T11:30:03.751Z",
+        "sourceAsOf": "2026-11-01T22:57:15.000Z",
+        "freshnessBasis": "publisher-live-snapshot",
+        "cacheMaxAgeSeconds": 30,
+        "validUntil": "2026-11-01T23:02:15.000Z",
+        "providerMatchId": "50078887",
+        "providerPoolId": "2050496006",
+        "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
+        "inPlay": false,
+        "closed": false,
+        "verified": true,
+        "verificationMethod": "automatic"
+      },
+      {
+        "fixtureId": "tsdb-2482229",
+        "fixtureSnapshot": {
+          "id": "tsdb-2482229",
+          "home": "Sassuolo",
+          "away": "Fiorentina",
+          "league": "SA",
+          "kickoff": "2026-11-02T17:30:00.000Z",
+          "source": "thesportsdb-free"
+        },
+        "sourceId": "hkjc",
+        "bookmaker": "HKJC",
+        "market": "asian-handicap",
+        "period": "full-time",
+        "selection": "away",
+        "handicap": -0.25,
+        "decimalOdds": 1.96,
+        "observedAt": "2026-11-01T22:57:15.835Z",
+        "sourceUpdatedAt": "2026-10-30T11:30:03.751Z",
+        "providerPoolUpdatedAt": "2026-10-30T11:30:03.751Z",
+        "sourceAsOf": "2026-11-01T22:57:15.000Z",
+        "freshnessBasis": "publisher-live-snapshot",
+        "cacheMaxAgeSeconds": 30,
+        "validUntil": "2026-11-01T23:02:15.000Z",
+        "providerMatchId": "50078887",
+        "providerPoolId": "2050496006",
+        "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
+        "inPlay": false,
+        "closed": false,
+        "verified": true,
+        "verificationMethod": "automatic"
+      },
+      {
+        "fixtureId": "tsdb-2489539",
+        "fixtureSnapshot": {
+          "id": "tsdb-2489539",
+          "home": "Lorient",
+          "away": "Brest",
+          "league": "FL1",
+          "kickoff": "2026-11-02T19:45:00.000Z",
+          "source": "thesportsdb-free"
+        },
+        "sourceId": "hkjc",
+        "bookmaker": "HKJC",
+        "market": "asian-handicap",
+        "period": "full-time",
+        "selection": "home",
+        "handicap": -0.25,
+        "decimalOdds": 2,
+        "observedAt": "2026-11-01T22:57:15.835Z",
+        "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
+        "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
+        "sourceAsOf": "2026-11-01T22:57:15.000Z",
+        "freshnessBasis": "publisher-live-snapshot",
+        "cacheMaxAgeSeconds": 30,
+        "validUntil": "2026-11-01T23:02:15.000Z",
+        "providerMatchId": "50078706",
+        "providerPoolId": "2044319006",
+        "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
+        "inPlay": false,
+        "closed": false,
+        "verified": true,
+        "verificationMethod": "automatic"
+      },
+      {
+        "fixtureId": "tsdb-2489539",
+        "fixtureSnapshot": {
+          "id": "tsdb-2489539",
+          "home": "Lorient",
+          "away": "Brest",
+          "league": "FL1",
+          "kickoff": "2026-11-02T19:45:00.000Z",
+          "source": "thesportsdb-free"
+        },
+        "sourceId": "hkjc",
+        "bookmaker": "HKJC",
+        "market": "asian-handicap",
+        "period": "full-time",
+        "selection": "away",
+        "handicap": 0.25,
+        "decimalOdds": 1.77,
+        "observedAt": "2026-11-01T22:57:15.835Z",
+        "sourceUpdatedAt": "2026-10-30T00:25:02.722Z",
+        "providerPoolUpdatedAt": "2026-10-30T00:25:02.722Z",
+        "sourceAsOf": "2026-11-01T22:57:15.000Z",
+        "freshnessBasis": "publisher-live-snapshot",
+        "cacheMaxAgeSeconds": 30,
+        "validUntil": "2026-11-01T23:02:15.000Z",
+        "providerMatchId": "50078706",
+        "providerPoolId": "2044319006",
+        "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
+        "inPlay": false,
+        "closed": false,
+        "verified": true,
+        "verificationMethod": "automatic"
+      }
+    ],
+    "marketStates": [
+      {
+        "fixtureId": "tsdb-2494080",
+        "fixtureSnapshot": {
+          "id": "tsdb-2494080",
+          "home": "Newcastle United",
+          "away": "Everton",
+          "league": "PL",
+          "kickoff": "2026-11-02T20:00:00.000Z",
+          "source": "thesportsdb-free"
+        },
+        "sourceId": "hkjc",
+        "bookmaker": "HKJC",
+        "providerMatchId": null,
+        "market": "asian-handicap",
+        "period": "full-time",
+        "marketState": "unavailable",
+        "stateReason": "fixture_identity_unmatched",
+        "observedAt": "2026-11-01T22:57:15.835Z",
+        "sourceAsOf": "2026-11-01T22:57:15.000Z",
+        "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
+        "verified": true,
+        "verificationMethod": "automatic"
+      },
+      {
+        "fixtureId": "tsdb-2506274",
+        "fixtureSnapshot": {
+          "id": "tsdb-2506274",
+          "home": "Deportivo de A Coruña",
+          "away": "Osasuna",
+          "league": "PD",
+          "kickoff": "2026-11-02T20:00:00.000Z",
+          "source": "thesportsdb-free"
+        },
+        "sourceId": "hkjc",
+        "bookmaker": "HKJC",
+        "providerMatchId": null,
+        "market": "asian-handicap",
+        "period": "full-time",
+        "marketState": "unavailable",
+        "stateReason": "fixture_identity_unmatched",
+        "observedAt": "2026-11-01T22:57:15.835Z",
+        "sourceAsOf": "2026-11-01T22:57:15.000Z",
+        "evidenceUrl": "https://bet.hkjc.com/en/football/hdc",
+        "verified": true,
+        "verificationMethod": "automatic"
+      }
+    ]
+  },
+  "checkedAt": "2026-11-01T22:57:26.897Z"
+}

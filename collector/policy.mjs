@@ -190,6 +190,11 @@ export function validOpening(quote, fixture, nowISO) {
   return Boolean(o && source && o.basis === 'provider-opening' && o.sourceId === quote.sourceId && o.bookmaker === quote.bookmaker
     && o.market === 'asian-handicap' && o.market === quote.market && o.period === 'full-time' && o.period === quote.period
     && typeof o.providerMatchId === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(o.providerMatchId) && o.providerMatchId === quote.providerMatchId
+    // A supplier's separate pool is a separate market identity. A missing ID
+    // cannot stand in for a supplied one; sources without pool IDs stay valid.
+    && (quote.providerPoolId === undefined && o.providerPoolId === undefined
+      || typeof quote.providerPoolId === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(quote.providerPoolId)
+        && o.providerPoolId === quote.providerPoolId)
     && sameFixture(o.fixtureSnapshot, fixture)
     && (!fixture.canonicalMatchId || o.canonicalMatchId === fixture.canonicalMatchId)
     && (!fixture.identityRevision || o.identityRevision === fixture.identityRevision)
@@ -201,14 +206,14 @@ export function validOpening(quote, fixture, nowISO) {
 }
 
 export function safeOpening(opening) {
-  const safe = Object.fromEntries(['basis', 'sourceId', 'bookmaker', 'selection', 'fixtureId', 'providerMatchId', 'market', 'period', 'canonicalMatchId', 'identityRevision', 'handicap', 'decimalOdds',
+  const safe = Object.fromEntries(['basis', 'sourceId', 'bookmaker', 'selection', 'fixtureId', 'providerMatchId', 'providerPoolId', 'market', 'period', 'canonicalMatchId', 'identityRevision', 'handicap', 'decimalOdds',
     'observedAt', 'recordedAt', 'evidenceUrl'].filter(key => Object.hasOwn(opening, key)).map(key => [key, opening[key]]));
   if (opening.fixtureSnapshot) safe.fixtureSnapshot = Object.fromEntries(identityFields.map(key => [key, opening.fixtureSnapshot[key]]));
   return safe;
 }
 
 export function openingIdentity(opening) {
-  return digest(['sourceId', 'bookmaker', 'selection', 'fixtureId', 'providerMatchId', 'market', 'period', 'canonicalMatchId', 'identityRevision',
+  return digest(['sourceId', 'bookmaker', 'selection', 'fixtureId', 'providerMatchId', 'providerPoolId', 'market', 'period', 'canonicalMatchId', 'identityRevision',
     'handicap', 'decimalOdds', 'observedAt'].map(key => opening?.[key]).concat([opening?.fixtureSnapshot ? fixtureKey(opening.fixtureSnapshot) : null]));
 }
 

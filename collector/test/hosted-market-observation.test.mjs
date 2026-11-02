@@ -105,6 +105,23 @@ test('fresh runners keep 5-minute market and 15-minute fixture cadences without 
   assert.ok(api.calls.every(item=>!['/internal/publications','/internal/notifications'].includes(item.path)));
 });
 
+test('expired positive quotes trigger controlled recollection before five minutes without reacquiring schedules',async t=>{
+  const api=backend();let fixtureCalls=0,marketCalls=0;
+  const options={runPublicImpl:async(...args)=>{fixtureCalls++;return fakePublic(...args);},collectMarketImpl:async({fixtures,clock})=>{
+    marketCalls++;const offset=Date.parse(clock())-NOW;
+    return marketResult(fixtures,clock,{quotes:quotes(fixtures,offset).map(item=>({...item,validUntil:at(offset+minute)}))});
+  }};
+  await run(t,api,0,options);
+  const cached=await run(t,api,minute-1,options);
+  assert.equal(cached.status,'idle');assert.equal(marketCalls,1);
+  const updated=await run(t,api,minute,options);
+  assert.equal(updated.status,'complete');assert.equal(updated.marketObserved,true);assert.equal(marketCalls,2);assert.equal(fixtureCalls,1);
+  assert.equal(api.posts.at(-1).report.acquisition.checkedAt,at(0));
+  assert.equal(api.posts.at(-1).report.marketObservation.checkedAt,at(minute));
+  assert.equal(api.posts.at(-1).report.marketObservation.sources[1].quoteCount,2);
+  assert.equal(api.posts.at(-1).report.marketObservation.sources[1].latestSourceUpdatedAt,at(minute));
+});
+
 test('a changed fixture target set forces a market refresh before the five-minute interval',async t=>{
   const api=backend();let calls=0;
   const options={collectMarketImpl:async({fixtures,clock})=>{calls++;return marketResult(fixtures,clock);}};
@@ -178,14 +195,41 @@ test('market transport receives a bounded shared deadline and overruns become ex
   assert.equal(row(api,'state/hosted-market-observation.json').privateEvidence.diagnostics[0].code,'COLLECTION_BUDGET_EXHAUSTED');
 });
 
-test('stale positive market evidence is not retried as a fresh valid observation before the next collection',async t=>{
-  const api=backend();await run(t,api,0,{collectMarketImpl:async({fixtures,clock})=>marketResult(fixtures,clock,
-    {quotes:quotes(fixtures).map(item=>({...item,validUntil:at(minute)}))})});
+test('refetching expired positive evidence cannot freshen unchanged old source quotes',async t=>{
+  const api=backend();let originalQuotes,marketCalls=0;
+  const options={collectMarketImpl:async({fixtures,clock})=>{
+    marketCalls++;originalQuotes||=quotes(fixtures).map(item=>({...item,validUntil:at(minute)}));
+    return marketResult(fixtures,clock,{quotes:originalQuotes});
+  }};
+  await run(t,api,0,options);
   patchState(api,'state/hosted-observation.json',value=>({...value,delivery:{status:'pending'}}));
   const count=api.posts.length;
-  const result=await run(t,api,2*minute,{collectMarketImpl:()=>assert.fail('five-minute interval not elapsed')});
-  assert.equal(result.code,'HOSTED_MARKET_OBSERVATION_EXPIRED');assert.equal(api.posts.length,count);
-  assert.equal(row(api,'state/hosted-market-observation.json').summary.checkedAt,at(0));
+  const result=await run(t,api,2*minute,options);
+  assert.equal(result.status,'complete');assert.equal(api.posts.length,count+1);assert.equal(marketCalls,2);
+  const summary=api.posts.at(-1).report.marketObservation;
+  assert.equal(summary.checkedAt,at(2*minute));assert.equal(summary.sources[1].status,'stale');
+  assert.equal(summary.sources[1].quoteCount,0);assert.equal(summary.sources[1].latestSourceUpdatedAt,at(0));
+  assert.equal(api.posts.at(-1).report.acquisition.checkedAt,at(0));
+  assert.deepEqual(row(api,'state/hosted-market-observation.json').privateEvidence.quotes,originalQuotes);
+});
+
+test('when the last target kicks off cached positive counts are cleared without market transport',async t=>{
+  const api=backend();let marketCalls=0;
+  const options={runPublicImpl:async(...args)=>{
+    const result=await fakePublic(...args);result.manifest.fixtures[0].kickoff=at(minute);return result;
+  },collectMarketImpl:async({fixtures,clock})=>{marketCalls++;return marketResult(fixtures,clock,{quotes:quotes(fixtures)});}};
+  await run(t,api,0,options);
+  assert.equal(api.posts.at(-1).report.marketObservation.sources[1].quoteCount,2);
+  const noTargets=await run(t,api,2*minute,{collectMarketImpl:()=>assert.fail('no targets must not fetch sources')});
+  assert.equal(noTargets.status,'complete');assert.equal(noTargets.marketStatus,'no_targets');assert.equal(marketCalls,1);
+  const report=api.posts.at(-1).report;
+  assert.equal(report.marketObservation.fixtureCount,0);
+  assert.ok(report.marketObservation.sources.every(source=>source.quoteCount===0&&source.pairedFixtureCount===0));
+  assert.equal(report.marketObservation.dualSourceFixtureCount,0);assert.equal(report.marketObservation.alignedEligibleFixtureCount,0);
+  assert.equal(report.acquisition.checkedAt,at(0));
+  const cached=await run(t,api,8*minute,{collectMarketImpl:()=>assert.fail('empty target window stays idle')});
+  assert.equal(cached.status,'idle');assert.equal(cached.marketObserved,false);
+  assert.equal(cached.marketCheckedAt,at(2*minute));
 });
 
 test('legacy private ledger bytes and v2 cold archive references survive market observations and CAS revisions',async t=>{

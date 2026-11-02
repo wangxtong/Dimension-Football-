@@ -56,7 +56,10 @@ const quality = f => f.completeness ? `基础数据检查 ${f.completeness.passe
 const strength = f => f.strength ? `主队进攻 ${f.strength.homeAttack.toFixed(2)} / 防守失球 ${f.strength.homeDefenceConceding.toFixed(2)}；客队进攻 ${f.strength.awayAttack.toFixed(2)} / 防守失球 ${f.strength.awayDefenceConceding.toFixed(2)}（联赛均值为 1；防守失球越低越好）` : '历史样本不足';
 const validity = f => f.freshness ? `采集 ${f.freshness.fixtureFetchedAt || '未知'}；预测有效至 ${f.freshness.validUntil}；供应商赛程更新时间 ${f.freshness.fixtureSourceUpdatedAt || '未知'}` : '时效未核验';
 const horizon = value => Number.isFinite(value) ? `${value.toFixed(2)} 小时` : '未记录';
-const visibility = value => value === 'as-observed' ? '按已观测版本回放' : value === 'prospective-ledger' ? '已发布预测前瞻评分' : '当前修订快照回顾';
+const visibility = value => value === 'as-observed' ? '按已观测版本回放' : value === 'prospective-ledger' ? '赛前冻结预测核账' : '当前修订快照回顾';
+const settlementScope = value => value?.scope === 'private-research-freezes'
+  ? '这是私有研究冻结记录，不是已发布预测成绩；正式发布仍受独立门禁约束。'
+  : '冻结与评分记录本身不能证明预测已公开发布；实际送达须另核验对应发布回执。';
 const sampleQuality = f => f.sampleQuality ? `有效加权样本（主 / 客）${(f.sampleQuality.weighted?.home?.effectiveMatches || 0).toFixed(1)} / ${(f.sampleQuality.weighted?.away?.effectiveMatches || 0).toFixed(1)}；本季样本 ${f.sampleQuality.currentSeason ? `${f.sampleQuality.currentSeason.home} / ${f.sampleQuality.currentSeason.away}` : '未知'}；冷启动 ${f.sampleQuality.coldStart?.status || '未知'}` : '有效加权样本未记录';
 const backtestGroups = rows => [...rows].sort((a, b) => `${a.source}:${a.league}`.localeCompare(`${b.source}:${b.league}`)
   || (a.horizonHours ?? 0) - (b.horizonHours ?? 0) || String(a.visibility).localeCompare(String(b.visibility)));
@@ -97,7 +100,7 @@ export function renderPredictionsMarkdown(report) {
     for (const row of doc.coverage) lines.push(`| ${markdown(row.league)} / ${markdown(row.source)} | ${markdown(row.fixtureStatus)} / ${row.fixtureCount} | ${markdown(row.historyStatus)} / ${row.historyCount} | ${markdown((row.diagnostics || []).map(d => d.code).join('；'))} |`);
   }
   if (doc.prospectiveEvaluation) {
-    lines.push('', '## 已发布预测前瞻评估', '', `更新时间：${doc.prospectiveEvaluation.generatedAt}；按来源、联赛和提前量分别统计。`, '', '| 来源 / 联赛 | 提前量 | 已评分 / 待结果 / 排除 | Brier |', '| --- | --- | --- | --- |');
+    lines.push('', '## 赛前冻结预测核账', '', `更新时间：${doc.prospectiveEvaluation.generatedAt}；按来源、联赛和提前量分别统计。${settlementScope(doc.prospectiveEvaluation)}`, '', '| 来源 / 联赛 | 提前量 | 已评分 / 待结果 / 排除 | Brier |', '| --- | --- | --- | --- |');
     for (const group of doc.prospectiveEvaluation.groups || []) lines.push(`| ${markdown(group.source)} / ${markdown(group.league)} | ${horizon(group.horizonHours)} | ${group.coverage?.evaluated || 0} / ${group.coverage?.pending || 0} / ${group.coverage?.skipped || 0} | ${group.metrics?.brier?.toFixed(4) ?? '—'} |`);
   }
   lines.push('', '历史样本不足的比赛会跳过，指标仅针对可预测的比赛，不能代表全部赛程。回测使用当前取得的历史修订快照，不能还原当时数据可见性；最多 80 场，属于小样本回测，不能据此承诺未来命中率或投注收益。', '',
@@ -139,7 +142,7 @@ export function renderPredictionsHtml(report) {
 <h2 id="unassessable">暂不可评估</h2><div class="grid">${missing || '<p>本轮输入池均有普通预测。</p>'}</div>
 <h2>按时间滚动回测</h2><div class="scroll"><table><thead><tr><th>联赛 / 来源</th><th>提前量 / 可见性</th><th>场数</th><th>模型 Brier</th><th>基准 Brier</th><th>模型 Log loss</th><th>历史方向命中率</th></tr></thead><tbody>${backtests || '<tr><td colspan="7">没有足够历史开展回测。</td></tr>'}</tbody></table></div>
 ${coverage ? `<h2>联赛覆盖与历史来源</h2><div class="scroll"><table><thead><tr><th>联赛 / 来源</th><th>赛程状态 / 场数</th><th>历史状态 / 场数</th><th>来源诊断</th></tr></thead><tbody>${coverage}</tbody></table></div>` : ''}
-${doc.prospectiveEvaluation ? `<h2>已发布预测前瞻评估</h2><p>更新时间 ${html(doc.prospectiveEvaluation.generatedAt)}；尚无结果时保持待评分。</p><table><thead><tr><th>来源 / 联赛</th><th>提前量</th><th>已评分 / 待结果 / 排除</th><th>Brier</th></tr></thead><tbody>${prospective || '<tr><td colspan="4">尚无可评分的前瞻记录。</td></tr>'}</tbody></table>` : ''}
+${doc.prospectiveEvaluation ? `<h2>赛前冻结预测核账</h2><p>更新时间 ${html(doc.prospectiveEvaluation.generatedAt)}；尚无结果时保持待评分。${html(settlementScope(doc.prospectiveEvaluation))}</p><table><thead><tr><th>来源 / 联赛</th><th>提前量</th><th>已评分 / 待结果 / 排除</th><th>Brier</th></tr></thead><tbody>${prospective || '<tr><td colspan="4">尚无可评分的前瞻记录。</td></tr>'}</tbody></table>` : ''}
 <p class="note">每场只使用更早至少 4 小时的完赛记录，最多回测 80 场；样本不足的比赛跳过，指标仅代表可预测子集。Brier 和 Log loss 越低越好；基准为此前赛果频率。历史修订数据不能重建当时数据可见性，回测不是前瞻验证，也不表示未来命中率或投注收益。模型未纳入伤停、阵容或盘口。</p>
 <footer><p>预测到期后需重新采集。本页为报告快照，实际发布回执见 <a href="publication.json">publication.json</a>；GitHub 最终回执见 publication-receipt 附件。网站与 Telegram 的实际结果另行记入回执；Telegram 缺凭据时不发送。原始概率、训练摘要、哈希和缺项见同目录 predictions.json。</p>${doc.attribution.map(source => `<p>数据：<a href="${html(source.url)}">${html(source.name)}</a> · <a href="${html(source.licenseUrl)}">${html(source.license)}</a></p>`).join('')}</footer></main></body></html>`;
 }

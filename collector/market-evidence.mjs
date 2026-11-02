@@ -1,15 +1,15 @@
 import { digest, fixtureKey, validQuote, safeQuote, validOpening, safeOpening, openingIdentity, inspectMarket, quoteSourceGroup, SOURCES, DEFAULT_POLICY, isoMillis } from './policy.mjs';
 
-const keyOf = q => digest([q.sourceId, q.bookmaker, q.selection]);
+const keyOf = q => digest([q.sourceId, q.bookmaker, q.selection, q.providerMatchId, q.providerPoolId, q.market, q.period]);
 const proofFields = ['version', 'openingHash', 'fixtureKey', 'sourceId', 'provider', 'bookmaker', 'companyId', 'selection',
-  'providerMatchId', 'market', 'period', 'observedAt', 'sourceUpdatedAt', 'sourceAsOf', 'archivedAt'];
+  'providerMatchId', 'providerPoolId', 'market', 'period', 'observedAt', 'sourceUpdatedAt', 'sourceAsOf', 'archivedAt'];
 const safeProof = value => Object.fromEntries(proofFields.filter(key => Object.hasOwn(value, key)).map(key => [key, value[key]]));
 
 function validCaptureProof(record, opening, proof, identity) {
   if (record.version !== 3 || !proof || proof.version !== 1 || record.captureProofHash !== digest(record.captureProof) || record.captureProofHash !== digest(proof)
     || proof.openingHash !== record.hash || proof.openingHash !== digest(opening) || proof.fixtureKey !== identity
     || proof.archivedAt !== record.firstRecordedAt || quoteSourceGroup(proof) === null
-    || ['sourceId', 'bookmaker', 'selection', 'providerMatchId', 'market', 'period'].some(key => proof[key] !== opening[key])) return false;
+    || ['sourceId', 'bookmaker', 'selection', 'providerMatchId', 'providerPoolId', 'market', 'period'].some(key => proof[key] !== opening[key])) return false;
   const observed = isoMillis(proof.observedAt), updated = isoMillis(proof.sourceUpdatedAt), recorded = isoMillis(record.firstRecordedAt);
   return Number.isFinite(observed) && Number.isFinite(updated) && Number.isFinite(recorded)
     && updated <= observed && observed <= recorded && isoMillis(opening.recordedAt) <= recorded
@@ -22,7 +22,7 @@ function validCaptureProof(record, opening, proof, identity) {
 // by copying fields from a current quote.
 export function reconcileMarketEvidence(fixture, quotes, previous = [], nowISO, policy = DEFAULT_POLICY) {
   const records = new Map(), pending = new Map(), conflicts = new Set(), fixtureIdentity = fixtureKey(fixture);
-  let overflow = false;
+  let overflow = false, integrityBlocked = false;
   for (const r of Array.isArray(previous) ? previous : []) {
     if (r?.fixtureKey !== fixtureIdentity) continue;
     if (r.archiveStatus === 'capacity_exceeded') { overflow = true; continue; }
@@ -33,6 +33,10 @@ export function reconcileMarketEvidence(fixture, quotes, previous = [], nowISO, 
     const proven = validCaptureProof(r, opening, proof, fixtureIdentity);
     const proofFailure = (r.version === 3 || r.captureProof !== undefined || r.captureProofHash !== undefined) && !proven;
     const integrityFailure = hash !== digest(r.opening) || r.archiveStatus === 'integrity_failure' || proofFailure;
+    // Corrupt identity fields must not escape their old conflict key and allow
+    // a new claim to replace the bad record. Keep this fixture blocked until
+    // its retained archive has been explicitly reviewed, without deleting it.
+    integrityBlocked ||= integrityFailure;
     const probe = { ...opening, opening, observedAt: nowISO, sourceUpdatedAt: nowISO };
     const verified = proven && isoMillis(r.firstRecordedAt) <= isoMillis(nowISO) && validOpening(probe, fixture, nowISO);
     const record = { version: r.version === 3 || proof ? 3 : 2, fixtureKey: fixtureIdentity, opening, hash: integrityFailure ? hash : digest(opening),
@@ -74,7 +78,7 @@ export function reconcileMarketEvidence(fixture, quotes, previous = [], nowISO, 
   const result = quotes.map(quote => {
     if (!validQuote(quote, fixture, isoMillis(nowISO), policy)) return quote;
     const key = keyOf(quote), old = records.get(key);
-    if (overflow || conflicts.has(key) || old?.conflict) return { ...quote, opening: undefined };
+    if (overflow || integrityBlocked || conflicts.has(key) || old?.conflict) return { ...quote, opening: undefined };
     // Never replace an explicitly supplied but invalid opening with an archive.
     if (!quote.opening && old?.archiveStatus === 'verified' && validOpening({ ...quote, opening: old.opening }, fixture, nowISO)) return { ...quote, opening: old.opening };
     return quote;
