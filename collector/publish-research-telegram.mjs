@@ -302,7 +302,18 @@ export function richHtml(report) {
   }
   lines.push('</table>', '', 'ℹ️ 回测与模拟数据不计入前瞻',
     '🔗 报告 ' + String(report.reportId).slice(0, 12) + '…');
-  return lines.join('\n');
+  return blockify(lines);
+}
+// Rich Message 的 html 是块级文档：裸换行符会被丢弃，整段文字会连成一片。
+// 文本行必须包成 <p>，表格行原样保留。
+function blockify(lines) {
+  const out = [];
+  for (const line of lines) {
+    if (line === undefined || line === null || line === '') continue;
+    if (/^<(?:table|caption|tr|\/table)/.test(line)) out.push(line);
+    else out.push('<p>' + line + '</p>');
+  }
+  return out.join('');
 }
 export function telegramText(report) {
   const total = report.forecasts.total;
