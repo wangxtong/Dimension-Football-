@@ -73,7 +73,7 @@ jobs:
   # One bounded real public-source probe for THIS research PR only.
   # Does not change the default hosted collection schedule or send forecasts.
   scrapling-live-public:
-    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102') }}
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2') }}
     needs: [scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 9
@@ -162,7 +162,7 @@ jobs:
   stage1-private-research:
     # This PR-only job exercises user-approved private research, without
     # touching ECS, public website, Telegram, or protected source endpoints.
-    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102') }}
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2') }}
     needs: [scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 17
@@ -243,6 +243,27 @@ jobs:
       - name: 校验两条隔离通道与原始数据，再生成内部研究Web试验页
         run: |
           node scripts/stage1-private-research-report.mjs --root "$RESEARCH_ROOT" --commit "$COLLECTOR_COMMIT"
+      - name: 同一真实公开源与赛前冻结账本生成每日研究1X2和FT证据（不得发TG）
+        shell: bash
+        run: |
+          set -euo pipefail
+          node collector/research-daily-report.mjs --root "$RESEARCH_ROOT" > "$RESEARCH_ROOT/research-daily-console.json"
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { readFileSync } from "node:fs";
+            const root=process.env.RESEARCH_ROOT+"/reports";
+            const source=JSON.parse(readFileSync(root+"/predictions.json","utf8"));
+            const daily=JSON.parse(readFileSync(root+"/research-daily/latest.json","utf8"));
+            assert.equal(daily.kind,"research-daily-1x2");
+            assert.equal(daily.commercialReleaseGate,"BLOCKED");
+            assert.equal(daily.externalTelegramSent,false);
+            assert.equal(daily.strictMarkets.releasedCandidates,0);
+            assert.equal(daily.forecasts.total,source.summary.forecasts);
+            assert.equal(daily.sourceReportId,source.publication.reportId);
+            assert.equal(daily.prospective.thirtyDays.scored,0);
+            assert.match(daily.disclaimer,/非投注建议/);
+            console.log(JSON.stringify({research:"SAME_REPORT_REAL_SOURCE_FROZEN",sourceReportId:daily.sourceReportId,frozen:daily.forecasts.total,scored:daily.prospective.thirtyDays.scored,reportId:daily.reportId}));
+          '
       - name: 归档阶段一全部证据（仅私有Actions附件，不发布Web/Telegram）
         if: always()
         uses: actions/upload-artifact@v7
