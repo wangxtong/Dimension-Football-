@@ -162,7 +162,7 @@ jobs:
   stage1-private-research:
     # This PR-only job exercises user-approved private research, without
     # touching ECS, public website, Telegram, or protected source endpoints.
-    if: github.event_name == 'pull_request' && github.head_ref == 'feat/scrapling-public-archive-20261102'
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feat/scrapling-public-archive-20261102' }}
     needs: [scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 17
