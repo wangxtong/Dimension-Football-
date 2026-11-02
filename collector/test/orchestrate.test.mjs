@@ -11,7 +11,7 @@ import { verifyReplayBundle } from '../data/run-manifest.mjs';
 import { verifyPublication } from '../publication.mjs';
 import { withEventIdentity } from '../data/identity.mjs';
 import { DEFAULT_POLICY } from '../policy.mjs';
-import { appendReportPredictions } from '../prediction-ledger.mjs';
+import { appendPrediction, appendReportPredictions } from '../prediction-ledger.mjs';
 import { FORECAST_MODEL } from '../forecast.mjs';
 
 const NOW = '2026-10-31T04:00:00.000Z', at = days => new Date(Date.parse(NOW) + days * 86400000).toISOString();
@@ -121,6 +121,24 @@ test('a delivery failure remains partial and arbitrary upstream error text never
   } });
   assert.equal(failed.code, 'LANE_FAILED');
   assert.ok(!(await readFile(join(cwd, 'state.json.lanes.json'), 'utf8')).includes('PRIVATE_UPSTREAM_SECRET'));
+});
+
+test('results lane exposes frozen predictions that have no automatic same-source result', async t => {
+  // Real 2026-11-02 freezes came from football-data.org while fetchPublicResults only
+  // serves OpenLigaDB BL1. The lane must say so instead of looking silently healthy.
+  const cwd = await workspace(t), directory = join(cwd, 'reports/forecast-ledger'), predictionAt = at(-2);
+  const f = { ...fixture(), id: 'fd-1', sourceFixtureId: 'fd-1', source: 'football-data.org', kickoff: at(-1) };
+  await appendPrediction({ directory, fixture: f, model: FORECAST_MODEL, reportId: 'a'.repeat(64), nowISO: predictionAt,
+    forecast: { fixtureId: f.id, status: 'forecast', generatedAt: predictionAt, trainingCutoff: predictionAt,
+      trainingHash: 'b'.repeat(64), probabilities: { home: .5, draw: .3, away: .2 },
+      freshness: { validUntil: new Date(Date.parse(predictionAt) + 3600000).toISOString() } } });
+  const outcome = await runOrchestration(args(cwd, 'results'), { ...common(cwd), dependencies: {
+    fetchPublicResults: async () => ({ history: [], diagnostics: [] }),
+  } });
+  assert.equal(outcome.exitCode, 0);
+  assert.deepEqual(outcome.evaluation.summary.awaitingResultsBySource, { 'football-data.org': 1 });
+  assert.deepEqual((await readJson(join(cwd, 'reports/prospective-evaluation.json'))).summary.awaitingResultsBySource,
+    { 'football-data.org': 1 });
 });
 
 test('results lane stores actual final scores and produces prospective horizon evaluations', async t => {

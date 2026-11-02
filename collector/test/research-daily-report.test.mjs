@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { appendPrediction, appendResultAndScore, readPredictionLedger } from '../prediction-ledger.mjs';
-import { buildDailyResearchReport, renderDailyResearchMarkdown, produceDailyResearchReport } from '../research-daily-report.mjs';
+import { buildDailyResearchReport, dailyReportSummary, renderDailyResearchMarkdown, produceDailyResearchReport } from '../research-daily-report.mjs';
 import { requireGreenForecastDelivery } from '../publication-release-gate.mjs';
 import { readJson } from '../storage.mjs';
 
@@ -65,6 +65,16 @@ test('true FT later scores exactly once, preserves original freeze and reports d
     assert.ok(window.brier > 0 && window.brier < 2);
     assert.equal(window.sampleStatus, 'insufficient-prospective-sample');
   }
+  const text = renderDailyResearchMarkdown(report);
+  assert.match(text, /\| 样本状态 \|/);
+  assert.match(text, /不足30场（仅描述性）/);
+  const summary = dailyReportSummary(report);
+  assert.equal(summary.retainedFrozen, 1);
+  assert.equal(summary.oneDay.scored, 1);
+  assert.equal(summary.sevenDays.scored, 1);
+  assert.equal(summary.oneDay.hitRate, 1);
+  assert.equal(summary.oneDay.sampleStatus, 'insufficient-prospective-sample');
+  assert.equal(summary.telegramSent, false);
 });
 
 test('unsettled and future-observed results cannot be counted as wins', async t => {

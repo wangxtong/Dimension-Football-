@@ -197,6 +197,20 @@ test('a notification receipt for another report is unknown and never adopted',as
 
 function acquisition(){return createAcquisitionSnapshot({fixtures:[{id:'oldb-1',sourceFixtureId:'1',source:'openligadb',league:'BL1',season:'2026',
   home:'A',away:'B',homeTeamId:'1',awayTeamId:'2',kickoff:at(7200000),status:'SCHEDULED',updatedAt:at(0),fetchedAt:at(0)}],history:[],checkedAt:at(0),policy:DEFAULT_POLICY});}
+test('research mode settles already-frozen predictions before collecting new fixtures',async t=>{
+  const api=backend(),calls=[];
+  const fake=async(args,options)=>{
+    const lane=args[1];calls.push(lane);
+    assert.ok(args.includes('--mode'));assert.ok(args.includes('private-research'));
+    assert.equal(options.env.COLLECTOR_COMMIT,'a'.repeat(40));
+    if(lane==='results')await atomicJson(join(options.cwd,'reports/prospective-evaluation.json'),{generatedAt:at(0)});
+    return {status:'complete',exitCode:0};
+  };
+  const result=await runHosted({root:await workspace(t),env:{GITHUB_SHA:'a'.repeat(40)},client:api,clock:()=>at(0),stdout:()=>{},
+    runOrchestrationImpl:fake,privateResearch:true});
+  assert.deepEqual(calls,['results','fixtures']);
+  assert.equal(result.mode,'private-research');assert.equal(result.RELEASE_GATE,'BLOCKED');
+});
 test('fresh runners resume durable cadence: fixtures 15m, markets next run and results independently when budget permits',async t=>{
   const api=backend(),calls=[];let now=0,number=0;
   const fake=async(args,options)=>{

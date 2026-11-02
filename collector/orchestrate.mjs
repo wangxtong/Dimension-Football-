@@ -8,7 +8,7 @@ import { collectFootballDataHistory } from './sources/football-data-history.mjs'
 import { verifyAcquisitionSnapshot } from './data/acquisition-snapshot.mjs';
 import { verifyReplayBundle } from './data/run-manifest.mjs';
 import { prepareForecastHistory, BACKTEST_HORIZONS, FORECAST_MODEL } from './forecast.mjs';
-import { appendResultAndScore, evaluatePredictionLedger } from './prediction-ledger.mjs';
+import { appendResultAndScore, evaluatePredictionLedger, readPredictionLedger } from './prediction-ledger.mjs';
 import { isoMillis } from './policy.mjs';
 import { configureEnvironmentProxy } from './network.mjs';
 import { requireGreenForecastDelivery } from './publication-release-gate.mjs';
@@ -182,6 +182,15 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
         const saved = await dep.appendResultAndScore({ directory, result, nowISO: clock() });
         recorded += Number(saved.result.created); scored += saved.scores.filter(row => row.created).length;
       }
+      // A prediction can only be settled when a result with the same source+fixtureId exists.
+      // Count what is already due but still unresolved so a source-coverage gap is visible
+      // in every run instead of looking like a healthy "partial" lane.
+      const nowMs = isoMillis(clock()), awaiting = {};
+      for (const event of (await readPredictionLedger({ directory })).events) for (const prediction of event.predictions) {
+        if (!Number.isFinite(isoMillis(prediction.kickoff)) || isoMillis(prediction.kickoff) > nowMs) continue;
+        if (event.results.some(row => row.source === prediction.source && row.fixtureId === prediction.fixtureId)) continue;
+        awaiting[prediction.source] = (awaiting[prediction.source] || 0) + 1;
+      }
       const groups = [], identities = [...new Map([...clean.matches, ...priorInputs.fixtures]
         .map(row => [`${row.source}:${row.league}`, { source: row.source, league: row.league }])).values()];
       for (const identity of identities) for (const horizonHours of BACKTEST_HORIZONS) {
@@ -191,9 +200,11 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
       }
       const generatedAt = clock(), evaluation = { version: 1, kind: 'prospective-evaluation', generatedAt, model: FORECAST_MODEL,
         ...(options.mode === 'private-research' ? { scope: 'private-research-freezes', forecastPublished: false, releaseGate: 'BLOCKED' } : {}),
-        groups, diagnostics: publicResults.diagnostics, summary: { recordedResults: recorded, recordedScores: scored, skipped },
+        groups, diagnostics: publicResults.diagnostics,
+        summary: { recordedResults: recorded, recordedScores: scored, skipped,
+          awaitingResultsBySource: Object.fromEntries(Object.entries(awaiting).sort(([a], [b]) => a.localeCompare(b))) },
         limitations: ['Only retained pre-kickoff predictions can produce prospective scores.',
-          'Automatic result refresh currently covers OpenLigaDB BL1; other providers require verified normalized historical inputs.'] };
+          'Automatic result refresh currently covers OpenLigaDB BL1; predictions from other sources stay in awaitingResultsBySource until a verified same-source result is imported via HISTORY_FILE.'] };
       await atomicJson(resolve(out, 'prospective-evaluation.json'), evaluation);
       const partial = publicResults.diagnostics.some(row => row.status === 'unavailable') || clean.matches.some(row => row.source !== 'openligadb');
       outcome = { lane: options.lane, status: partial ? 'partial' : 'complete', summary: evaluation.summary, evaluation, exitCode: 0 };
