@@ -21,7 +21,9 @@ function validDailyResearch(report) {
 }
 
 const LEAGUE_CN = { PL: '英超', PD: '西甲', SA: '意甲', BL1: '德甲', FL1: '法甲' };
-const OUTCOME_CN = { home: '主胜', draw: '平', away: '客胜' };
+const OUTCOME_CN = { home: '主胜', draw: '平局', away: '客胜' };
+// 分隔线与图标都只用纯文本字符：不依赖 parse_mode，任何客户端都不会串成竖线。
+const RULE = '━━━━━━━━━━━━━━━━';
 function pctValue(value) {
   return typeof value === 'number' && Number.isFinite(value) ? (value * 100).toFixed(1) + '%' : '—';
 }
@@ -32,61 +34,67 @@ function beijingShort(iso) {
   const pad = n => String(n).padStart(2, '0');
   return pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + ' ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
 }
-function weatherLine(row) {
+function weatherText(row) {
   const w = row.weather;
   if (!w || w.status !== 'ok') return null;
   const parts = [];
   if (typeof w.temperatureC === 'number' && Number.isFinite(w.temperatureC)) parts.push(w.temperatureC.toFixed(0) + '°C');
-  if (typeof w.windKmh === 'number' && Number.isFinite(w.windKmh)) parts.push('风' + w.windKmh.toFixed(0) + 'km/h');
+  if (typeof w.windKmh === 'number' && Number.isFinite(w.windKmh)) parts.push('风 ' + w.windKmh.toFixed(0) + 'km/h');
   if (typeof w.precipitationProbabilityPct === 'number' && Number.isFinite(w.precipitationProbabilityPct))
-    parts.push('雨' + w.precipitationProbabilityPct.toFixed(0) + '%');
+    parts.push('降水 ' + w.precipitationProbabilityPct.toFixed(0) + '%');
   if (typeof w.precipitationMm === 'number' && w.precipitationMm > 0) parts.push(w.precipitationMm.toFixed(1) + 'mm');
   if (!parts.length) return null;
-  const city = row.venue && typeof row.venue.city === 'string' ? '（' + row.venue.city + '）' : '';
-  return '天气 ' + parts.join(' ') + city;
+  const city = row.venue && typeof row.venue.city === 'string' ? ' · ' + row.venue.city : '';
+  return parts.join(' · ') + city;
 }
-// Telegram 不渲染 Markdown 表格：改成一赛一段的纯文本，避免出现 "| --- |" 竖线噪声。
+// Telegram 不渲染 Markdown 表格：一赛一段，竖排短行，一眼能读完。
 function forecastBlock(row) {
   const lines = [];
   const p = row.probabilities || {};
-  lines.push('【' + (LEAGUE_CN[row.league] || row.league) + '】' + teamName(row.home) + ' vs ' + teamName(row.away));
-  lines.push('开球 ' + beijingShort(row.kickoff) + '（北京）｜最高倾向 ' + (OUTCOME_CN[row.selection] || row.selection)
-    + ' ' + pctValue(p[row.selection]));
-  lines.push('主胜 ' + pctValue(p.home) + '｜平 ' + pctValue(p.draw) + '｜客胜 ' + pctValue(p.away));
+  const league = LEAGUE_CN[row.league] || row.league;
+  lines.push('⚽ ' + league + ' ｜ ' + teamName(row.home) + ' vs ' + teamName(row.away));
+  lines.push('🕐 ' + beijingShort(row.kickoff) + ' 开球（北京）');
+  lines.push('📊 主胜 ' + pctValue(p.home) + ' ｜ 平局 ' + pctValue(p.draw) + ' ｜ 客胜 ' + pctValue(p.away));
+  lines.push('🎯 最高倾向：' + (OUTCOME_CN[row.selection] || row.selection) + ' ' + pctValue(p[row.selection]));
   const eg = row.expectedGoals;
   if (eg && Number.isFinite(eg.home) && Number.isFinite(eg.away)) {
     const total = eg.home + eg.away;
-    lines.push('预期进球 ' + eg.home.toFixed(2) + ' / ' + eg.away.toFixed(2) + '｜'
-      + (total >= 2.5 ? '大2.5' : '小2.5') + '(' + total.toFixed(2) + ')');
+    lines.push('🔮 预期进球 ' + eg.home.toFixed(1) + ' : ' + eg.away.toFixed(1)
+      + ' ｜ ' + (total >= 2.5 ? '大 2.5' : '小 2.5') + '（合计 ' + total.toFixed(1) + '）');
   }
   const scores = Array.isArray(row.topScores) && row.topScores.length
-    ? row.topScores.map(s => s.home + ':' + s.away).join(' / ') : '';
-  if (scores) lines.push('比分参考 ' + scores);
-  const weather = weatherLine(row);
-  if (weather) lines.push(weather);
+    ? row.topScores.map(s => s.home + ':' + s.away).join(' · ') : '';
+  if (scores) lines.push('🔢 比分参考 ' + scores);
+  const weather = weatherText(row);
+  if (weather) lines.push('🌦 天气 ' + weather);
   return lines;
 }
-function statsLine(row) {
-  if (!row) return '—';
-  const scored = row.scored ? (row.hitRate * 100).toFixed(1) + '%' : '无已评分样本';
-  return '冻结 ' + row.eligibleFrozen + '｜评分 ' + row.scored + '｜待FT ' + row.pending + '｜命中率 ' + scored;
+function statsLine(label, row) {
+  if (!row) return label + '：—';
+  const hit = row.scored ? '命中 ' + (row.hitRate * 100).toFixed(1) + '%' : '命中 暂无样本';
+  return label + '：冻结 ' + row.eligibleFrozen + ' · 评分 ' + row.scored + ' · 待 FT ' + row.pending + ' · ' + hit;
 }
 export function telegramText(report) {
-  const lines = ['维度足球｜每日 1X2 研究参考',
-    '北京日 ' + report.beijingDay + '｜研究冻结 ' + report.forecasts.total + ' 场｜严格盘口对外候选 0 场',
-    report.disclaimer, ''];
+  const total = report.forecasts.total;
+  const lines = [
+    '🏟 维度足球 · 每日 1X2 研究参考',
+    '📅 ' + report.beijingDay + '（北京）｜研究冻结 ' + total + ' 场｜严格盘口 0 场',
+    '⚠️ ' + report.disclaimer,
+  ];
   const candidates = report.forecasts.candidates || [];
   if (candidates.length) {
-    for (const row of candidates) { lines.push(...forecastBlock(row), ''); }
+    for (const row of candidates) { lines.push(RULE, ...forecastBlock(row)); }
   } else {
-    lines.push('本轮没有符合赛前冻结条件的研究预测，不补场。', '');
+    lines.push(RULE, '本轮没有符合赛前冻结条件的研究预测，不补场。');
   }
-  lines.push('—— 真实前瞻 FT 核账（每场只计一次）',
-    '1日 ' + statsLine(report.prospective?.oneDay),
-    '7日 ' + statsLine(report.prospective?.sevenDays),
-    '30日 ' + statsLine(report.prospective?.thirtyDays), '',
-    '说明：历史回测、模拟数据、赛后补造预测均不得计入真实前瞻；样本不足30场不作优劣结论。',
-    '报告 ' + String(report.reportId).slice(0, 16) + '…（完整版见网站）');
+  lines.push(RULE,
+    '📈 真实前瞻 FT 核账（每场只计一次）',
+    '· ' + statsLine('近 1 日', report.prospective?.oneDay),
+    '· ' + statsLine('近 7 日', report.prospective?.sevenDays),
+    '· ' + statsLine('近 30 日', report.prospective?.thirtyDays),
+    '',
+    'ℹ️ 历史回测、模拟数据、赛后补造预测不计入真实前瞻；样本不足 30 场不作优劣结论。',
+    '🔗 报告 ' + String(report.reportId).slice(0, 12) + '…（完整版见网站）');
   const full = lines.join('\n');
   return full.length <= TELEGRAM_MAX_CHARS ? full : full.slice(0, TELEGRAM_MAX_CHARS - 20) + '\n…（完整内容见网站报告）';
 }
