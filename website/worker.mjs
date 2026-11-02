@@ -2,6 +2,8 @@ import * as REPORT_FEED from './report-feed.mjs';
 import { handleHostedRequest, loadHostedBundle, updateHostedReceipt } from './hosted-publications.mjs';
 import { verifyActionsIdentity } from './github-oidc.mjs';
 import { notifyHostedReport } from './hosted-notifications.mjs';
+import { notifyDailyObservation, readDailyObservationStatus } from './daily-observation-notifications.mjs';
+import { handleTelegramWebhook, readTelegramBotStatus } from './telegram-bot.mjs';
 const COOKIE = '__Host-dimension_session', SESSION_SECONDS = 43200;
 const encoder = new TextEncoder();
 const encode = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -67,14 +69,36 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
   // Bounded per-isolate abuse protection. It is not a persistent/global rate limit.
   const attempts=new Map();
   return {async fetch(request,env) {
+    const path=new URL(request.url).pathname,method=request.method;
+    if(path==='/telegram/webhook')return handleTelegramWebhook(request,env,{fetchImpl,now:clock(),loadBundle:loadHostedBundle,
+      assets,loadObservationReceipt:readDailyObservationStatus});
     const config=configuration(env);if(!config)return response('登录服务尚未配置，请联系管理员。',503);
-    const now=Math.floor(clock()/1000),path=new URL(request.url).pathname,method=request.method;
+    const now=Math.floor(clock()/1000);
     const requestedView = new URL(request.url).searchParams.get('view');
     const view = ['analysis','strict','missing','schedule','status','picks','backtest','overview'].includes(requestedView) ? requestedView : '';
     const landing = view ? '/?view='+view+'#'+view : '/';
     const loginPath = view ? '/login?view='+view : '/login';
     const sameOrigin=request.headers.get('origin')===config.origin;
     if(env.HOSTED_PUBLICATION_ENABLED==='true'&&path.startsWith('/internal/')) {
+      if(path==='/internal/observation-notifications') {
+        if(method!=='POST')return response('不支持此请求方式。',405);
+        try {await verifyActionsIdentity(request,env,{fetchImpl,now:clock()});}
+        catch{return response(JSON.stringify({error:'MACHINE_IDENTITY_REQUIRED'}),401,'application/json; charset=utf-8');}
+        if(request.headers.get('content-type')?.split(';',1)[0].trim().toLowerCase()!=='application/json')return response(JSON.stringify({error:'DAILY_REQUEST_INVALID'}),400,'application/json; charset=utf-8');
+        let body;
+        try {body=JSON.parse(await boundedBody(request,4096));}
+        catch{return response(JSON.stringify({error:'DAILY_REQUEST_INVALID'}),400,'application/json; charset=utf-8');}
+        try {
+          const result=await notifyDailyObservation(env,{body,fetchImpl,now:clock(),loadBundle:loadHostedBundle});
+          const status=result.receipt.status==='unknown'?503:result.receipt.status==='failed'?502:200;
+          return response(JSON.stringify(result),status,'application/json; charset=utf-8');
+        } catch(error) {
+          const allowed=['DAILY_REQUEST_INVALID','DAILY_CREDENTIALS_REQUIRED','DAILY_CONFIGURATION_INVALID','DAILY_DESTINATION_MISMATCH','DAILY_ORIGIN_INVALID',
+            'DAILY_STORAGE_UNAVAILABLE','DAILY_STORAGE_INVALID','DAILY_REPORT_INVALID','DAILY_REPORT_NOT_CURRENT','DAILY_OBSERVATION_REQUIRED','DAILY_REPORT_READBACK_REQUIRED','DAILY_REPORT_EXPIRED'];
+          const code=allowed.includes(error.code)?error.code:'DAILY_NOTIFICATION_FAILED';
+          return response(JSON.stringify({error:code}),allowed.includes(error.code)?error.status:503,'application/json; charset=utf-8');
+        }
+      }
       if(path==='/internal/notifications') {
         if(method!=='POST')return response('不支持此请求方式。',405);
         try { await verifyActionsIdentity(request,env,{fetchImpl,now:clock()}); }
@@ -124,6 +148,15 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     const signedIn=await authenticated(request,config,now);
     if(path==='/login')return signedIn?redirect(landing):method==='HEAD'?response(null,200,'text/html; charset=utf-8'):loginPage('',200,{},view);
     if(!signedIn)return path==='/'||path==='/index.html'?redirect(loginPath):response('请先登录。',401);
+    if(path==='/api/telegram-bot-status') {
+      try {const result=await readTelegramBotStatus(env,{now:clock()});return response(method==='HEAD'?null:JSON.stringify(result),200,'application/json; charset=utf-8');}
+      catch{return response(JSON.stringify({error:'BOT_STATUS_UNAVAILABLE'}),503,'application/json; charset=utf-8');}
+    }
+    if(path==='/api/observation-notifications') {
+      if(env.HOSTED_PUBLICATION_ENABLED!=='true')return response(JSON.stringify({error:'DAILY_STORAGE_UNAVAILABLE'}),503,'application/json; charset=utf-8');
+      try {const result=await readDailyObservationStatus(env,{now:clock()});return response(method==='HEAD'?null:JSON.stringify(result),200,'application/json; charset=utf-8');}
+      catch{return response(JSON.stringify({error:'DAILY_STORAGE_UNAVAILABLE'}),503,'application/json; charset=utf-8');}
+    }
     if(['/api/report','/api/predictions.json','/api/publication.json','/api/openligadb-fixtures.json'].includes(path)){
       try{
         const bundle=await REPORT_FEED.readDashboardBundle(env,{fetchImpl,now:clock()});

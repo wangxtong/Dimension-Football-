@@ -49,6 +49,9 @@ jobs:
           package-manager-cache: false
       - name: 恢复持久状态、分层采集并核验原站点（最多 3 分钟）
         run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-live" --budget-minutes 3 --mode "$HOSTED_MODE"
+      - name: 北京时间 09 点后核验并发送当天赛事与数据状态日报
+        if: success() && env.HOSTED_MODE == 'observations'
+        run: node collector/observation-digest.mjs --root "$RUNNER_TEMP/dimension-live" --mode "$HOSTED_MODE"
       - name: 保留本轮采集与运行证据
         if: always()
         uses: actions/upload-artifact@v7
@@ -71,12 +74,13 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Sites 持久采集与发布
 
-          RELEASE_GATE=BLOCKED：采集公开赛程及未来 24 小时受检赛事的独立报价，网站仅刷新赛程和来源覆盖统计；不包含原始盘口、预测概率或正式候选，不创建预测账本、不发送通知。
+          RELEASE_GATE=BLOCKED：采集公开赛程及未来 24 小时受检赛事的独立报价，网站仅刷新赛程和来源覆盖统计；不包含原始盘口、预测概率或正式候选，不创建预测账本。采集步骤本身不发送通知。
           调度目标为每 5 分钟；GitHub 排队、并发与上游预算可能导致延迟。
           公开赛程仅到 15 分钟采集周期才请求；未到期保持原始观测时间，不把缓存标为刚更新。
           市场观察目标为每 5 分钟，保留来源原始时间；赛程超过 20 分钟或报价过期时拒绝作为最新有效观察发布。
           状态来自原 Sites 的持久存储，以 revision 做条件更新；冲突或超限会停止，不使用空状态替代失败恢复。
-          当前通知入口受独立门禁阻断，runner 与 Sites 均不发送自动预测。
+          独立日报步骤在北京时间 09 点后，重新核验本轮同一观察报告后申请 Sites 发送当天赛事与数据状态；Sites 持久账本每日防重，未知结果不自动重发。日报不是预测推荐，runner 与 Sites 均不发送自动预测。
+          Telegram 凭据仅绑定 Sites 运行环境，runner 仅提交已核验的报告 ID；缺少或错误配置会明确失败，附件仅保存脱敏回执。状态日报接通不代表用户要求的正式预测日报已完成。
           本轮采集与运行记录保留为 90 天附件；仅手动 research 模式采集研究数据、冻结预测并优先核账，绝不调用正式发布或通知。
           私有研究冻结不是已发布预测成绩；长期账本容量、归档与恢复尚待验证，因此不自动启用持续研究采样。
           R2 保存观察报告与当前状态，既有预测账本不删除。

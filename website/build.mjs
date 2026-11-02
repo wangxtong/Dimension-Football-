@@ -13,7 +13,7 @@ function inlineImports(source) {
     return `const ${binding.replace(/\s+as\s+/g,': ')}=${namespace};`;
   });
 }
-for(const name of ['report-schema','market-observation-schema','locale-zh','github-oidc','state-archive','release-policy','hosted-publications','telegram-presentation','hosted-notifications','report-feed']) {
+for(const name of ['report-schema','market-observation-schema','locale-zh','github-oidc','state-archive','release-policy','hosted-publications','telegram-presentation','hosted-notifications','daily-observation-notifications','telegram-bot','report-feed']) {
   const text=await readFile(new URL(name+'.mjs',import.meta.url),'utf8');
   const exported=[...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|class)\s+([A-Za-z_$][\w$]*)/gm)].map(m=>m[1]);
   const body=inlineImports(text).replace(/^export\s+/gm,'');
