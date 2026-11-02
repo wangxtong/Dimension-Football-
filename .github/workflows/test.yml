@@ -159,6 +159,98 @@ jobs:
           path: ${{ runner.temp }}/scrapling-evidence/
           if-no-files-found: warn
           retention-days: 14
+  stage1-private-research:
+    # This PR-only job exercises user-approved private research, without
+    # touching ECS, public website, Telegram, or protected source endpoints.
+    if: github.event_name == 'pull_request' && github.head_ref == 'feat/scrapling-public-archive-20261102'
+    needs: [scrapling-engine]
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    permissions:
+      contents: read
+    env:
+      RESEARCH_ROOT: ${{ runner.temp }}/dimension-stage1-private
+      COLLECTOR_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: 安装隔离研究环境Scrapling
+        run: python3 -m pip install --no-cache-dir --disable-pip-version-check -r config/scrapling-requirements.txt
+      - name: 初始化私有研究工作目录
+        run: |
+          umask 077
+          mkdir -p "$RESEARCH_ROOT/raw" "$RESEARCH_ROOT/normalized" "$RESEARCH_ROOT/state" "$RESEARCH_ROOT/reports"
+      - name: 从公开源真实取数并跨进程核SHA/导入历史
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 collector/sources/scrapling_archive.py \
+            --source openligadb-bl1-history --season 2025 --live \
+            --out-root "$RESEARCH_ROOT/raw" > "$RESEARCH_ROOT/scrapling-receipt.json"
+          RECORD_DIR=$(python3 -c 'import json,os;print(json.load(open(os.environ["RESEARCH_ROOT"]+"/scrapling-receipt.json"))["directory"])')
+          python3 collector/sources/scrapling_archive.py --verify "$RECORD_DIR" > "$RESEARCH_ROOT/raw-verification.json"
+          node collector/data/scrapling-history-bridge.mjs "$RECORD_DIR" \
+            "$RESEARCH_ROOT/normalized" > "$RESEARCH_ROOT/normalized-receipt.json"
+          node --input-type=module -e '
+            import {readFileSync,writeFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const root=process.env.RESEARCH_ROOT;
+            const source=JSON.parse(readFileSync(root+"/scrapling-receipt.json","utf8"));
+            const receipt=JSON.parse(readFileSync(root+"/normalized-receipt.json","utf8"));
+            const history=JSON.parse(readFileSync(receipt.outputFile,"utf8"));
+            assert.equal(source.receipt.observationMode,"LIVE_SOURCE_HTTP");
+            assert.equal(source.receipt.httpStatus,200);
+            assert.equal(receipt.rawSha256,history.rawSha256);
+            assert.equal(history.records.length,306);
+            assert.equal(history.historicalPregameObserved,false);
+            assert.equal(history.releaseGate,"BLOCKED");
+            writeFileSync(root+"/historical-input.json",JSON.stringify({history:history.records})+"\n",{mode:0o600});
+            console.log(JSON.stringify({stage1:"HISTORICAL_INPUT_VERIFIED",records:history.records.length,rawSha256:history.rawSha256}));
+          '
+      - name: 赛后结果私有入账（允许零前瞻评分，不偷换历史为胜率）
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          HISTORY_FILE="$RESEARCH_ROOT/historical-input.json" node collector/orchestrate.mjs \
+            --lane results --mode private-research --state "$RESEARCH_ROOT/state/state.json" \
+            --out "$RESEARCH_ROOT/reports" --budget-minutes 4 > "$RESEARCH_ROOT/results-console.log" 2>&1
+          outcome=$?
+          set -e
+          echo "$outcome" > "$RESEARCH_ROOT/results-exit.txt"
+          cat "$RESEARCH_ROOT/results-console.log"
+      - name: 真实未来赛程和内部研究预测（绝不发送发布通道）
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          node collector/orchestrate.mjs --lane fixtures --mode private-research \
+            --state "$RESEARCH_ROOT/state/state.json" --out "$RESEARCH_ROOT/reports" \
+            --budget-minutes 4 > "$RESEARCH_ROOT/fixtures-console.log" 2>&1
+          outcome=$?
+          set -e
+          echo "$outcome" > "$RESEARCH_ROOT/fixtures-exit.txt"
+          cat "$RESEARCH_ROOT/fixtures-console.log"
+      - name: 校验两条隔离通道与原始数据，再生成内部研究Web试验页
+        run: |
+          node scripts/stage1-private-research-report.mjs --root "$RESEARCH_ROOT" --commit "$COLLECTOR_COMMIT"
+      - name: 归档阶段一全部证据（仅私有Actions附件，不发布Web/Telegram）
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stage1-private-research-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dimension-stage1-private/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
   release:
     needs: [test, browser, scrapling-engine]
     runs-on: ubuntu-latest
