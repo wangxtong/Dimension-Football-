@@ -105,15 +105,6 @@ function transport(s, calls) {
 const fetchOptions = (s, fetchImpl) => ({ fixtures: s.fixtures, nowISO: s.options.observedAt,
   clock: () => s.options.observedAt, remaining: () => 90000, fetchImpl });
 
-test('fetch uses two fixed GETs through the injected crawler and retains native Last-Modified', async () => {
-  const s = setup(), calls = [], r = await fetchMacauslotEvidence(fetchOptions(s, transport(s, calls)));
-  assert.equal(r.quotes.length, 24);
-  assert.deepEqual(calls.map(r => r.url), [MACAUSLOT_EVENTS, MACAUSLOT_ODDS]);
-  assert.ok(calls.every(r => r.init.method === 'GET' && r.init.redirect === 'manual' && r.init.body === undefined));
-  assert.ok(r.quotes.every(q => q.sourceUpdatedAt === s.options.sourceUpdatedAt && !q.opening));
-  await assert.rejects(fetchMacauslotEvidence(fetchOptions(s, undefined)), /controlled_transport_required/);
-});
-
 test('provider alternatives, arbitrary metadata and injected opening labels never become opening evidence', () => {
   const s = setup();
   for (const batch of s.odds.data) for (const market of batch.markets) Object.assign(market, {
@@ -125,45 +116,15 @@ test('provider alternatives, arbitrary metadata and injected opening labels neve
   assert.ok(!JSON.stringify(r).includes('discard-marker'));
 });
 
-test('fetch rejects missing/stale/future HTTP evidence, challenge bodies and oversized responses', async t => {
-  const cases = {
-    absentLastModified: () => { const r = response({}); r.headers.delete('last-modified'); return r; },
-    staleDate: () => response({}, { date: 'Sat, 31 Oct 2026 09:00:00 GMT' }),
-    staleOdds: (s, url) => response(url === MACAUSLOT_EVENTS ? s.events : s.odds, { 'last-modified': 'Sat, 31 Oct 2026 09:00:00 GMT' }),
-    futureDate: () => response({}, { date: 'Sat, 31 Oct 2026 10:05:18 GMT' }),
-    ageExpired: () => response({}, { age: '300' }), invalidAge: () => response({}, { age: '-1' }),
-    modifiedAfterDate: () => response({}, { 'last-modified': 'Sat, 31 Oct 2026 10:05:10 GMT' }),
-    htmlChallenge: () => new Response('<html>challenge</html>', { headers: { 'content-type': 'text/html' } }),
-    unauthorized: () => new Response('', { status: 403 }), oversized: () => response({}, { 'content-length': String(5 * 1024 * 1024) }),
-  };
-  for (const [name, make] of Object.entries(cases)) await t.test(name, async () => {
-    const s = setup(), r = await fetchMacauslotEvidence(fetchOptions(s, async url => make(s, url)));
-    assert.equal(r.quotes.length, 0);
-    assert.equal(r.diagnostics[0].status, 'unavailable');
-  });
-});
-
-test('Retry-After persists across runs and cancellation/budget failures stop before request', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'macau-cooldown-'));
-  try {
-    const s = setup(); let calls = 0;
-    const options = { ...fetchOptions(s, async () => { calls++; return new Response('', { status: 429, headers: { 'retry-after': '60' } }); }), cooldownStatePath: join(dir, 'cooldown.json') };
-    const first = await fetchMacauslotEvidence(options), second = await fetchMacauslotEvidence(options);
-    assert.equal(first.diagnostics[0].code, 'rate_limited'); assert.equal(second.diagnostics[0].code, 'source_cooldown');
-    assert.equal(calls, 1);
-    for (const extra of [{ remaining: () => 0 }, { signal: AbortSignal.abort() }]) {
-      const r = await fetchMacauslotEvidence({ ...fetchOptions(s, async () => { throw new Error('must not fetch'); }), ...extra });
-      assert.equal(r.quotes.length, 0); assert.ok(r.diagnostics[0].code.startsWith('crawler_'));
-    }
-  } finally { await rm(dir, { recursive: true, force: true }); }
-});
-
-test('a transport that ignores abort cannot hold the source round beyond its deadline', async () => {
-  const s = setup(); let calls = 0;
-  const fetchImpl = async () => { calls++; return new Promise(() => {}); };
-  fetchImpl.timeoutMs = 15;
-  const r = await fetchMacauslotEvidence(fetchOptions(s, fetchImpl));
-  assert.equal(r.diagnostics[0].code, 'timeout');
-  assert.equal(calls, 1);
-  assert.equal(r.quotes.length, 0);
+test('P0 denies direct fetch regardless of injected mock transport', async () => {
+  const s = setup(), calls = [];
+  const evidence = await fetchMacauslotEvidence(fetchOptions(s, async url => {
+    calls.push(url); throw Error('NETWORK_CALLED_WHILE_BLOCKED');
+  }));
+  assert.deepEqual(calls, []);
+  assert.equal(evidence.quotes.length, 0);
+  assert.equal(evidence.marketStates.length, 0);
+  assert.equal(evidence.diagnostics[0].status, 'blocked');
+  assert.equal(evidence.diagnostics[0].code, 'ACCESS_BLOCKED');
+  assert.ok(evidence.fixtureDiagnostics.every(row => row.code === 'ACCESS_BLOCKED'));
 });
