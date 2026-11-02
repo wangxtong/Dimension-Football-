@@ -15,6 +15,10 @@ import tempfile
 import shutil
 import sys
 import xml.etree.ElementTree as ET
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
+from urllib.request import build_opener, HTTPRedirectHandler, Request
+from urllib.robotparser import RobotFileParser
 
 SOURCES = {
     'openligadb-bl1-history': 'https://api.openligadb.de/getmatchdata/bl1/{season}',
@@ -158,10 +162,42 @@ def normalize(raw, source, season, fetched_at):
         return parse_bundesliga(raw, season, fetched_at)
     return parse_bbc_rss(raw, fetched_at)
 
-def fetch_live(source, season, now=None, fetcher=None):
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def robots_allows(url, *, open_request=None):
+    # Only the exact two documented public endpoints are accepted. Check the
+    # provider's robots.txt; unreachable policy must not become an allow.
+    origin = urlsplit(url)
+    robots_url = origin.scheme + '://' + origin.netloc + '/robots.txt'
+    opener = open_request or build_opener(_NoRedirect()).open
+    request = Request(robots_url, headers={'User-Agent': SOURCE_AGENT, 'Accept': 'text/plain'})
+    try:
+        with opener(request, timeout=6) as resp:
+            if resp.status != 200:
+                fail('ROBOTS_UNAVAILABLE')
+            body = resp.read(65_537)
+            if len(body) > 65_536:
+                fail('ROBOTS_TOO_LARGE')
+    except HTTPError as exc:
+        if exc.code == 404:  # RFC 9309: 4xx means robots unavailable; 404 means no robots rules.
+            return True
+        fail('ROBOTS_UNAVAILABLE')
+    except (URLError, OSError):
+        fail('ROBOTS_UNAVAILABLE')
+    parser = RobotFileParser()
+    parser.parse(body.decode('utf-8', errors='replace').splitlines())
+    return bool(parser.can_fetch(SOURCE_AGENT, url))
+
+
+def fetch_live(source, season, now=None, fetcher=None, robots_checker=None):
     url = target_url(source, season)
     if now is None:
         now = datetime.now(timezone.utc)
+    if not (robots_checker or robots_allows)(url):
+        fail('ROBOTS_DENIED')
     if fetcher is None:
         try:
             from scrapling.fetchers import Fetcher
