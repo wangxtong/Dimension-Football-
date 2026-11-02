@@ -169,7 +169,6 @@ jobs:
     permissions:
       contents: read
     env:
-      RESEARCH_ROOT: ${{ runner.temp }}/dimension-stage1-private
       COLLECTOR_COMMIT: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v6
@@ -185,8 +184,10 @@ jobs:
         run: python3 -m pip install --no-cache-dir --disable-pip-version-check -r config/scrapling-requirements.txt
       - name: 初始化私有研究工作目录
         run: |
+          set -euo pipefail
           umask 077
-          mkdir -p "$RESEARCH_ROOT/raw" "$RESEARCH_ROOT/normalized" "$RESEARCH_ROOT/state" "$RESEARCH_ROOT/reports"
+          echo "RESEARCH_ROOT=$RUNNER_TEMP/dimension-stage1-private" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/dimension-stage1-private/raw" "$RUNNER_TEMP/dimension-stage1-private/normalized" "$RUNNER_TEMP/dimension-stage1-private/state" "$RUNNER_TEMP/dimension-stage1-private/reports"
       - name: 从公开源真实取数并跨进程核SHA/导入历史
         shell: bash
         run: |
