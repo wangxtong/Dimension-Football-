@@ -72,11 +72,13 @@ jobs:
         run: node collector/publish-research-daily.mjs --root "$RUNNER_TEMP/dimension-live"
       - name: 计算北京日期（跨 runner 幂等键）
         id: bjday
-        if: env.HOSTED_MODE == 'research'
+        # step 的自定义 if 在没有 status 函数时仍隐含 success()；hosted.mjs partial 会 exit 1，
+        # 导致这里被跳过、outputs.day 为空、后面的标记路径变成目录。必须显式 always()。
+        if: always() && env.HOSTED_MODE == 'research'
         run: echo "day=$(TZ=Asia/Shanghai date +%F)" >> "$GITHUB_OUTPUT"
       - name: 恢复当日推送标记
         id: tgmark
-        if: env.HOSTED_MODE == 'research'
+        if: always() && env.HOSTED_MODE == 'research'
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/tg-sent
@@ -94,7 +96,9 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID || secrets.TELEGRAM_CHAT_ID }}
         run: |
           set -euo pipefail
-          MARK="${{ runner.temp }}/tg-sent/${{ steps.bjday.outputs.day }}"
+          DAY="${{ steps.bjday.outputs.day }}"
+          [ -n "$DAY" ] || DAY=$(TZ=Asia/Shanghai date +%F)
+          MARK="${{ runner.temp }}/tg-sent/$DAY"
           if [ -f "$MARK" ]; then
             echo '{"status":"skipped","code":"ALREADY_SENT_TODAY"}'
             exit 0
