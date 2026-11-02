@@ -68,7 +68,12 @@ export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 
     // Only pre-match source versions may be used; unknown timestamps must be explicit.
     const asOf = forecast?.generatedAt ?? forecast?.recordedAt ?? null;
     const asOfMs = typeof asOf === 'string' ? Date.parse(asOf) : NaN;
-    const isPrematch = Number.isFinite(asOfMs) && asOfMs <= now && asOfMs < kickoff;
+    // An old model forecast cannot establish that today's market price existed when the model ran.
+    // The hhad price is first independently observed NOW; never backdate its selection to model generatedAt.
+    const sourceQuoteAt = typeof m.handicap.updatedAt === 'string' ? Date.parse(m.handicap.updatedAt) : NaN;
+    const modelIsPrematch = Number.isFinite(asOfMs) && asOfMs <= now && asOfMs < kickoff;
+    const quoteIsPrematch = Number.isFinite(sourceQuoteAt) && sourceQuoteAt <= now && sourceQuoteAt < kickoff;
+    const isPrematch = modelIsPrematch && quoteIsPrematch;
     const modelPick = isPrematch ? pickSide({ probabilities: forecast.probabilities, goalLine: m.handicap.goalLine }) : null;
     const pick = modelPick ? { ...modelPick, decimalOdds: m.handicap[modelPick.side] } : null;
     picks.push({ matchId: m.matchId, league: m.league, home: m.home, away: m.away, kickoff: m.kickoff,
@@ -76,8 +81,11 @@ export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 
         home: m.handicap.home, draw: m.handicap.draw, away: m.handicap.away,
         updatedAt: m.handicap.updatedAt || null },
       homeRank: m.homeRank || null, awayRank: m.awayRank || null,
-      ...(isPrematch ? { probabilities: forecast.probabilities } : {}),
-      predictionFrozenAt: isPrematch ? asOf : null, pick });
+      ...(modelIsPrematch ? { probabilities: forecast.probabilities } : {}),
+      modelGeneratedAt: modelIsPrematch ? asOf : null,
+      quoteObservedAt: quoteIsPrematch ? nowISO : null,
+      // Snapshot selection is created at collection time, not at an older model-generation timestamp.
+      predictionFrozenAt: isPrematch ? nowISO : null, pick });
   }
   picks.sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff) || String(a.matchId).localeCompare(String(b.matchId)));
   return { picks: picks.slice(0, limit), total: picks.length,
@@ -99,7 +107,7 @@ export function settleDailyPicks({ picks = [], results = [] } = {}) {
     byMatch.set(key, item);
   }
   const seen = new Set(), rows = [];
-  let unselected = 0, pending = 0, invalid = 0, duplicate = 0;
+  let selected = 0, unselected = 0, pending = 0, invalid = 0, duplicate = 0;
   for (const p of picks) {
     if (!p || !validId(p.matchId)) { invalid++; continue; }
     const id = String(p.matchId);
@@ -108,6 +116,7 @@ export function settleDailyPicks({ picks = [], results = [] } = {}) {
     if (!validMarket(p.handicap) || p.pick?.market !== 'hhad' || !SIDES.includes(p.pick?.side)) {
       unselected++; continue;
     }
+    selected++;
     const matched = byMatch.get(id) || [];
     if (!matched.length) { pending++; continue; }
     if (matched.length !== 1) { duplicate++; continue; }
@@ -116,9 +125,14 @@ export function settleDailyPicks({ picks = [], results = [] } = {}) {
     const resultAt = Date.parse(r.resultObservedAt);
     const kickoff = Date.parse(p.kickoff);
     const frozenAt = Date.parse(p.predictionFrozenAt);
+    const modelAt = Date.parse(p.modelGeneratedAt);
+    const sourceQuoteAt = Date.parse(p.handicap.updatedAt);
+    const quoteObservedAt = Date.parse(p.quoteObservedAt);
     if (!['FT', 'FINISHED'].includes(r.status) || !Number.isFinite(resultAt)
       || !Number.isFinite(kickoff) || !Number.isFinite(frozenAt)
-      || !(frozenAt < kickoff && kickoff <= resultAt)
+      || !Number.isFinite(modelAt) || !Number.isFinite(sourceQuoteAt) || !Number.isFinite(quoteObservedAt)
+      || !(modelAt <= quoteObservedAt && sourceQuoteAt <= quoteObservedAt
+        && quoteObservedAt <= frozenAt && frozenAt < kickoff && kickoff <= resultAt)
       || r.home && r.home !== p.home || r.away && r.away !== p.away) { invalid++; continue; }
     const decimalOdds = p.handicap[p.pick.side];
     const settled = settleHhad({ homeGoals: r.homeGoals, awayGoals: r.awayGoals,
@@ -131,5 +145,5 @@ export function settleDailyPicks({ picks = [], results = [] } = {}) {
   return { market: 'hhad-three-way', researchOnly: true, rows, total: rows.length, decided: rows.length,
     wins, losses: rows.length - wins, pushes: 0, hitRate,
     profitUnits: rounded(rows.reduce((sum, r) => sum + r.profitUnits, 0)),
-    coverage: { inputPicks: picks.length, selected: seen.size - unselected, unselected, pending, invalid, duplicate } };
+    coverage: { inputPicks: picks.length, selected, unselected, pending, invalid, duplicate } };
 }
