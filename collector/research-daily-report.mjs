@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { readJson, atomicJson } from './storage.mjs';
 import { readPredictionLedger, frozenPredictionIssues, scorePredictionRecord } from './prediction-ledger.mjs';
 import { scoreProbabilities, validProbabilities } from './forecast-evaluation.mjs';
+import { teamName } from './sources/team-names.mjs';
 
 const DAY = 86_400_000;
 const HASH = /^[a-f0-9]{64}$/;
@@ -134,8 +135,8 @@ export function renderDailyResearchMarkdown(report) {
     '研究状态：' + report.state + '；今日有效冻结 ' + report.forecasts.total + ' 场；严格盘口实际对外候选 0 场（独立核验）。', '',
     '| 赛事 | 开球(UTC) | 主胜 | 平 | 客胜 | 研究最高概率 |',
     '| --- | --- | ---: | ---: | ---: | --- |'];
-  for (const row of report.forecasts.candidates) lines.push('| ' + row.home.replace(/[|\r\n]/g,' ') + ' vs '
-    + row.away.replace(/[|\r\n]/g,' ') + ' | ' + row.kickoff + ' | '
+  for (const row of report.forecasts.candidates) lines.push('| ' + teamName(row.home).replace(/[|\r\n]/g,' ') + ' vs '
+    + teamName(row.away).replace(/[|\r\n]/g,' ') + ' | ' + row.kickoff + ' | '
     + pct(row.probabilities.home) + ' | ' + pct(row.probabilities.draw) + ' | '
     + pct(row.probabilities.away) + ' | ' + ({home:'主胜',draw:'平',away:'客胜'}[row.selection]) + ' |');
   if (!report.forecasts.total) lines.push('| — | — | — | — | — | 无合格赛前研究预测，不补场 |');
