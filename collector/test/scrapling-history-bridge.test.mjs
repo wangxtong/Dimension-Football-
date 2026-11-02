@@ -121,6 +121,31 @@ test('append-only normalized result survives a second process-safe read and reje
   await assert.rejects(persistScraplingHistoryBatch(x), /SCRAPLING_BRIDGE_IMMUTABLE_ARCHIVE_CONFLICT/);
 });
 
+
+test('same raw with a new actual observation time is an independent immutable version', async t => {
+  const first = await data(t), second = await data(t);
+  second.outputRoot = first.outputRoot;
+  assert.equal(sha(first.raw), sha(second.raw));
+  second.receipt.fetchedAtUTC = '2026-11-02T04:32:03.123456Z';
+  second.receipt.serverDateUTC = '2026-11-02T04:32:03.000000Z';
+  second.projection.records[0].resultObservedAtUTC = second.receipt.fetchedAtUTC;
+  const projection = Buffer.from(JSON.stringify(second.projection) + '\n');
+  second.receipt.projectionSha256 = sha(projection);
+  await Promise.all([
+    writeFile(join(second.directory, 'projection.json'), projection),
+    writeFile(join(second.directory, 'receipt.json'), JSON.stringify(second.receipt)),
+  ]);
+  const a = await persistScraplingHistoryBatch(first);
+  const b = await persistScraplingHistoryBatch(second);
+  assert.notEqual(a.batchSha256, b.batchSha256);
+  assert.notEqual(a.outputFile, b.outputFile);
+  assert.equal(a.created, true);
+  assert.equal(b.created, true);
+  assert.equal(sha(await readFile(a.outputFile)), a.batchSha256);
+  assert.equal(sha(await readFile(b.outputFile)), b.batchSha256);
+  assert.equal((await persistScraplingHistoryBatch(second)).created, false);
+});
+
 test('symlinked evidence files are rejected rather than read as trusted raw', async t => {
   const x = await data(t);
   await rm(join(x.directory, 'raw.bin'));
