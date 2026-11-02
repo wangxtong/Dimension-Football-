@@ -43,6 +43,38 @@ test('赛前冻结且有完整三项报价才生成研究清单', () => {
   assert.equal(buildDailyPicks({matches:[match({handicap:{...match().handicap,pool:'asian-handicap'}})],nowISO:now}).total,0);
 });
 
+test('赔率绝不沿用更早模型时间倒填，当前观察时刻才是选盘时间', () => {
+  const { picks } = buildDailyPicks({ matches: [match()], forecasts: [forecast()], nowISO: now });
+  assert.equal(picks[0].modelGeneratedAt, '2026-11-03T07:50:00.000Z');
+  assert.equal(picks[0].quoteObservedAt, now);
+  assert.equal(picks[0].predictionFrozenAt, now);
+  assert.notEqual(picks[0].predictionFrozenAt, picks[0].modelGeneratedAt);
+  const futureMarket = match({ handicap: { ...match().handicap, updatedAt: '2026-11-03T08:00:01.000Z' } });
+  const noFutureQuote = buildDailyPicks({ matches: [futureMarket], forecasts: [forecast()], nowISO: now });
+  assert.equal(noFutureQuote.total, 1);
+  assert.equal(noFutureQuote.selected, 0);
+  assert.equal(noFutureQuote.picks[0].pick, null);
+  const noQuoteClock = buildDailyPicks({ matches: [match({handicap: {...match().handicap, updatedAt: null}})],
+    forecasts: [forecast()], nowISO: now });
+  assert.equal(noQuoteClock.selected, 0);
+});
+
+test('篡改盘口报价时钟或伪造旧冻结时间的记录必须拒绝结算', () => {
+  const { picks } = buildDailyPicks({ matches: [match()], forecasts: [forecast()], nowISO: now });
+  const good = settleDailyPicks({ picks, results: [result({homeGoals:3,awayGoals:1})] });
+  assert.equal(good.wins, 1);
+  const backdatedSelection = structuredClone(picks);
+  backdatedSelection[0].predictionFrozenAt = '2026-11-03T07:30:00.000Z';
+  const early = settleDailyPicks({picks:backdatedSelection,results:[result({homeGoals:3,awayGoals:1})]});
+  assert.equal(early.total, 0);
+  assert.equal(early.coverage.invalid, 1);
+  const futureSourceTime = structuredClone(picks);
+  futureSourceTime[0].handicap.updatedAt = '2026-11-03T08:00:01.000Z';
+  const rejected = settleDailyPicks({picks:futureSourceTime,results:[result({homeGoals:3,awayGoals:1})]});
+  assert.equal(rejected.total, 0);
+  assert.equal(rejected.coverage.invalid, 1);
+});
+
 test('匹配真实赛果才统计；纯候选与未完赛不算失败或成功', () => {
   const {picks}=buildDailyPicks({matches:[match()],forecasts:[forecast()],nowISO:now});
   const won=settleDailyPicks({picks,results:[result({homeGoals:3,awayGoals:1})]});
