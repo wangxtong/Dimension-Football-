@@ -9,7 +9,8 @@ const identity = { sourceId: 'macauslot', provider: 'macauslot-official', bookma
 const leagues = { PL: ['ENG1', '英超', '英格蘭超級聯賽'], PD: ['SPN1', '西甲', '西班牙甲組聯賽'],
   SA: ['ITA1', '意甲', '意大利甲組聯賽'], BL1: ['GER1', '德甲', '德國甲組聯賽'], FL1: ['FRA1', '法甲', '法國甲組聯賽'] };
 const normal = value => safeName(value) ? value.normalize('NFKD').replace(/\p{M}/gu, '').trim().toLowerCase().replace(/\s+/g, ' ') : '';
-// Exact bilingual names corroborated by the official 2026-10-31 event snapshot.
+// Exact bilingual names corroborated by the official 2026-10-31 and 2026-11-01
+// event excerpts retained under sources/test/fixtures/macauslot-*.json.
 // Unknown teams are not inferred from substrings, rankings or keyword searches.
 const names = [
   ['Chelsea', '車路士'], ['Manchester United', 'Manchester Utd', '曼聯'], ['Levante', '利雲特'],
@@ -21,6 +22,9 @@ const names = [
   ['FC Bayern Munchen', 'Bayern Munich', '拜仁慕尼黑'], ['Borussia Dortmund', '多蒙特'],
   ['Troyes', '特魯瓦'], ['Le Mans', '勒芒'], ['1. FC Union Berlin', 'Union Berlin', '柏林聯'],
   ['1. FC Koln', 'Koln', '科隆'], ['Eintracht Frankfurt', '法蘭克福'], ['Hamburger SV', '漢堡'],
+  ['Sassuolo', '莎索羅'], ['Fiorentina', '費倫天拿'], ['Lorient', '羅連安特'], ['Brest', '比斯特'],
+  ['Newcastle United', 'Newcastle Utd', '紐卡素'], ['Everton', '愛華頓'],
+  ['Deportivo de A Coruña', 'Deportivo A Coruna', '拉科魯尼亞'], ['Osasuna', '奧沙辛拿'],
 ];
 const nameMap = new Map(names.flatMap(group => group.map(name => [normal(name), normal(group[0])])));
 const team = value => nameMap.get(normal(value)) || normal(value);

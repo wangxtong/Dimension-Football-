@@ -22,7 +22,7 @@ function pair(sourceId, extra = {}) {
 }
 function opening(quote, extra = {}) {
   return { basis: 'provider-opening', sourceId: quote.sourceId, bookmaker: quote.bookmaker, fixtureId: fixture.id,
-    fixtureSnapshot: { ...fixture }, providerMatchId: quote.providerMatchId, market: quote.market, period: quote.period,
+    fixtureSnapshot: { ...fixture }, providerMatchId: quote.providerMatchId, providerPoolId: quote.providerPoolId, market: quote.market, period: quote.period,
     selection: quote.selection, handicap: quote.handicap, decimalOdds: 1.85, observedAt: at(-3600000), recordedAt: at(-600000),
     evidenceUrl: quote.evidenceUrl, ...extra };
 }

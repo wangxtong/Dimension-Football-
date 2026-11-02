@@ -572,7 +572,12 @@ export async function runShadow({root,env=process.env,fetchImpl=fetch,clock=stam
         ||marketRecord.evidenceHash!==reportHash(marketRecord.privateEvidence)||marketRecord.summaryHash!==reportHash(marketRecord.summary)
         ||!Number.isFinite(Date.parse(marketRecord.summary?.checkedAt))||Date.parse(marketRecord.summary.checkedAt)>Date.parse(clock())))fail('HOSTED_MARKET_OBSERVATION_STATE_INVALID');
       const sameContext=marketRecord?.targetHash===targetHash&&marketRecord?.acquisitionHash===acquisitionHash;
-      const dueMarket=!sameContext||(fixtures.length>0&&Date.parse(clock())-Date.parse(marketRecord.summary.checkedAt)>=300000);
+      // Source time and kickoff can expire positive quotes before five minutes
+      // have elapsed since collection. A runner that already woke up must not
+      // skip the whole cycle merely because its previous request ended later.
+      const marketNow=Date.parse(clock()),positiveExpired=marketRecord?.summary?.sources?.some(source=>source.quoteCount>0)
+        &&Date.parse(marketRecord.summary.expiresAt)<=marketNow;
+      const dueMarket=!sameContext||(fixtures.length>0&&(positiveExpired||marketNow-Date.parse(marketRecord.summary.checkedAt)>=300000));
       if(dueMarket){
         const workMs=Math.min(90000,remaining()-30000),startedAt=clock(),marketStarted=monotonic();
         const marketSignal=AbortSignal.any([overall,...(workMs>=1000?[AbortSignal.timeout(Math.ceil(workMs))]:[])]);
