@@ -23,8 +23,16 @@ export function buildHeartbeat({sourceManifest,predictionDocument,siteReceipt=nu
   if(sampleAt>now+60000||generatedAt>now+60000)fail('FUTURE_INPUT');
   const seen=new Set();let success=0,failure=0,unknown=0,cache=0;
   for(const d of sourceManifest.diagnostics){
-    if(!d||typeof d.endpoint!=='string'||!d.endpoint.startsWith('https://')){unknown++;continue;}
-    const marker=(d.endpoint||'')+'|'+(d.fetchedAt||d.checkedAt||'')+'|'+(d.httpStatus??'none');
+    // The persisted acquisition snapshot intentionally strips full endpoint
+    // URLs. Reconstruct request identity ONLY from its whitelisted, recorded
+    // provider + league + season + real completion timestamp. Fixture/history
+    // parser entries from the SAME HTTP response must not inflate success.
+    if(!d||!['openligadb','thesportsdb-free','api-football','football-data.org'].includes(d.id)
+      ||!['PL','PD','SA','BL1','FL1'].includes(d.league)
+      ||!stamp(d.checkedAt)||d.fetchedAt!==undefined&&!stamp(d.fetchedAt)){
+      unknown++;continue;
+    }
+    const marker=[d.id,d.league,d.season||'none',d.fetchedAt||d.checkedAt,d.httpStatus??'none'].join('|');
     if(seen.has(marker))continue;
     seen.add(marker);
     if(d.httpStatus===200&&['available','partial','complete'].includes(d.status)){success++;continue;}
