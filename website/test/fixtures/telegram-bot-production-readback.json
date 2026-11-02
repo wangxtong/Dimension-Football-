@@ -1,0 +1,790 @@
+{
+  "scope": "retained-authenticated-production-readback-not-a-new-observation",
+  "sourceRunId": "41371689657",
+  "sourceCommit": "8560f1fd1348ad0fe758cf93f2527f862d812c53",
+  "originalReadbackSha256": "7fe32ca8c740e135688b470986a19b7eb0e46792150eeda41057989fce5a1473",
+  "readAt": "2026-11-02T01:19:58.925Z",
+  "bundle": {
+    "version": 1,
+    "reportId": "1c7ec46db7ed339082c07047109a61191fa396df4e9a4325abf5b9138a6e2fb9",
+    "report": {
+      "version": 1,
+      "kind": "prematch-forecast-report",
+      "generatedAt": "2026-11-02T01:17:39.603Z",
+      "simulated": false,
+      "originReportId": "f06c041d2263b19620884f96dd29a2fae17e45733ed61a41582f91c2747746f3",
+      "originReportHash": "5fbe508df702f8096d1e6cf43d24840813296030edae1210334f950c0a00f8f6",
+      "publicationKind": "observations",
+      "forecastPublished": false,
+      "releaseGate": {
+        "status": "BLOCKED",
+        "code": "RELEASE_GATE_BLOCKED"
+      },
+      "publication": {
+        "reportId": "1c7ec46db7ed339082c07047109a61191fa396df4e9a4325abf5b9138a6e2fb9",
+        "originReportId": "f06c041d2263b19620884f96dd29a2fae17e45733ed61a41582f91c2747746f3",
+        "originReportHash": "5fbe508df702f8096d1e6cf43d24840813296030edae1210334f950c0a00f8f6",
+        "publicationKind": "observations",
+        "forecastPublished": false
+      },
+      "summary": {
+        "fixtures": 13,
+        "forecasts": 0,
+        "unavailable": 13,
+        "strictCandidates": 0
+      },
+      "model": null,
+      "backtests": [],
+      "fixtures": [
+        {
+          "fixture": {
+            "id": "tsdb-2482229",
+            "league": "SA",
+            "home": "Sassuolo",
+            "away": "Fiorentina",
+            "kickoff": "2026-11-02T17:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "thesportsdb-free",
+            "sourceFixtureId": "2482229",
+            "homeTeamId": "133701",
+            "awayTeamId": "133674",
+            "season": "2026-2027",
+            "canonicalMatchId": "evt_868d96007a6f27125d3a99d36f93474f3c2737a4f9f0e5ff5a5b85f1d3fde246",
+            "identityRevision": "9b2060ebf1dc2c6161df27b0771d549449186a39d470c05a4552f31e68cdaac5",
+            "revisionId": "cf18b4c5aff345b949eb48fae12077f2ab35af64a1ddc81cd99f8595e61ee63b",
+            "recordHash": "c5732cc622b24a86ef3b2dbc5438a75c2d9871f47748a86fdd13a20f643cbf27",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:28.046Z",
+            "observedAt": "2026-11-02T01:17:28.046Z",
+            "fetchedAt": "2026-11-02T01:17:28.046Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "tsdb-2489539",
+            "league": "FL1",
+            "home": "Lorient",
+            "away": "Brest",
+            "kickoff": "2026-11-02T19:45:00.000Z",
+            "status": "SCHEDULED",
+            "source": "thesportsdb-free",
+            "sourceFixtureId": "2489539",
+            "homeTeamId": "133715",
+            "awayTeamId": "133704",
+            "season": "2026-2027",
+            "canonicalMatchId": "evt_b07db0deccfbf3361e07657e8ab22cc93bc05fd3ef48767b1aebfbef6b4e18f7",
+            "identityRevision": "16316ace70e8444e809ed5ad80dfcb4ee1f93c04feface8135c732e72fca5345",
+            "revisionId": "5285316e2f82f1c3177b43c5f81d12d0711d885481bb5567e87d08db4712a5f5",
+            "recordHash": "ae1675098379fa7824d922a49fce070e12c46de5738cad14b304b099a682eb4a",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:28.185Z",
+            "observedAt": "2026-11-02T01:17:28.185Z",
+            "fetchedAt": "2026-11-02T01:17:28.185Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "tsdb-2494080",
+            "league": "PL",
+            "home": "Newcastle United",
+            "away": "Everton",
+            "kickoff": "2026-11-02T20:00:00.000Z",
+            "status": "SCHEDULED",
+            "source": "thesportsdb-free",
+            "sourceFixtureId": "2494080",
+            "homeTeamId": "134777",
+            "awayTeamId": "133615",
+            "season": "2026-2027",
+            "canonicalMatchId": "evt_902049a11f4109866a504d5adb04de6d4beb5a3771ab99d578df14a17346b590",
+            "identityRevision": "74f620cdca4c2d4505f5a0e4ad164655acb8ef5afec19789f76a8fdb1157c378",
+            "revisionId": "274af5eab33efa25091a41d81b8af3569f0b99ee95492586ebf6e88cc125157a",
+            "recordHash": "a72241065939df324e7ad06b43999836a7dca74c894c5d51da426e59d94e8199",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.785Z",
+            "observedAt": "2026-11-02T01:17:27.785Z",
+            "fetchedAt": "2026-11-02T01:17:27.785Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "tsdb-2506274",
+            "league": "PD",
+            "home": "Deportivo de A Coruña",
+            "away": "Osasuna",
+            "kickoff": "2026-11-02T20:00:00.000Z",
+            "status": "SCHEDULED",
+            "source": "thesportsdb-free",
+            "sourceFixtureId": "2506274",
+            "homeTeamId": "133816",
+            "awayTeamId": "133730",
+            "season": "2026-2027",
+            "canonicalMatchId": "evt_7edfe28907d1056f18a2fbbc4a9d99c3e320b0cc500630a25cc3b03b1c7c2f3d",
+            "identityRevision": "8912f880f39472e3415ef0b52aaca5d8c34564a937f7c0f0d1b2603c632e2107",
+            "revisionId": "ba2f39744b7c36a6c6e6e15f1adc87f9a32dd01227eaef4a968341d34731ed55",
+            "recordHash": "7b0ac810e1efea1251c56168bdeb1cde2c1f4db8a0130dcc67b0a8fde448f276",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.922Z",
+            "observedAt": "2026-11-02T01:17:27.922Z",
+            "fetchedAt": "2026-11-02T01:17:27.922Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "oldb-83234",
+            "league": "BL1",
+            "home": "Hamburger SV",
+            "away": "Borussia Mönchengladbach",
+            "kickoff": "2026-11-06T19:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "openligadb",
+            "sourceFixtureId": "83234",
+            "homeTeamId": "100",
+            "awayTeamId": "87",
+            "season": "2026",
+            "canonicalMatchId": "evt_3ddafe8f38c5a5e93d51d4e95e2b668917a63d632660997cb19bab484cf66c46",
+            "identityRevision": "ad3343743ebf14a11c9e72ccd48c8c5984dd5b34ddfbf85c693df38aade187cc",
+            "revisionId": "20c42d5240af9365ef7a5613369267e5f8cabc7575837713385f432ee1b856eb",
+            "recordHash": "25fbdcd71fa0aaef43116ecc9d0bff5b8d5500869ce86c921cf52dc6c9d4e03b",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.595Z",
+            "observedAt": "2026-11-02T01:17:27.595Z",
+            "fetchedAt": "2026-11-02T01:17:27.595Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "oldb-83228",
+            "league": "BL1",
+            "home": "Borussia Dortmund",
+            "away": "SV 07 Elversberg",
+            "kickoff": "2026-11-07T14:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "openligadb",
+            "sourceFixtureId": "83228",
+            "homeTeamId": "7",
+            "awayTeamId": "198",
+            "season": "2026",
+            "canonicalMatchId": "evt_5e03f5386782100318d2e8fa7a4b35dcc6e75fa4ee11a97e3f9c95251ae9f0d9",
+            "identityRevision": "18825509557a8d288237810c2bea98243769be2baed58a6280d3f38a6ef36180",
+            "revisionId": "67a74e23dd99e382d278cc7e704f51c0e2d674d6c782da8ab4fed29254c73a1a",
+            "recordHash": "a1556bd3138252543dfef8fe7596c2310494c2ff3a9bee04130de4b1ce14ea76",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.595Z",
+            "observedAt": "2026-11-02T01:17:27.595Z",
+            "fetchedAt": "2026-11-02T01:17:27.595Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "oldb-83229",
+            "league": "BL1",
+            "home": "RB Leipzig",
+            "away": "FC Augsburg",
+            "kickoff": "2026-11-07T14:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "openligadb",
+            "sourceFixtureId": "83229",
+            "homeTeamId": "1635",
+            "awayTeamId": "95",
+            "season": "2026",
+            "canonicalMatchId": "evt_722eb80db30f30dabac0bee13ea54ab20c42435c0918d7eb1ecb5b176d9dd762",
+            "identityRevision": "d962f3c3c09c14f961144f1d0dec976fcdcd5182b750911e8d4cbd5bec912164",
+            "revisionId": "77c33203fb474e55c2cc3582b9885df5c573e38794c6ac90a73f7dcca3ae00e5",
+            "recordHash": "c7eff9e991785572ffdd89a15517ef7ae701afe471047a3c10741682473c654e",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.595Z",
+            "observedAt": "2026-11-02T01:17:27.595Z",
+            "fetchedAt": "2026-11-02T01:17:27.595Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "oldb-83233",
+            "league": "BL1",
+            "home": "1. FSV Mainz 05",
+            "away": "FC Bayern München",
+            "kickoff": "2026-11-07T14:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "openligadb",
+            "sourceFixtureId": "83233",
+            "homeTeamId": "81",
+            "awayTeamId": "40",
+            "season": "2026",
+            "canonicalMatchId": "evt_94a82aec00e79f441440337522437acb9be2ca6627fe14871a7bf0917d51b418",
+            "identityRevision": "598fbe7afd9965d2acc488cfbc9f7be054205bca65762a19577bb9625dd735ef",
+            "revisionId": "9b5c1b8b01dce036fc2deb7b9a0e17c9a301eb55f9bfde406194974094dab708",
+            "recordHash": "0b58f07e2c7577449c808be28127779fb8bdf9d60d4397cd9183656ee1692447",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.595Z",
+            "observedAt": "2026-11-02T01:17:27.595Z",
+            "fetchedAt": "2026-11-02T01:17:27.595Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "oldb-83236",
+            "league": "BL1",
+            "home": "SC Paderborn 07",
+            "away": "Eintracht Frankfurt",
+            "kickoff": "2026-11-07T14:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "openligadb",
+            "sourceFixtureId": "83236",
+            "homeTeamId": "31",
+            "awayTeamId": "91",
+            "season": "2026",
+            "canonicalMatchId": "evt_a718c3ea5ee51b5a8403158abcd439504a8693d6bc50cecf94abbe200d21d831",
+            "identityRevision": "33a689351b257136bc8ae1a99bffdc5dfaba81783af141a7b8e1fb5dc0b25d63",
+            "revisionId": "8d850a4672b37f50adeec64ea4f2efe69834e4540ee0991d8ce61e46989bc5be",
+            "recordHash": "c92ca94858a22b081871d70f4968e073793cba750f71e73123770c1a39a7ee53",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.595Z",
+            "observedAt": "2026-11-02T01:17:27.595Z",
+            "fetchedAt": "2026-11-02T01:17:27.595Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "oldb-83230",
+            "league": "BL1",
+            "home": "VfB Stuttgart",
+            "away": "SV Werder Bremen",
+            "kickoff": "2026-11-07T17:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "openligadb",
+            "sourceFixtureId": "83230",
+            "homeTeamId": "16",
+            "awayTeamId": "134",
+            "season": "2026",
+            "canonicalMatchId": "evt_197f31d18ad66dd455e520d6a1d77ee0b17ff293909a74e512502c582b820da1",
+            "identityRevision": "d994f3e9975eaf3e8859cd059ffc746ccb29b3f09b4d126af3809398b16d7f90",
+            "revisionId": "1fa32b5f2990187e26caacf9305bdb4be9aa4af25c2c2a00a6e904b64206b704",
+            "recordHash": "4d77d7447c72769e324ad8d30964f8d3c1092287d67531b23993a6f51d6a196c",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.595Z",
+            "observedAt": "2026-11-02T01:17:27.595Z",
+            "fetchedAt": "2026-11-02T01:17:27.595Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "oldb-83235",
+            "league": "BL1",
+            "home": "1. FC Köln",
+            "away": "Bayer 04 Leverkusen",
+            "kickoff": "2026-11-08T14:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "openligadb",
+            "sourceFixtureId": "83235",
+            "homeTeamId": "65",
+            "awayTeamId": "6",
+            "season": "2026",
+            "canonicalMatchId": "evt_9e52ccfcf09f521d3053eef1c046dcbe149c2c5cc2a89b7a3ea6b805cbd536bf",
+            "identityRevision": "7a38494d29db842736862182b7a32523d70f49a52ae813f12f6863bf07f5525e",
+            "revisionId": "332eb2cd644460956ab7241cb48f6780b43162681334d7c96797b0e147e782a7",
+            "recordHash": "862e0fe8f5770e0541028374565d65267e1dd31e8f2e604e68e7f3c505703bd7",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.595Z",
+            "observedAt": "2026-11-02T01:17:27.595Z",
+            "fetchedAt": "2026-11-02T01:17:27.595Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "oldb-83232",
+            "league": "BL1",
+            "home": "SC Freiburg",
+            "away": "1. FC Union Berlin",
+            "kickoff": "2026-11-08T16:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "openligadb",
+            "sourceFixtureId": "83232",
+            "homeTeamId": "112",
+            "awayTeamId": "80",
+            "season": "2026",
+            "canonicalMatchId": "evt_7f24863d412972a58fff6922860d46ffd7037aea32992be17a649ccbc0749876",
+            "identityRevision": "03679ca5ee16a11b1fb1a476ee4d33cb47b26519da5da2ddbb88540f21a9ca9a",
+            "revisionId": "23608a5f09d293a7d7687a3f9c46b81f97a7fa10400978c20e27986d3e1c7d95",
+            "recordHash": "75e60251149107d070554c5179329407e4e54ce57b0508221a2c7160c0f33503",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.595Z",
+            "observedAt": "2026-11-02T01:17:27.595Z",
+            "fetchedAt": "2026-11-02T01:17:27.595Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        },
+        {
+          "fixture": {
+            "id": "oldb-83231",
+            "league": "BL1",
+            "home": "TSG Hoffenheim",
+            "away": "FC Schalke 04",
+            "kickoff": "2026-11-08T18:30:00.000Z",
+            "status": "SCHEDULED",
+            "source": "openligadb",
+            "sourceFixtureId": "83231",
+            "homeTeamId": "175",
+            "awayTeamId": "9",
+            "season": "2026",
+            "canonicalMatchId": "evt_797c8f5b6f84c34cc03986622ad7fd249f194616b3ca6826b08d6212fb74a7c5",
+            "identityRevision": "f44c10a849a095eee0b7c212e0abf318239ab3c8f8280ef60fc731ff4560d973",
+            "revisionId": "a0b4ee9c38f9ac1b2056fbdd22364cab53d624d324b9830f1e5754479ce7e386",
+            "recordHash": "e0dfc1a04aa7bce362cec64c7d1856d306d6584773e2b1be1ef3ed76252b445d",
+            "identityScope": "source",
+            "updatedAt": "2026-11-02T01:17:27.595Z",
+            "observedAt": "2026-11-02T01:17:27.595Z",
+            "fetchedAt": "2026-11-02T01:17:27.595Z"
+          },
+          "forecast": {
+            "status": "unavailable",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ]
+          },
+          "marketCandidate": {
+            "status": "source_insufficient",
+            "reasons": [
+              "RELEASE_GATE_BLOCKED"
+            ],
+            "candidate": null,
+            "readiness": {
+              "quoteGroups": [],
+              "verifiedOpeningCount": 0,
+              "blockers": [
+                "RELEASE_GATE_BLOCKED"
+              ]
+            }
+          }
+        }
+      ],
+      "attribution": [
+        {
+          "id": "openligadb",
+          "name": "OpenLigaDB",
+          "url": "https://www.openligadb.de/",
+          "license": "ODbL-1.0",
+          "licenseUrl": "https://www.openligadb.de/lizenz"
+        },
+        {
+          "id": "thesportsdb-free",
+          "name": "TheSportsDB Free",
+          "url": "https://www.thesportsdb.com/docs_api_guide.php",
+          "license": "Provider terms; shared free tier",
+          "licenseUrl": "https://www.thesportsdb.com/docs_api_guide.php"
+        }
+      ],
+      "coverage": [
+        {
+          "source": "openligadb",
+          "league": "BL1",
+          "fixtureStatus": "sample",
+          "historyStatus": "not-requested",
+          "fixtureCount": 9,
+          "historyCount": 0,
+          "receivedCount": 306,
+          "rejectedCount": 0,
+          "complete": false
+        },
+        {
+          "source": "thesportsdb-free",
+          "league": "PL",
+          "fixtureStatus": "sample",
+          "historyStatus": "not-supported",
+          "fixtureCount": 1,
+          "historyCount": 0,
+          "receivedCount": 1,
+          "rejectedCount": 0,
+          "complete": false
+        },
+        {
+          "source": "thesportsdb-free",
+          "league": "PD",
+          "fixtureStatus": "sample",
+          "historyStatus": "not-supported",
+          "fixtureCount": 1,
+          "historyCount": 0,
+          "receivedCount": 1,
+          "rejectedCount": 0,
+          "complete": false
+        },
+        {
+          "source": "thesportsdb-free",
+          "league": "SA",
+          "fixtureStatus": "sample",
+          "historyStatus": "not-supported",
+          "fixtureCount": 1,
+          "historyCount": 0,
+          "receivedCount": 1,
+          "rejectedCount": 0,
+          "complete": false
+        },
+        {
+          "source": "thesportsdb-free",
+          "league": "FL1",
+          "fixtureStatus": "sample",
+          "historyStatus": "not-supported",
+          "fixtureCount": 1,
+          "historyCount": 0,
+          "receivedCount": 1,
+          "rejectedCount": 0,
+          "complete": false
+        }
+      ],
+      "categories": {
+        "analysis": [],
+        "strictCandidates": [],
+        "unassessable": [
+          "tsdb-2482229",
+          "tsdb-2489539",
+          "tsdb-2494080",
+          "tsdb-2506274",
+          "oldb-83234",
+          "oldb-83228",
+          "oldb-83229",
+          "oldb-83233",
+          "oldb-83236",
+          "oldb-83230",
+          "oldb-83235",
+          "oldb-83232",
+          "oldb-83231"
+        ]
+      },
+      "acquisition": {
+        "snapshotHash": "96d7667a77aadb080a91a754c4e828f5322be19ee3436b22455dd8c2a34bba1f",
+        "checkedAt": "2026-11-02T01:17:27.006Z",
+        "commit": "8560f1fd1348ad0fe758cf93f2527f862d812c53"
+      },
+      "marketObservation": {
+        "version": 1,
+        "checkedAt": "2026-11-02T01:17:39.603Z",
+        "expiresAt": "2026-11-02T01:21:06.000Z",
+        "fixtureCount": 4,
+        "sources": [
+          {
+            "id": "hkjc",
+            "group": "hkjc-first-party",
+            "status": "available",
+            "quoteCount": 4,
+            "pairedFixtureCount": 2,
+            "latestSourceUpdatedAt": "2026-10-30T11:30:03.751Z",
+            "openingCount": 0
+          },
+          {
+            "id": "macauslot",
+            "group": "macauslot-official",
+            "status": "available",
+            "quoteCount": 8,
+            "pairedFixtureCount": 4,
+            "latestSourceUpdatedAt": "2026-11-02T01:16:06.000Z",
+            "openingCount": 0
+          },
+          {
+            "id": "titan007",
+            "group": "titan007",
+            "status": "unavailable",
+            "quoteCount": 0,
+            "pairedFixtureCount": 0,
+            "latestSourceUpdatedAt": null,
+            "openingCount": 0
+          }
+        ],
+        "dualSourceFixtureCount": 2,
+        "alignedEligibleFixtureCount": 2,
+        "trueOpeningFixtureCount": 0,
+        "releaseGate": "BLOCKED"
+      }
+    },
+    "publicationKind": "observations",
+    "originReportId": "f06c041d2263b19620884f96dd29a2fae17e45733ed61a41582f91c2747746f3",
+    "forecastPublished": false,
+    "receipt": {
+      "version": 1,
+      "reportId": "1c7ec46db7ed339082c07047109a61191fa396df4e9a4325abf5b9138a6e2fb9",
+      "generatedAt": "2026-11-02T01:17:39.603Z",
+      "simulated": false,
+      "originReportId": "f06c041d2263b19620884f96dd29a2fae17e45733ed61a41582f91c2747746f3",
+      "originReportHash": "5fbe508df702f8096d1e6cf43d24840813296030edae1210334f950c0a00f8f6",
+      "publicationKind": "observations",
+      "forecastPublished": false,
+      "channels": {
+        "files": {
+          "status": "published",
+          "reportId": "1c7ec46db7ed339082c07047109a61191fa396df4e9a4325abf5b9138a6e2fb9",
+          "publicationKind": "observations",
+          "forecastPublished": false
+        },
+        "githubArtifact": {
+          "status": "not_attempted"
+        },
+        "externalWebsite": {
+          "status": "published",
+          "reportId": "1c7ec46db7ed339082c07047109a61191fa396df4e9a4325abf5b9138a6e2fb9",
+          "reportHash": "23d8c68323cfabf4882269f81e975c6dec636322296cf8700d262d48ddb2c857",
+          "checkedAt": "2026-11-02T01:17:46.911Z",
+          "servedVerified": true,
+          "mode": "hosted",
+          "publicationKind": "observations",
+          "forecastPublished": false,
+          "meaning": "machine-readback-not-user-read"
+        },
+        "notifications": {
+          "status": "skipped",
+          "reportId": "1c7ec46db7ed339082c07047109a61191fa396df4e9a4325abf5b9138a6e2fb9",
+          "code": "RELEASE_GATE_BLOCKED"
+        }
+      },
+      "files": [],
+      "events": []
+    },
+    "reportHash": "23d8c68323cfabf4882269f81e975c6dec636322296cf8700d262d48ddb2c857",
+    "freshness": {
+      "mode": "hosted",
+      "generatedAt": "2026-11-02T01:17:39.603Z",
+      "checkedAt": "2026-11-02T01:19:58.925Z",
+      "ageSeconds": 139,
+      "stale": false
+    },
+    "health": {
+      "status": "available"
+    }
+  }
+}

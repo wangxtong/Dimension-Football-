@@ -17,6 +17,7 @@ import { ARCHIVE_LIMITS, archiveHash, archivePath, createArchiveEpoch, emptyArch
   createArchiveShard, decodeArchiveShard, appendArchive } from './state-archive.mjs';
 
 export const HOSTED_ORIGIN = 'https://dimension-football-live-wangxtong.secretmelon37.chatgpt.site';
+export const HOSTED_REQUEST_TIMEOUT_MS = 20000;
 export const STATE_LIMITS = Object.freeze({ jsonBytes:32 * 1024 * 1024, decodedBytes:64 * 1024 * 1024, files:10000 });
 const TOP_REPORTS = new Set(['predictions.json','publication.json','public-fixtures.json','public-source-fixtures.json','openligadb-fixtures.json',
   'run-inputs.json','run-manifest.json','prospective-evaluation.json']);
@@ -270,17 +271,27 @@ export function createHostedClient({ env = process.env, fetchImpl = fetch, clock
   }
   async function request(path,{method='GET',body,allow404=false,limit=MAX_REPORT_BUNDLE_BYTES,requestSignal,fetchImpl:requestFetch}={}) {
     const archived = archiveEndpointPattern.test(path);
-    if(!archived&&!['/internal/publications','/internal/observations','/internal/report-status','/internal/state','/internal/notifications'].includes(path))fail('HOSTED_INVALID_ENDPOINT');
+    if(!archived&&!['/internal/publications','/internal/observations','/internal/report-status','/internal/state','/internal/notifications','/internal/observation-notifications'].includes(path))fail('HOSTED_INVALID_ENDPOINT');
+    if(path==='/internal/observation-notifications'&&method!=='POST')fail('HOSTED_INVALID_ENDPOINT');
     const serialized=body===undefined?undefined:JSON.stringify(body);
     if(serialized && Buffer.byteLength(serialized)>(archived?ARCHIVE_LIMITS.shardBytes:path==='/internal/state'?STATE_LIMITS.jsonBytes:MAX_REPORT_BUNDLE_BYTES))fail('HOSTED_REQUEST_LIMIT_EXCEEDED');
     for(let attempt=0;attempt<2;attempt++){
       const token=await identity(attempt===1);let response;
-      try { response=await (requestFetch||fetchImpl)(HOSTED_ORIGIN+path,{method,redirect:'error',signal:AbortSignal.any([signal,requestSignal,AbortSignal.timeout(20000)].filter(Boolean)),
+      try { response=await (requestFetch||fetchImpl)(HOSTED_ORIGIN+path,{method,redirect:'error',signal:AbortSignal.any([signal,requestSignal,AbortSignal.timeout(HOSTED_REQUEST_TIMEOUT_MS)].filter(Boolean)),
         headers:{Accept:'application/json',Authorization:'Bearer '+token,...(serialized?{'Content-Type':'application/json'}:{})},...(serialized?{body:serialized}:{})}); }
       catch { fail('HOSTED_REQUEST_UNCONFIRMED'); }
       if(response.status===401&&attempt===0){await response.body?.cancel();continue;}
       if(response.status===404&&allow404){await response.body?.cancel();return null;}
-      if(!response.ok){const status=response.status;await response.body?.cancel();fail(status===409?(archived?'HOSTED_ARCHIVE_CONFLICT':path==='/internal/state'?'HOSTED_STATE_CONFLICT':'HOSTED_PUBLICATION_CONFLICT'):`HOSTED_HTTP_${status}`);}
+      if(!response.ok){
+        const status=response.status;
+        // The isolated digest caller validates a strict receipt allowlist. Never
+        // include the response body in error.message or in generic runner logs.
+        if(path==='/internal/observation-notifications'){
+          let detail;try{if(/application\/json/i.test(response.headers.get('content-type')||''))detail=await boundedJson(response,32000);else await response.body?.cancel();}catch{}
+          const error=Error(`HOSTED_HTTP_${status}`);error.httpStatus=status;error.digestResponse=detail;throw error;
+        }
+        await response.body?.cancel();fail(status===409?(archived?'HOSTED_ARCHIVE_CONFLICT':path==='/internal/state'?'HOSTED_STATE_CONFLICT':'HOSTED_PUBLICATION_CONFLICT'):`HOSTED_HTTP_${status}`);
+      }
       if(!/application\/json/i.test(response.headers.get('content-type')||'')){await response.body?.cancel();fail('HOSTED_INVALID_RESPONSE');}
       const value=await boundedJson(response,limit);
       if(path==='/internal/state'&&value===null)fail('HOSTED_STATE_INVALID');
@@ -653,6 +664,7 @@ export async function runShadow({root,env=process.env,fetchImpl=fetch,clock=stam
     ...(marketsEnabled?{marketObserved,marketStatus,marketFixtureCount:marketRecord?.summary?.fixtureCount??null,marketCheckedAt:marketRecord?.summary?.checkedAt??null}:{}),
     ...(failure?{code:failure}:{}),checkedAt:clock(),revision:session.revision,collected,observationServedVerified:!failure&&(published||record?.delivery?.status==='verified'),
     ...(record?{originReportId:record.bundle.reportId,observationGeneratedAt:record.bundle.report.generatedAt}:{}),
+    ...(!failure&&record?.delivery?.status==='verified'?{servedReportId:record.delivery.reportId,servedReportHash:record.delivery.reportHash}:{}),
     meaning:'collection-only; fixtures-target-fifteen-minutes; github-may-delay; no-forecast-or-notification'};
   await atomicJson(resolve(root,'hosted-run.json'),result);stdout(JSON.stringify(result)+'\n');return {...result,exitCode:failure?1:0};
 }
