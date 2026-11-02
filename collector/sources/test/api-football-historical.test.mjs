@@ -7,13 +7,14 @@ const nowISO = '2026-11-02T03:00:00.000Z';
 const opts = { league: 'PL', season: 2023, from: '2023-10-01', to: '2023-10-31', nowISO };
 const testKey = 'TEST_ONLY_NOT_A_REAL_KEY';
 function match(overrides = {}) {
+  const { fixture: fixtureOverrides = {}, ...rest } = overrides;
   const when = '2023-10-12T16:00:00+00:00';
   return {
     fixture: { id: 123456, date: when, timestamp: Date.parse(when) / 1000,
-      status: { short: 'FT' }, ...overrides.fixture },
+      status: { short: 'FT' }, ...fixtureOverrides },
     league: { id: 39, season: 2023 }, teams: { home: { id: 1, name: 'Home Club' },
       away: { id: 2, name: 'Away Club' } }, goals: { home: 2, away: 1 },
-    score: { fulltime: { home: 2, away: 1 } }, ...overrides,
+    score: { fulltime: { home: 2, away: 1 } }, ...rest,
   };
 }
 const payload = (rows = [match()], extra = {}) => ({
