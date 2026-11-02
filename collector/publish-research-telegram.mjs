@@ -367,11 +367,17 @@ export async function publishResearchTelegram({ root, env = process.env, fetchIm
     const response = await fetchImpl('https://api.telegram.org/bot' + token + '/' + method, {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000),
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!response.ok) { await response.body?.cancel(); return { ok: false, httpStatus: response.status }; }
-    return { ok: true, data: await response.json() };
+    // Telegram 对 4xx 也返回 JSON（{"ok":false,"description":"..."}）。description 不含凭据，
+    // 必须保留：否则线上 400 只能看到一个状态码，无法判断是 chat 不存在还是 token 失效。
+    let data = null;
+    try { data = await response.json(); } catch { try { await response.body?.cancel(); } catch {} }
+    if (!response.ok) return { ok: false, httpStatus: response.status,
+      ...(typeof data?.description === 'string' ? { description: data.description.slice(0, 200) } : {}) };
+    return { ok: true, data };
   };
   const accept = (sent, channel) => {
-    if (!sent.ok) return { status: 'failed', code: 'TELEGRAM_API_REJECTED', httpStatus: sent.httpStatus, channel };
+    if (!sent.ok) return { status: 'failed', code: 'TELEGRAM_API_REJECTED', httpStatus: sent.httpStatus,
+      ...(sent.description ? { description: sent.description } : {}), channel };
     const data = sent.data || {};
     if (data.ok !== true || !Number.isSafeInteger(data.result?.message_id) || String(data.result?.chat?.id) !== String(chatId))
       return { status: 'unknown', code: 'TELEGRAM_RECEIPT_UNVERIFIED', channel };
@@ -383,10 +389,12 @@ export async function publishResearchTelegram({ root, env = process.env, fetchIm
     const rich = await post('sendRichMessage', { chat_id: chatId, rich_message: { html: richHtml(report) } });
     if (rich.ok && rich.data && rich.data.ok === true) result = accept(rich, 'rich');
     else {
-      await rich.data?.body?.cancel?.();
       const plain = await post('sendMessage', { chat_id: chatId, text: telegramText(report),
         link_preview_options: { is_disabled: true } });
       result = accept(plain, 'plain');
+      // 两条通道都失败时保留富文本通道的错误描述，便于定位。
+      if (!result.description && rich.ok && typeof rich.data?.description === 'string')
+        result.errorDescription = rich.data.description.slice(0, 200);
     }
   } catch { result = { status: 'unknown', code: 'DELIVERY_RESULT_UNKNOWN_NO_AUTOMATIC_RETRY' }; }
   await mkdir(directory, { recursive: true });
@@ -402,7 +410,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.error('用法：node collector/publish-research-telegram.mjs --root <研究工作区>');
     process.exitCode = 2;
   } else {
-    try { console.log(JSON.stringify(await publishResearchTelegram({ root: args[1] }))); }
+    try {
+      const value = await publishResearchTelegram({ root: args[1] });
+      console.log(JSON.stringify(value));
+      // 静默失败最危险：以前 Telegram 返回 400 时 CI 步骤仍是 success，每天都没有消息却全绿。
+      if (value.status !== 'accepted' && value.status !== 'skipped') process.exitCode = 1;
+    }
     catch (error) {
       const code = /^(?:RESEARCH|TELEGRAM)_[A-Z0-9_]+$/.test(error?.message || '') ? error.message : 'RESEARCH_DELIVERY_FAILED';
       console.error(code); process.exitCode = 1;
