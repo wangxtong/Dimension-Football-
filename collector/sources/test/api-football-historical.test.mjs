@@ -136,6 +136,7 @@ test('invalid month, incomplete API key and bad server time fail safely', async 
   await assert.rejects(fetchApiFootballHistoricalMonth({ ...opts, to: '2023-11-02', apiKey: testKey,
     fetchImpl: async () => respond() }), /INVALID_HISTORICAL_WINDOW/);
   await assert.rejects(fetchApiFootballHistoricalMonth({ ...opts, apiKey: testKey,
+    clock: () => nowISO,
     fetchImpl: async () => new Response(JSON.stringify(payload()), {
       status: 200, headers: { Date: 'Wed, 01 Jan 2020 00:00:00 GMT' },
     }) }), /HISTORY_SERVER_TIME_UNVERIFIED/);
