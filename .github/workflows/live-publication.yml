@@ -62,7 +62,10 @@ jobs:
           FOOTBALL_DATA_API_KEY: ${{ vars.FOOTBALL_DATA_API_KEY || secrets.FOOTBALL_DATA_API_KEY }}
         run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-live" --budget-minutes 3 --mode "$HOSTED_MODE"
       - name: 研究轨道生成每日1X2冻结快照和真实FT复盘（不触发正式预测外发）
-        if: success() && env.HOSTED_MODE == 'research'
+        # hosted.mjs 只要任一 lane 是 partial（抓取限流、单源失败）就 exit 1，而 partial 是常态。
+        # 用 success() 会让日报根本不生成、后续推送无文件可用；这里改为 always()，
+        # 由日报自身校验输入，缺数据时它会明确报错而不是静默不生成。
+        if: always() && env.HOSTED_MODE == 'research'
         run: node collector/research-daily-report.mjs --root "$RUNNER_TEMP/dimension-live"
       - name: 将研究日报同步至受保护Web并核验同reportId（需独立QA准入）
         if: success() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_WEB_ENABLED == 'true'
