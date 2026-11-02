@@ -57,13 +57,21 @@ export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 
     const key = f && (f.fixtureKey ?? f.matchId);
     if (key !== undefined && key !== null && validId(key)) byKey.set(String(key), f);
   }
-  const picks = [], seen = new Set();
+  const picks = [], seen = new Set(), excludedCandidates = [];
+  const exclude = (m, reason) => excludedCandidates.push({
+    matchId: m && validId(m.matchId) ? m.matchId : null,
+    home: typeof m?.home === 'string' ? m.home : null,
+    away: typeof m?.away === 'string' ? m.away : null,
+    kickoff: typeof m?.kickoff === 'string' ? m.kickoff : null,
+    reason,
+  });
   for (const m of matches) {
-    if (!m || !validId(m.matchId) || !validMarket(m.handicap)) continue;
+    if (!m || !validId(m.matchId)) { exclude(m, 'INVALID_MATCH_ID'); continue; }
+    if (!validMarket(m.handicap)) { exclude(m, 'INVALID_HHAD_MARKET'); continue; }
     const kickoff = Date.parse(m.kickoff);
-    if (!Number.isFinite(kickoff) || kickoff <= now) continue;
+    if (!Number.isFinite(kickoff) || kickoff <= now) { exclude(m, 'KICKOFF_NOT_FUTURE'); continue; }
     const id = String(m.matchId);
-    if (seen.has(id)) continue;
+    if (seen.has(id)) { exclude(m, 'DUPLICATE_MATCH_ID'); continue; }
     seen.add(id);
     const forecast = byKey.get('jc-' + id) || byKey.get(id) || null;
     // Only pre-match source versions may be used; unknown timestamps must be explicit.
@@ -89,8 +97,15 @@ export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 
       predictionFrozenAt: isPrematch ? nowISO : null, pick });
   }
   picks.sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff) || String(a.matchId).localeCompare(String(b.matchId)));
-  return { picks: picks.slice(0, limit), total: picks.length,
-    selected: picks.filter(p => p.pick).length,
+  const displayed = picks.slice(0, limit), hidden = picks.slice(limit);
+  // The display limit is not an audit filter: retain every candidate, rejected row,
+  // selected direction and associated quote for later full-denominator evaluation.
+  return { picks: displayed, allPicks: picks, excludedCandidates,
+    inputTotal: matches.length, total: picks.length,
+    selected: displayed.filter(p => p.pick).length,
+    selectedAll: picks.filter(p => p.pick).length,
+    hiddenSelected: hidden.filter(p => p.pick).length,
+    hiddenTotal: hidden.length,
     withoutModel: picks.filter(p => !p.pick).length,
     market: 'sporttery-hhad-three-way', researchOnly: true };
 }
