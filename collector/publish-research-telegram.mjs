@@ -238,7 +238,8 @@ function forecastBlock(row) {
   lines.push('⚽ ' + league + ' · ' + beijingShort(row.kickoff));
   lines.push(teamName(row.home) + ' vs ' + teamName(row.away));
   lines.push('📊 主' + pctValue(p.home) + ' 平' + pctValue(p.draw) + ' 客' + pctValue(p.away));
-  lines.push('🎯 ' + (OUTCOME_CN[row.selection] || row.selection) + ' ' + pctValue(p[row.selection]));
+  lines.push('🎯 研究方向：' + (OUTCOME_CN[row.selection] || '不可评估')
+    + '（模型概率 ' + pctValue(p[row.selection]) + '）');
   const eg = row.expectedGoals;
   if (eg && Number.isFinite(eg.home) && Number.isFinite(eg.away)) {
     const total = eg.home + eg.away;
@@ -247,7 +248,7 @@ function forecastBlock(row) {
   }
   const scores = Array.isArray(row.topScores) && row.topScores.length
     ? row.topScores.map(s => s.home + ':' + s.away).join(' · ') : '';
-  if (scores) lines.push('🔢 比分 ' + scores);
+  if (scores) lines.push('🔢 辅助比分参考 ' + scores);
   const weather = row.weather && row.weather.status === 'ok' ? weatherCompact(row) : null;
   if (weather) lines.push('🌦 ' + weather);
   const city = row.venue ? cityName(row.venue.city) : null;
@@ -339,10 +340,12 @@ export function richHtml(report, settled = [], next = []) {
       lines.push('');
       lines.push('<b>⚽ ' + esc((LEAGUE_CN[row.league] || row.league) + ' · ' + beijingShort(row.kickoff).slice(6)) + '</b>');
       lines.push(esc(teamName(row.home) + ' vs ' + teamName(row.away)));
+      lines.push('<b>🎯 研究方向：' + esc(OUTCOME_CN[row.selection] || '不可评估')
+        + '（模型概率 ' + esc(pctValue(p[row.selection])) + '）</b>');
       lines.push('主' + pctValue(p.home) + ' 平' + pctValue(p.draw) + ' 客' + pctValue(p.away));
       if (eg) lines.push('进球 ' + eg.home.toFixed(1) + ':' + eg.away.toFixed(1)
         + ' · ' + (goals === null ? '—' : (goals >= 2.5 ? '大2.5' : '小2.5')));
-      if (scores) lines.push('比分 ' + esc(scores));
+      if (scores) lines.push('辅助比分参考 ' + esc(scores));
       const weather = weatherNarrow(row);
       if (weather) lines.push('🌦 ' + esc(weather));
       const city = row.venue ? cityName(row.venue.city) : null;
