@@ -70,3 +70,18 @@ GitHub Actions schedule '10 2 * * *' (UTC) = 北京 10:10
 | `RESEARCH_DELIVERY_FAILED` | 是否 `HOSTED_HTTP_405` | 线上 Worker 旧版 |
 | 日报 `frozen: 0` 但赛程很多 | `state` 与 `skipped` | 36h 窗口外，或历史样本不足 |
 | 命中率一直是 0 | `awaitingResultsBySource` | 结果源与冻结源不同 |
+## 线上 Worker 是哪个版本（2026-11-03 判定）
+
+线上返回的中文文案与仓库 website/worker.mjs 完全一致：
+
+| 线上响应 | 仓库位置 |
+| --- | --- |
+| 401 请先登录。 | worker.mjs 登录门 |
+| 405 不支持此请求方式。 | worker.mjs 的 GET-only 兜底分支 |
+
+因此部署的是新版代码。POST /internal/research-daily 返回 405 不是版本落后，
+而是 HOSTED_PUBLICATION_ENABLED 不是 true，请求落不到 /internal/* 专用分支；
+同时 VANTIS_RESEARCH_WEB_ENABLED 已为 true，所以越过了 RESEARCH_WEB_DISABLED 的 404。
+
+结论：只需在 Sites 设置 HOSTED_PUBLICATION_ENABLED=true 一个变量，无需重新发布代码。
+验证：设置后 POST /internal/research-daily 应返回 401 MACHINE_IDENTITY_REQUIRED（JSON），而不是中文 405。
