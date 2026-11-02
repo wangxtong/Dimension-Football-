@@ -207,6 +207,9 @@ test('research report updates reject tampering, unknown machine, and stale input
   assert.equal((await call('/internal/research-daily', { method: 'POST', body: report, bearer: token({ ref: 'refs/heads/feature' }) })).status, 401);
   const future = structuredClone(report);
   future.generatedAt = new Date(NOW + 3_600_000).toISOString();
-  assert.equal((await call('/internal/research-daily', { method: 'POST', body: future })).status, 400);
+  const priorId = future.reportId; delete future.reportId;
+  future.reportId = createHash('sha256').update(JSON.stringify(future)).digest('hex');
+  assert.notEqual(future.reportId, priorId);
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: future })).status, 409);
   assert.equal(env.BUCKET.rows.size, 0);
 });
