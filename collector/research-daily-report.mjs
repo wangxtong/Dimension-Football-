@@ -48,7 +48,7 @@ function safeForecast(row) {
     && HASH.test(row.reportId || '') && HASH.test(row.modelHash || '')
     && frozenPredictionIssues(row).length === 0;
 }
-function chooseFrozen(event, nowMs) {
+function chooseFrozen(event, nowMs, { allowExpired = false } = {}) {
   const candidates = event.predictions.filter(row => validTime(row.recordedAt)
     && Date.parse(row.recordedAt) <= nowMs && safeForecast(row))
     .sort((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt)
@@ -102,7 +102,7 @@ function chronology(doc, ledger, nowMs) {
       && x.reportId === reportId && x.kickoff === new Date(f.kickoff).toISOString()
       && x.generatedAt === p.generatedAt && safeForecast(x)
       && Object.keys(x.probabilities).every(k => Math.abs(x.probabilities[k] - p.probabilities[k]) < 1e-8)
-      && Date.parse(x.validUntil) > nowMs);
+      && (allowExpired || Date.parse(x.validUntil) > nowMs));
     if (!record) continue;
     pool.push({ predictionId: record.predictionId, fixtureId: f.id, source: f.source, league: f.league,
       home: f.home, away: f.away, kickoff: f.kickoff, recordedAt: record.recordedAt,
@@ -125,6 +125,15 @@ export function buildDailyResearchReport({ document = null, ledger, nowISO, code
   const current = document && dayCN(document.generatedAt) === today;
   const predictions = current && ledger.exists ? chronology(document, ledger, nowMs) : [];
   const weatherRows = weather && typeof weather === 'object' && !Array.isArray(weather) ? weather : {};
+  // validUntil 只有生成时刻+1h，会让所有已冻结但过期的场次被隐藏，
+  // 导致日报长期显示「冻结 0 场」而账本 actually 有几十条。这里额外统计宽松口径，
+  // 仅用于展示「已冻结的预测」，不参与 releasedCandidates / commercialGate 判定。
+  const frozenLoose = ledger.events.map(event => ({ event, frozen: chooseFrozen(event, nowMs, { allowExpired: true }) }))
+    .filter(row => row.frozen)
+    .map(({ event, frozen }) => ({ kickoffDay: dayCN(frozen.kickoff), league: frozen.league, source: frozen.source,
+      fixtureId: frozen.fixtureId, home: frozen.home, away: frozen.away, kickoff: frozen.kickoff,
+      selection: frozen.selection, probabilities: frozen.probabilities,
+      score: resolution(event, frozen, nowMs) }));
   const all = ledger.events.map(event => ({ event, frozen: chooseFrozen(event, nowMs) }))
     .filter(row => row.frozen)
     .map(({ event, frozen }) => ({ kickoffDay: dayCN(frozen.kickoff), league: frozen.league, source: frozen.source,
@@ -144,7 +153,7 @@ export function buildDailyResearchReport({ document = null, ledger, nowISO, code
     prospective: { provenance: 'immutable-prematch-ledger-plus-observed-full-time',
       uniqueFixtureRule: 'earliest-valid-frozen-prediction-per-source-fixture',
       oneDay: summarize(all, today, 1), sevenDays: summarize(all, today, 7), thirtyDays: trailing30,
-      byLeague30Days: perLeague, retainedFrozen: all.length },
+      byLeague30Days: perLeague, retainedFrozen: all.length, frozenLoose: frozenLoose.length, frozenLooseList: frozenLoose.slice(0, 20) },
     strictMarkets: { separation: 'independent-dual-source-and-provider-opening',
       sourceScreenedCandidates: current ? document.summary?.strictCandidates ?? null : null,
       releasedCandidates: 0, reviewed: false, note: '严格盘口必须独立验真双源和供应商原生初盘；本研究报表不替盘口授权或正式发布。' },
@@ -200,6 +209,7 @@ export function dailyReportSummary(report) {
     brier: row.brier, logLoss: row.logLoss, sampleStatus: row.sampleStatus });
   return { kind: report.kind, state: report.state, reportId: report.reportId,
     frozen: report.forecasts.total, retainedFrozen: report.prospective.retainedFrozen,
+    frozenLoose: report.prospective.frozenLoose, frozenLooseList: report.prospective.frozenLooseList,
     oneDay: window(report.prospective.oneDay), sevenDays: window(report.prospective.sevenDays),
     thirtyDays: window(report.prospective.thirtyDays),
     commercialReleaseGate: report.commercialReleaseGate, telegramSent: report.externalTelegramSent };
