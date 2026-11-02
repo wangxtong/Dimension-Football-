@@ -2,6 +2,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readJson, atomicJson } from './storage.mjs';
+import { readPredictionLedger } from './prediction-ledger.mjs';
 import { teamName } from './sources/team-names.mjs';
 
 // 研究日报 Telegram 推送：所有者 2026-11-02 授权的个人研究用途通道。
@@ -269,7 +270,41 @@ const esc = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').
 // Telegram Bot API 10.3（2026-08-24）起支持 sendRichMessage：rich_message.html 可以带
 // <table bordered striped compact>。手机端由客户端渲染表格，不再受"一行放得下几个字"影响，
 // 这才是真正解决宽窄比例问题的排版方式；sendMessage 纯文本版保留为兜底。
-export function richHtml(report) {
+// 结算明细：从账本读「近 1 日已评分」的场次，用 predictions.json 补队名。
+// 任何读取失败都退化为空数组——明细是增值信息，绝不能让它阻断每日推送。
+export async function settledToday({ root, beijingDay, limit = 8 } = {}) {
+  try {
+    const ledger = await readPredictionLedger({ directory: resolve(root, 'reports/forecast-ledger') });
+    let names = new Map();
+    try {
+      const doc = await readJson(resolve(root, 'reports/predictions.json'), 4_000_000);
+      names = new Map((doc?.fixtures || []).map(row => [row.fixture?.id, { home: row.fixture?.home, away: row.fixture?.away }]));
+    } catch { /* 缺 predictions.json 时只显示 fixtureId */ }
+    const rows = [];
+    for (const event of ledger.events || []) {
+      const prediction = [...(event.predictions || [])].sort((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt))[0];
+      if (!prediction) continue;
+      const result = (event.results || []).filter(row => row.source === prediction.source
+        && row.fixtureId === prediction.fixtureId && row.status === 'FINISHED'
+        && Number.isFinite(Date.parse(row.resultObservedAt)) && Date.parse(row.resultObservedAt) > Date.parse(prediction.kickoff))
+        .sort((a, b) => Date.parse(b.resultObservedAt) - Date.parse(a.resultObservedAt))[0];
+      if (!result) continue;
+      const day = new Date(Date.parse(result.resultObservedAt) + 8 * 3600_000).toISOString().slice(0, 10);
+      if (beijingDay && day !== beijingDay) continue;
+      const actual = result.homeGoals > result.awayGoals ? 'home' : result.homeGoals === result.awayGoals ? 'draw' : 'away';
+      const hit = actual === prediction.selection;
+      const name = names.get(prediction.fixtureId) || {};
+      rows.push({ kickoff: prediction.kickoff, league: prediction.league,
+        home: name.home || prediction.fixtureId, away: name.away || '—',
+        pick: OUTCOME_CN[prediction.selection] || prediction.selection,
+        actual: OUTCOME_CN[actual] || actual,
+        score: result.homeGoals + ':' + result.awayGoals, hit });
+    }
+    return rows.sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff)).slice(0, limit);
+  } catch { return []; }
+}
+
+export function richHtml(report, settled = []) {
   const total = report.forecasts.total;
   const lines = ['<b>🏟 维度足球 · 每日 1X2 研究参考</b>',
     '📅 ' + esc(report.beijingDay) + '｜冻结 ' + total + ' 场｜严格盘口 0 场' + settleSuffix(report),
@@ -307,7 +342,15 @@ export function richHtml(report) {
       + '</td><td>' + (row?.pending ?? '—') + '</td><td>'
       + (row && row.scored ? (row.hitRate * 100).toFixed(1) + '%' : '—') + '</td></tr>');
   }
-  lines.push('</table>', '', 'ℹ️ 回测与模拟数据不计入前瞻',
+  lines.push('</table>');
+  if (Array.isArray(settled) && settled.length) {
+    lines.push('', '<b>🧾 近 1 日结算</b>');
+    for (const row of settled) {
+      lines.push((row.hit ? '✅ ' : '❌ ') + esc(teamName(row.home) + ' vs ' + teamName(row.away)) + ' '
+        + esc(row.score) + '｜' + esc(row.pick) + '→' + esc(row.actual));
+    }
+  }
+  lines.push('', 'ℹ️ 回测与模拟数据不计入前瞻',
     '🔗 报告 ' + String(report.reportId).slice(0, 12) + '…');
   return blockify(lines);
 }
@@ -386,7 +429,8 @@ export async function publishResearchTelegram({ root, env = process.env, fetchIm
   let result;
   try {
     // 优先富文本（真正的表格），失败才退回纯文本；任一成功都算送达，不重复发送。
-    const rich = await post('sendRichMessage', { chat_id: chatId, rich_message: { html: richHtml(report) } });
+    const settled = await settledToday({ root, beijingDay: report.beijingDay });
+    const rich = await post('sendRichMessage', { chat_id: chatId, rich_message: { html: richHtml(report, settled) } });
     if (rich.ok && rich.data && rich.data.ok === true) result = accept(rich, 'rich');
     else {
       const plain = await post('sendMessage', { chat_id: chatId, text: telegramText(report),
