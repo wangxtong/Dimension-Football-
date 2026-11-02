@@ -82,7 +82,7 @@ def build(source, output):
                 seen.add(fid)
                 status=str(m.get("status") or "")
                 cancelled_flag=status.lower() in ("cancelled","canceled","postponed","abandoned","not_played")
-                scores=m.get("score") or {}
+                scores=m.get("score") if isinstance(m.get("score"),dict) else {}
                 ft=pair(scores.get("ft"))
                 ht=pair(scores.get("ht"))
                 if cancelled_flag:
