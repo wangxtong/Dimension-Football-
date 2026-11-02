@@ -271,7 +271,7 @@ export function createHostedClient({ env = process.env, fetchImpl = fetch, clock
   }
   async function request(path,{method='GET',body,allow404=false,limit=MAX_REPORT_BUNDLE_BYTES,requestSignal,fetchImpl:requestFetch}={}) {
     const archived = archiveEndpointPattern.test(path);
-    if(!archived&&!['/internal/publications','/internal/observations','/internal/report-status','/internal/state','/internal/notifications','/internal/observation-notifications'].includes(path))fail('HOSTED_INVALID_ENDPOINT');
+    if(!archived&&!['/internal/publications','/internal/observations','/internal/report-status','/internal/state','/internal/notifications','/internal/observation-notifications','/internal/research-daily'].includes(path))fail('HOSTED_INVALID_ENDPOINT');
     if(path==='/internal/observation-notifications'&&method!=='POST')fail('HOSTED_INVALID_ENDPOINT');
     const serialized=body===undefined?undefined:JSON.stringify(body);
     if(serialized && Buffer.byteLength(serialized)>(archived?ARCHIVE_LIMITS.shardBytes:path==='/internal/state'?STATE_LIMITS.jsonBytes:MAX_REPORT_BUNDLE_BYTES))fail('HOSTED_REQUEST_LIMIT_EXCEEDED');

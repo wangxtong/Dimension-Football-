@@ -36,6 +36,8 @@
     "audit:quality": "node collector/evaluation-quality.mjs",
     "export:evaluation": "node collector/export-evaluation.mjs",
     "archive:public:scrapling": "python3 collector/sources/scrapling_archive.py",
-    "test:scrapling": "python3 -m unittest discover -s collector/sources/test -p test_scrapling_archive.py -v"
+    "test:scrapling": "python3 -m unittest discover -s collector/sources/test -p test_scrapling_archive.py -v",
+    "research:daily": "node collector/research-daily-report.mjs",
+    "research:web:sync": "node collector/publish-research-daily.mjs"
   }
 }
