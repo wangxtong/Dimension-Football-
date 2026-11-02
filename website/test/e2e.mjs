@@ -333,7 +333,7 @@ test('commercial dashboard keeps historical comparisons separate from live zero-
   assert.equal(await page.locator('#history-prospective').textContent(), `${historicalEvidence.prospective.evaluated} 场`);
   assert.equal(await page.locator('#backtest-chart .chart-row').count(), historicalEvidence.groups.filter(row => row.league === 'BL1' && [1, 24, 72, 168].includes(row.horizonHours) && row.metrics).length);
   for (const metric of [historicalSelected.metrics.brier, historicalSelected.baseline.brier]) assert.ok((await page.locator('#chart-summary').textContent()).includes(metric.toFixed(4)));
-  assert.match(await page.locator('#picks').textContent(), /3–7.*不为数量凑单/s);
+  assert.match(await page.locator('#picks').textContent(), /严格盘口独立筛选.*允许为零/s);
   assert.match(await page.locator('#picks').textContent(), /严格盘口额外要求/);
   assert.match(await page.locator('#picks').textContent(), /普通胜平负评估独立于亚洲盘/);
   assert.match(await page.locator('#pick-blockers').textContent(), /德甲已核验；其余 4 联赛暂无评估样本/);
