@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchRows, collectHfFixtures, fetchHfTeams, fetchHfOdds, CONFIGS } from '../sources/hf-soccer-dataset.mjs';
+import { fetchRows, collectHfFixtures, fetchHfTeams, fetchHfOdds, CONFIGS, FD_CODES } from '../sources/hf-soccer-dataset.mjs';
 
 const page = (rows, features = [], total = rows.length) => async () => ({
   ok: true, json: async () => ({ features: features.map((name, i) => ({ feature_idx: i, name })),
@@ -15,10 +15,10 @@ test('requires no auth but surfaces HTTP failures instead of inventing data', as
 
 test('normalizes finished fixtures and skips unfinished or identity-less rows', async () => {
   const rows = [
-    { id: 1, status: 'Finished', goals_home: 2, goals_away: 1, date_utc: '2020-12-13T19:45:00', home_team_id: 10, away_team_id: 20, league_id: 39, referee_name: 'M. Dean' },
-    { id: 2, status: 'Not Started', goals_home: null, goals_away: null, date_utc: '2020-12-14T19:45:00', home_team_id: 10, away_team_id: 20, league_id: 39 },
-    { id: 3, status: 'Finished', goals_home: null, goals_away: 1, date_utc: '2020-12-15T19:45:00', home_team_id: 10, away_team_id: 20, league_id: 39 },
-    { id: 4, status: 'Finished', goals_home: 1, goals_away: 1, date_utc: '2020-12-16T19:45:00', home_team_id: 10, away_team_id: 10, league_id: 39 },
+    { id: 1, status: 'FT', goals_home: 2, goals_away: 1, date_utc: '2020-12-13T19:45:00', home_team_id: 10, away_team_id: 20, league_id: 39, referee_name: 'M. Dean' },
+    { id: 2, status: 'NS', goals_home: null, goals_away: null, date_utc: '2020-12-14T19:45:00', home_team_id: 10, away_team_id: 20, league_id: 39 },
+    { id: 3, status: 'FT', goals_home: null, goals_away: 1, date_utc: '2020-12-15T19:45:00', home_team_id: 10, away_team_id: 20, league_id: 39 },
+    { id: 4, status: 'FT', goals_home: 1, goals_away: 1, date_utc: '2020-12-16T19:45:00', home_team_id: 10, away_team_id: 10, league_id: 39 },
   ];
   const out = await collectHfFixtures({ maxRows: 4, fetchImpl: page(rows) });
   assert.equal(out.rows.length, 1);
@@ -53,4 +53,6 @@ test('odds keep known_at and reject non-odds or undated rows', async () => {
   assert.equal(q.bookmaker, 'Bet365');
   assert.equal(q.knownAt, '2020-12-13T19:45:00.000Z');
   assert.deepEqual(CONFIGS.includes('fixture_lineups'), true);
+  assert.equal(FD_CODES.E0, 'PL');
+  assert.equal(FD_CODES.D1, 'BL1');
 });
