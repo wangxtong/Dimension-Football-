@@ -23,7 +23,163 @@ function validDailyResearch(report) {
 const LEAGUE_CN = { PL: '英超', PD: '西甲', SA: '意甲', BL1: '德甲', FL1: '法甲' };
 const OUTCOME_CN = { home: '主胜', draw: '平局', away: '客胜' };
 // 分隔线与图标都只用纯文本字符：不依赖 parse_mode，任何客户端都不会串成竖线。
-const RULE = '━━━━━━━━━━━━━━━━';
+// 分隔线压到 10 段，避免在窄屏客户端里折行成两行。
+const RULE = '━━━━━━━━━━';
+// 球场城市中文化：英文城市混在中文队名里会让整块排版显乱。
+const CITY_CN = {
+  'London': '伦敦',
+  'Liverpool': '利物浦',
+  'Manchester': '曼彻斯特',
+  'Newcastle upon Tyne': '纽卡斯尔',
+  'Birmingham': '伯明翰',
+  'Brighton': '布莱顿',
+  'Bournemouth': '伯恩茅斯',
+  'Nottingham': '诺丁汉',
+  'Wolverhampton': '伍尔弗汉普顿',
+  'Leeds': '利兹',
+  'Sunderland': '桑德兰',
+  'Burnley': '伯恩利',
+  'Leicester': '莱斯特',
+  'Ipswich': '伊普斯维奇',
+  'Southampton': '南安普顿',
+  'Sheffield': '谢菲尔德',
+  'Luton': '卢顿',
+  'Watford': '沃特福德',
+  'Norwich': '诺维奇',
+  'West Bromwich': '西布罗姆维奇',
+  'Middlesbrough': '米德尔斯堡',
+  'Stoke-on-Trent': '斯托克',
+  'Swansea': '斯旺西',
+  'Cardiff': '卡迪夫',
+  'Hull': '赫尔',
+  'Coventry': '考文垂',
+  'Preston': '普雷斯顿',
+  'Blackburn': '布莱克本',
+  'Bristol': '布里斯托',
+  'Derby': '德比',
+  'Portsmouth': '朴茨茅斯',
+  'Oxford': '牛津',
+  'Plymouth': '普利茅斯',
+  'Wrexham': '雷克瑟姆',
+  'Munich': '慕尼黑',
+  'Dortmund': '多特蒙德',
+  'Leipzig': '莱比锡',
+  'Leverkusen': '勒沃库森',
+  'Stuttgart': '斯图加特',
+  'Frankfurt am Main': '法兰克福',
+  'Wolfsburg': '沃尔夫斯堡',
+  'Mönchengladbach': '门兴格拉德巴赫',
+  'Bremen': '不来梅',
+  'Berlin': '柏林',
+  'Mainz': '美因茨',
+  'Augsburg': '奥格斯堡',
+  'Sinsheim': '辛斯海姆',
+  'Freiburg im Breisgau': '弗赖堡',
+  'Hamburg': '汉堡',
+  'Bochum': '波鸿',
+  'Heidenheim an der Brenz': '海登海姆',
+  'Cologne': '科隆',
+  'Kiel': '基尔',
+  'Darmstadt': '达姆施塔特',
+  'Hanover': '汉诺威',
+  'Paderborn': '帕德博恩',
+  'Düsseldorf': '杜塞尔多夫',
+  'Karlsruhe': '卡尔斯鲁厄',
+  'Nuremberg': '纽伦堡',
+  'Kaiserslautern': '凯泽斯劳滕',
+  'Gelsenkirchen': '盖尔森基兴',
+  'Rostock': '罗斯托克',
+  'Fürth': '菲尔特',
+  'Bielefeld': '比勒费尔德',
+  'Barcelona': '巴塞罗那',
+  'Madrid': '马德里',
+  'Seville': '塞维利亚',
+  'Valencia': '瓦伦西亚',
+  'Villarreal': '比利亚雷亚尔',
+  'San Sebastián': '圣塞巴斯蒂安',
+  'Bilbao': '毕尔巴鄂',
+  'Vigo': '维戈',
+  'Getafe': '赫塔费',
+  'Pamplona': '潘普洛纳',
+  'Palma': '马略卡帕尔马',
+  'Girona': '赫罗纳',
+  'Vitoria-Gasteiz': '维多利亚',
+  'Las Palmas de Gran Canaria': '拉斯帕尔马斯',
+  'Leganés': '莱加内斯',
+  'Valladolid': '巴利亚多利德',
+  'Elche': '埃尔切',
+  'Oviedo': '奥维耶多',
+  'Cádiz': '加的斯',
+  'Granada': '格拉纳达',
+  'Almería': '阿尔梅里亚',
+  'A Coruña': '拉科鲁尼亚',
+  'Gijón': '希洪',
+  'Santander': '桑坦德',
+  'Zaragoza': '萨拉戈萨',
+  'Santa Cruz de Tenerife': '特内里费',
+  'Huesca': '韦斯卡',
+  'Málaga': '马拉加',
+  'Castellón de la Plana': '卡斯特利翁',
+  'Milan': '米兰',
+  'Turin': '都灵',
+  'Naples': '那不勒斯',
+  'Rome': '罗马',
+  'Bergamo': '贝加莫',
+  'Florence': '佛罗伦萨',
+  'Bologna': '博洛尼亚',
+  'Udine': '乌迪内',
+  'Reggio Emilia': '雷焦艾米利亚',
+  'Cagliari': '卡利亚里',
+  'Genoa': '热那亚',
+  'Verona': '维罗纳',
+  'Lecce': '莱切',
+  'Empoli': '恩波利',
+  'Parma': '帕尔马',
+  'Como': '科莫',
+  'Venice': '威尼斯',
+  'Cremona': '克雷莫纳',
+  'Pisa': '比萨',
+  'Monza': '蒙扎',
+  'Frosinone': '弗罗西诺内',
+  'Salerno': '萨莱诺',
+  'Palermo': '巴勒莫',
+  'Brescia': '布雷西亚',
+  'La Spezia': '拉斯佩齐亚',
+  'Bari': '巴里',
+  'Paris': '巴黎',
+  'Marseille': '马赛',
+  'Monaco': '摩纳哥',
+  'Lyon': '里昂',
+  'Lille': '里尔',
+  'Nice': '尼斯',
+  'Lens': '朗斯',
+  'Rennes': '雷恩',
+  'Brest': '布雷斯特',
+  'Toulouse': '图卢兹',
+  'Strasbourg': '斯特拉斯堡',
+  'Montpellier': '蒙彼利埃',
+  'Nantes': '南特',
+  'Reims': '兰斯',
+  'Auxerre': '欧塞尔',
+  'Angers': '昂热',
+  'Le Havre': '勒阿弗尔',
+  'Saint-Étienne': '圣埃蒂安',
+  'Metz': '梅斯',
+  'Lorient': '洛里昂',
+  'Dunkerque': '敦刻尔克',
+  'Guingamp': '甘冈',
+  'Caen': '卡昂',
+  'Amiens': '亚眠',
+  'Grenoble': '格勒诺布尔',
+  'Ajaccio': '阿雅克肖',
+  'Bastia': '巴斯蒂亚',
+  'Troyes': '特鲁瓦',
+  'Clermont-Ferrand': '克莱蒙费朗',
+};
+function cityName(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  return CITY_CN[value.trim()] || value.trim();
+}
 function pctValue(value) {
   return typeof value === 'number' && Number.isFinite(value) ? (value * 100).toFixed(1) + '%' : '—';
 }
@@ -44,27 +200,27 @@ function weatherText(row) {
     parts.push('降水 ' + w.precipitationProbabilityPct.toFixed(0) + '%');
   if (typeof w.precipitationMm === 'number' && w.precipitationMm > 0) parts.push(w.precipitationMm.toFixed(1) + 'mm');
   if (!parts.length) return null;
-  const city = row.venue && typeof row.venue.city === 'string' ? ' · ' + row.venue.city : '';
-  return parts.join(' · ') + city;
+  const city = row.venue ? cityName(row.venue.city) : null;
+  return parts.join(' · ') + (city ? ' · ' + city : '');
 }
 // Telegram 不渲染 Markdown 表格：一赛一段，竖排短行，一眼能读完。
 function forecastBlock(row) {
   const lines = [];
   const p = row.probabilities || {};
   const league = LEAGUE_CN[row.league] || row.league;
-  lines.push('⚽ ' + league + ' ｜ ' + teamName(row.home) + ' vs ' + teamName(row.away));
-  lines.push('🕐 ' + beijingShort(row.kickoff) + ' 开球（北京）');
-  lines.push('📊 主胜 ' + pctValue(p.home) + ' ｜ 平局 ' + pctValue(p.draw) + ' ｜ 客胜 ' + pctValue(p.away));
-  lines.push('🎯 最高倾向：' + (OUTCOME_CN[row.selection] || row.selection) + ' ' + pctValue(p[row.selection]));
+  lines.push('⚽ ' + league + '｜' + teamName(row.home) + ' vs ' + teamName(row.away));
+  lines.push('🕐 ' + beijingShort(row.kickoff) + '（北京）');
+  lines.push('📊 主 ' + pctValue(p.home) + ' ｜ 平 ' + pctValue(p.draw) + ' ｜ 客 ' + pctValue(p.away));
+  lines.push('🎯 倾向 ' + (OUTCOME_CN[row.selection] || row.selection) + ' ' + pctValue(p[row.selection]));
   const eg = row.expectedGoals;
   if (eg && Number.isFinite(eg.home) && Number.isFinite(eg.away)) {
     const total = eg.home + eg.away;
-    lines.push('🔮 预期进球 ' + eg.home.toFixed(1) + ' : ' + eg.away.toFixed(1)
-      + ' ｜ ' + (total >= 2.5 ? '大 2.5' : '小 2.5') + '（合计 ' + total.toFixed(1) + '）');
+    lines.push('🔮 进球 ' + eg.home.toFixed(1) + ':' + eg.away.toFixed(1)
+      + ' · ' + (total >= 2.5 ? '大2.5' : '小2.5') + '（' + total.toFixed(1) + '）');
   }
   const scores = Array.isArray(row.topScores) && row.topScores.length
     ? row.topScores.map(s => s.home + ':' + s.away).join(' · ') : '';
-  if (scores) lines.push('🔢 比分参考 ' + scores);
+  if (scores) lines.push('🔢 比分 ' + scores);
   const weather = weatherText(row);
   if (weather) lines.push('🌦 天气 ' + weather);
   return lines;
@@ -78,7 +234,7 @@ export function telegramText(report) {
   const total = report.forecasts.total;
   const lines = [
     '🏟 维度足球 · 每日 1X2 研究参考',
-    '📅 ' + report.beijingDay + '（北京）｜研究冻结 ' + total + ' 场｜严格盘口 0 场',
+    '📅 ' + report.beijingDay + '（北京）｜冻结 ' + total + ' 场｜盘口 0 场',
     '⚠️ ' + report.disclaimer,
   ];
   const candidates = report.forecasts.candidates || [];
