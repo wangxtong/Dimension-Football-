@@ -321,7 +321,7 @@ export async function upcoming({ root, limit = 3 } = {}) {
   } catch { return []; }
 }
 
-export function richHtml(report, settled = [], next = []) {
+export function richHtml(report, settled = [], next = [], calibration = null) {
   const total = report.forecasts.total;
   const lines = ['<b>🏟 维度足球 · 每日 1X2 研究参考</b>',
     '📅 ' + esc(report.beijingDay) + '｜冻结 ' + total + ' 场｜严格盘口 0 场' + settleSuffix(report),
@@ -378,6 +378,17 @@ export function richHtml(report, settled = [], next = []) {
       lines.push('· ' + esc(beijingShort(row.kickoff)) + ' ' + esc((LEAGUE_CN[row.league] || row.league) + ' '
         + teamName(row.home) + ' vs ' + teamName(row.away)));
     }
+  }
+  // model-calibration
+  if (calibration && Number.isFinite(calibration.meanAccuracy)) {
+    const acc = (calibration.meanAccuracy * 100).toFixed(2);
+    const brier = Number.isFinite(calibration.meanBrier) ? calibration.meanBrier.toFixed(4) : '-';
+    const base = Number.isFinite(calibration.meanBaselineBrier) ? calibration.meanBaselineBrier.toFixed(3) : '-';
+    lines.push('', '<b>模型历史回测（对照，不计入前瞻）</b>');
+    lines.push('· ' + esc(String(calibration.totalEvaluated || 0)) + ' 场 · 方向命中 <b>' + acc + '%</b> · Brier ' + brier + '（基准 ' + base + '）');
+    const parts = (calibration.rows || []).filter(r => Number.isFinite(r.accuracy))
+      .map(r => (LEAGUE_CN[r.league] || r.league) + ' ' + (r.accuracy * 100).toFixed(1) + '%');
+    if (parts.length) lines.push('· ' + esc(parts.join(' · ')));
   }
   lines.push('', 'ℹ️ 回测与模拟数据不计入前瞻',
     '🔗 报告 ' + String(report.reportId).slice(0, 12) + '…');
@@ -460,7 +471,10 @@ export async function publishResearchTelegram({ root, env = process.env, fetchIm
     // 优先富文本（真正的表格），失败才退回纯文本；任一成功都算送达，不重复发送。
     const settled = await settledToday({ root, beijingDay: report.beijingDay });
     const next = await upcoming({ root });
-    const rich = await post('sendRichMessage', { chat_id: chatId, rich_message: { html: richHtml(report, settled, next) } });
+    // 模型历史回测作为对照展示（只读，不参与前瞻统计）
+    let calibration = null;
+    try { calibration = await readJson(join(root, 'reports/calibration-backtest.json'), 20000); } catch { calibration = null; }
+    const rich = await post('sendRichMessage', { chat_id: chatId, rich_message: { html: richHtml(report, settled, next, calibration) } });
     if (rich.ok && rich.data && rich.data.ok === true) result = accept(rich, 'rich');
     else {
       const plain = await post('sendMessage', { chat_id: chatId, text: telegramText(report),
