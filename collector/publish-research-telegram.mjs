@@ -258,6 +258,13 @@ function statsLine(label, row) {
   const hit = row.scored ? '命中' + (row.hitRate * 100).toFixed(1) + '%' : '命中—';
   return label + ' ' + row.eligibleFrozen + '/' + row.scored + '/' + row.pending + ' · ' + hit;
 }
+// 没有新场次但有已结算结果时，标题行直接给出结算摘要，避免用户以为当天什么都没发生。
+function settleSuffix(report) {
+  const day = report.prospective && report.prospective.oneDay;
+  if (!day || !day.scored) return '';
+  const hit = Number.isFinite(day.hitRate) ? '命中' + (day.hitRate * 100).toFixed(1) + '%' : '命中—';
+  return '｜已结算 ' + day.scored + ' 场 ' + hit;
+}
 const esc = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 // Telegram Bot API 10.3（2026-08-24）起支持 sendRichMessage：rich_message.html 可以带
 // <table bordered striped compact>。手机端由客户端渲染表格，不再受"一行放得下几个字"影响，
@@ -265,7 +272,7 @@ const esc = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').
 export function richHtml(report) {
   const total = report.forecasts.total;
   const lines = ['<b>🏟 维度足球 · 每日 1X2 研究参考</b>',
-    '📅 ' + esc(report.beijingDay) + '｜冻结 ' + total + ' 场｜严格盘口 0 场',
+    '📅 ' + esc(report.beijingDay) + '｜冻结 ' + total + ' 场｜严格盘口 0 场' + settleSuffix(report),
     '⚠️ 研究参考，非投注建议｜时间均为北京时间'];
   const candidates = report.forecasts.candidates || [];
   if (candidates.length) {
@@ -319,7 +326,7 @@ export function telegramText(report) {
   const total = report.forecasts.total;
   const lines = [
     '🏟 维度足球 · 每日研究',
-    '📅 ' + report.beijingDay + '｜冻结 ' + total + ' 场',
+    '📅 ' + report.beijingDay + '｜冻结 ' + total + ' 场' + settleSuffix(report),
     '⚠️ 研究参考，非投注建议',
     '🕘 时间均为北京时间',
   ];
