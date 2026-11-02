@@ -70,6 +70,69 @@ jobs:
           python -c "import importlib.metadata; from scrapling.fetchers import Fetcher; assert importlib.metadata.version('scrapling') == '0.5'; assert callable(Fetcher.get)"
       - name: 离线合约与跨进程哈希复核
         run: python -m unittest discover -s collector/sources/test -p test_scrapling_archive.py -v
+  # One bounded real public-source probe for THIS research PR only.
+  # Does not change the default hosted collection schedule or send forecasts.
+  scrapling-live-public:
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feat/scrapling-public-archive-20261102' }}
+    needs: [scrapling-engine]
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: 安装固定Scrapling并执行公开德甲一次真实取数
+        run: |
+          set -euo pipefail
+          python -m pip install --no-cache-dir --disable-pip-version-check -r config/scrapling-requirements.txt
+          umask 077
+          mkdir -p "$RUNNER_TEMP/scrapling-evidence"
+          python3 collector/sources/scrapling_archive.py \
+            --source openligadb-bl1-history --season 2025 --live \
+            --out-root "$RUNNER_TEMP/scrapling-evidence" \
+            > "$RUNNER_TEMP/scrapling-evidence/first-run.json"
+      - name: 新独立进程逐字节验证原始来源和完整FT
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'scrapling-evidence'
+          receipt = json.loads((root / 'first-run.json').read_text('utf-8'))
+          directory = Path(receipt['directory'])
+          if not directory.is_relative_to(root) or not directory.is_dir():
+              raise SystemExit('ARCHIVE_DIRECTORY_INVALID')
+          if receipt['receipt']['observationMode'] != 'LIVE_SOURCE_HTTP' or receipt['receipt']['httpStatus'] != 200:
+              raise SystemExit('LIVE_HTTP_NOT_VERIFIED')
+          second = subprocess.run([sys.executable, 'collector/sources/scrapling_archive.py',
+              '--verify', str(directory)], capture_output=True, text=True, check=True)
+          verified = json.loads(second.stdout)
+          projection = json.loads((directory / 'projection.json').read_text('utf-8'))
+          if verified['rawSha256'] != receipt['receipt']['rawSha256'] or projection['kind'] != 'historical-match-results':
+              raise SystemExit('RAW_READBACK_MISMATCH')
+          if projection['sourceId'] != 'openligadb' or projection['seasonStart'] != 2025:
+              raise SystemExit('SOURCE_IDENTITY_MISMATCH')
+          if projection['validIdentities'] != 306 or projection['finishedWithVerifiedFT'] != 306:
+              raise SystemExit('UNEXPECTED_HISTORICAL_COUNT')
+          public = dict(status='REAL_PUBLIC_HTTP_ARCHIVED_E2', source='openligadb',
+              season=2025, recordCount=verified['records'], rawSha256=verified['rawSha256'],
+              releaseGate='BLOCKED', forecastPublished=False,
+              historicalPregameObserved=False)
+          (root / 'verified.json').write_text(json.dumps(public, sort_keys=True)+'\n')
+          print(json.dumps(public, sort_keys=True))
+          PY
+      - name: 私有保存本轮原始RAW与二次验真收据（非永久生产存储）
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: scrapling-live-research-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/scrapling-evidence/
+          if-no-files-found: warn
+          retention-days: 14
   release:
     needs: [test, browser, scrapling-engine]
     runs-on: ubuntu-latest
