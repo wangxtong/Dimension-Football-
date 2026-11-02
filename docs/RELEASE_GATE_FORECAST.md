@@ -38,3 +38,13 @@ PR #21 的以下候选审批格式仍保留为诊断输入，**不会授予发�
 
 **生产部署和最终上线通知仍需额外完成：** 登录 ECS 并核验运行版本/HTTPS、重启持久化、真实网站同一 reportId 回读、Telegram 状态、相同数据集的新旧版本关键结果与回滚，并在 PR 合并后重新 CI 全绿。任何一项缺证据均保持 BLOCKED。
 
+## 研究日报发布通道（所有者 2026-11-02 授权）
+
+本文件所述正式商业发布门禁保持 **绝对 BLOCKED** 不变。为满足项目所有者"每日自动采集 → 生成预测 → 简体中文推送 Telegram 和 Web"的交付要求，增设独立于商业门禁的研究日报通道，边界如下：
+
+- **通道**：每日研究轨道产出的 `research-daily-1x2` 日报（普通 1X2 冻结预测 + 真实 FT 核账）经 `publish-research-daily.mjs`（Web）与 `publish-research-telegram.mjs`（Telegram）发布；两个入口内联相同研究授权校验，正式 `requireGreenForecastDelivery` 与商业门禁代码未改动。
+- **校验**：日报必须 `mode=research-reference`、`commercialReleaseGate=BLOCKED`、`strictMarkets.releasedCandidates=0`、含固定研究免责声明（"研究参考，非投注建议；概率未经正式校准…"）、reportId 与北京时间窗口有效。任一不满足即拒绝，无放行分支。
+- **不变项**：严格盘口候选仍要求双独立来源与真实初盘，恒为 0 场不降门槛；正式 `RELEASE_GATE` 仍为 BLOCKED；研究推送不代表正式发布、回测 GREEN 或商业模型资格。
+- **启用开关**：仓库变量 `VANTIS_RESEARCH_WEB_ENABLED` 与 `VANTIS_RESEARCH_TELEGRAM_ENABLED` 由所有者显式设置为 `true`；Telegram 凭据仅存于 Actions Secrets，不进源码、制品与日志。
+- **授权记录**：2026-11-02，项目所有者（wangxtong）确认选择"研究用途推送"口径，用于其自有群组与站点；本记录即该决策的书面留档。
+

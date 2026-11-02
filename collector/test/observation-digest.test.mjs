@@ -223,7 +223,9 @@ test('workflow isolates the successful observations digest step without Telegram
   const text=await readFile(new URL('../../.github/workflows/live-publication.yml',import.meta.url),'utf8');
   const start=text.indexOf('      - name: 北京时间'),end=text.indexOf('      - name:',start+1),step=text.slice(start,end);
   assert.match(step,/if: success\(\) && env\.HOSTED_MODE == 'observations'/);
-  for(const key of ['TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID'])assert.ok(!text.includes(key));
+  // Observations digest must stay isolated from Telegram credentials; the
+  // owner-authorized research step references them independently (separate step).
+  for(const key of ['TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID'])assert.ok(!step.includes(key));
   assert.ok(step.includes('node collector/observation-digest.mjs --root "$RUNNER_TEMP/dimension-live" --mode "$HOSTED_MODE"'));
   assert.ok(text.includes('!${{ runner.temp }}/dimension-live/**/*credential*'));assert.ok(text.includes('!${{ runner.temp }}/dimension-live/**/*token*'));
 });
