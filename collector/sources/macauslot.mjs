@@ -186,6 +186,11 @@ async function readSnapshot(url, { fetchImpl, clock, signal, remaining }) {
 export async function fetchMacauslotEvidence({ fixtures = [], nowISO, fetchImpl, clock = () => new Date().toISOString(), signal,
   remaining = () => Infinity, cooldownStatePath }) {
   if (!Array.isArray(fixtures) || fixtures.length > 3000 || !Number.isFinite(isoMillis(nowISO))) throw new Error('invalid_request');
+  // Until A1 provides source admission this adapter is permanently fail-closed in live code.
+  // Existing parser functions remain usable only for offline historical inspection.
+  return { quotes: [], marketStates: [], signals: [], diagnostics: [diag(nowISO, {
+    sourceId: 'macauslot', status: 'blocked', code: 'ACCESS_BLOCKED', httpStatus: null, matchedCount: 0 })],
+    fixtureDiagnostics: fixtures.map(f => diag(nowISO, { fixtureId: f?.id, sourceId: 'macauslot', status: 'blocked', code: 'ACCESS_BLOCKED' })) };
   if (!fixtures.some(f => eligible(f, isoMillis(nowISO)))) return { quotes: [], marketStates: [], signals: [], diagnostics: [], fixtureDiagnostics: [] };
   if (typeof fetchImpl !== 'function') throw new Error('controlled_transport_required');
   try {
