@@ -20,7 +20,7 @@ const LEAGUES = [
 const EXPECTED_PATHS = SEASONS.flatMap(season => LEAGUES.map(([, filename]) => `${season}/${filename}`));
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const gitBlobSha1 = bytes => createHash('sha1')
-  .update(`blob ${bytes.length}\\0`).update(bytes).digest('hex');
+  .update('blob ' + bytes.length + String.fromCharCode(0)).update(bytes).digest('hex');
 
 function reject(code) {
   const error = new Error(`ARCHIVE_${code}`);
@@ -74,7 +74,7 @@ export async function verifyOpenFootballResearchArchive({ directory = ARCHIVE_DI
     const matches = body.matches;
     if (matches.some(m => !m || typeof m.team1 !== 'string' || !m.team1.trim()
       || typeof m.team2 !== 'string' || !m.team2.trim()
-      || !/^\\d{4}-\\d{2}-\\d{2}$/.test(m.date || '')
+      || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(m.date || '')
       || typeof m.round !== 'string')) reject('RAW_EVENT_INVALID');
     const ft = matches.filter(m => Array.isArray(m.score?.ft)
       && m.score.ft.length === 2 && m.score.ft.every(v => Number.isSafeInteger(v) && v >= 0 && v <= 30)).length;
