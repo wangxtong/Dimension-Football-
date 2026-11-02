@@ -72,7 +72,11 @@ async function telegram(token,chatId,presentation,fetchImpl){
   catch{return {status:'unknown',code:'HEARTBEAT_TELEGRAM_OUTCOME_UNKNOWN',messageId:null}}
   finally{clearTimeout(timer);ctrl.abort()}
 }
-export async function deliverHeartbeat(env,h,{now=Date.now(),fetchImpl=fetch}={}){
+export async function deliverHeartbeat(env,h,{now=clock(),fetchImpl=fetch,
+  targetFingerprint=targetFingerprint,verifiedBotId=verifiedBotId}={}){
+  if(!/^[a-f0-9]{16}$/.test(targetFingerprint)||!/^\d{5,20}$/.test(verifiedBotId)||!Number.isFinite(now))
+    throw error('HEARTBEAT_CONFIG_INVALID');
+  const startedAt=Date.now(),clock=()=>now+Math.max(0,Date.now()-startedAt);
   if(env.HOSTED_PUBLICATION_ENABLED!=='true'||env.VANTIS_SYSTEM_HEARTBEAT_ENABLED!=='true')
     throw error('HEARTBEAT_DISABLED',404);
   if(env.DASHBOARD_ORIGIN!==VERIFIED_DASHBOARD_ORIGIN
@@ -80,21 +84,21 @@ export async function deliverHeartbeat(env,h,{now=Date.now(),fetchImpl=fetch}={}
     throw error('HEARTBEAT_ENV_INVALID',503);
   await validateHeartbeat(h,now);
   const token=env.TELEGRAM_BOT_TOKEN,provided=String(env.TELEGRAM_CHAT_ID||'');
-  if(typeof token!=='string'||!token.startsWith(VERIFIED_DAILY_BOT_ID+':')||token.length>256
+  if(typeof token!=='string'||!token.startsWith(verifiedBotId+':')||token.length>256
     ||!/^-?\d{5,20}$/.test(provided))throw error('HEARTBEAT_CHANNEL_UNAVAILABLE',503);
   let chatId=provided;
-  if((await digest(chatId)).slice(0,16)!==VERIFIED_TARGET_FINGERPRINT){
-    if(/^100\d+$/.test(chatId)&&(await digest('-'+chatId)).slice(0,16)===VERIFIED_TARGET_FINGERPRINT)chatId='-'+chatId;
+  if((await digest(chatId)).slice(0,16)!==targetFingerprint){
+    if(/^100\d+$/.test(chatId)&&(await digest('-'+chatId)).slice(0,16)===targetFingerprint)chatId='-'+chatId;
     else throw error('HEARTBEAT_DESTINATION_DENIED',403);
   }
-  const key='system-heartbeat/'+h.beijingDay+'-'+VERIFIED_TARGET_FINGERPRINT+'.json';
+  const key='system-heartbeat/'+h.beijingDay+'-'+targetFingerprint+'.json';
   let old=await stored(env.BUCKET,key);
   if(old)return old.data.state==='complete'?old.data.outcome
     :{status:'unknown',code:'HEARTBEAT_PENDING_NO_RETRY',messageId:null};
-  const fresh=await validateHeartbeat(h,Date.now());
-  if(day(Date.now())!==fresh.beijingDay)throw error('HEARTBEAT_DATE_CHANGED',409);
+  const fresh=await validateHeartbeat(h,clock());
+  if(day(clock())!==fresh.beijingDay)throw error('HEARTBEAT_DATE_CHANGED',409);
   const row={version:1,state:'prepared',heartbeatId:h.heartbeatId,reportId:h.reportId,
-    destinationFingerprint:VERIFIED_TARGET_FINGERPRINT,at:stamp(Date.now()),outcome:null};
+    destinationFingerprint:targetFingerprint,at:stamp(clock()),outcome:null};
   let claimed;
   try{claimed=await env.BUCKET.put(key,JSON.stringify(row),{
     onlyIf:{etagDoesNotMatch:'*'},httpMetadata:{contentType:'application/json'}});}
@@ -106,8 +110,8 @@ export async function deliverHeartbeat(env,h,{now=Date.now(),fetchImpl=fetch}={}
   const presentation=formatHeartbeat(h);
   const result=await telegram(token,chatId,presentation,fetchImpl);
   const outcome={...result,heartbeatId:h.heartbeatId,reportId:h.reportId,
-    payloadSha256:await digest(JSON.stringify({...presentation,chat_id:chatId})),sentAt:stamp(Date.now()),
-    destinationFingerprint:VERIFIED_TARGET_FINGERPRINT};
+    payloadSha256:await digest(JSON.stringify({...presentation,chat_id:chatId})),sentAt:stamp(clock()),
+    destinationFingerprint:targetFingerprint};
   try{const saved=await env.BUCKET.put(key,JSON.stringify({...row,state:'complete',outcome}),{
     onlyIf:{etagMatches:claimed.etag},httpMetadata:{contentType:'application/json'}});
     if(!saved?.etag)throw Error();
