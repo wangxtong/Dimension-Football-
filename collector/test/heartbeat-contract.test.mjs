@@ -6,11 +6,11 @@ const fixture={id:'oldb-123',source:'openligadb',league:'BL1',home:'FC <Research
   away:'TSG Test',kickoff:'2026-11-07T19:30:00.000Z'};
 function input(){
   const sourceManifest={simulated:false,checkedAt:'2026-11-02T08:55:00.000Z',
-    diagnostics:[{id:'openligadb',endpoint:'https://api.openligadb.de/getmatchdata/bl1/2026',
+    diagnostics:[{id:'openligadb',league:'BL1',season:'2026',endpoint:'https://api.openligadb.de/getmatchdata/bl1/2026',
       checkedAt:'2026-11-02T08:55:00.000Z',fetchedAt:'2026-11-02T08:55:01.000Z',httpStatus:200,status:'partial'},
-      {id:'openligadb',endpoint:'https://api.openligadb.de/getmatchdata/bl1/2026',
+      {id:'openligadb',league:'BL1',season:'2026',endpoint:'https://api.openligadb.de/getmatchdata/bl1/2026',
         checkedAt:'2026-11-02T08:55:00.000Z',fetchedAt:'2026-11-02T08:55:01.000Z',httpStatus:200,status:'partial'},
-      {id:'thesportsdb-free',endpoint:'https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id=4328',
+      {id:'thesportsdb-free',league:'PL',endpoint:'https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id=4328',
         checkedAt:'2026-11-02T08:55:00.000Z',httpStatus:403,status:'unavailable'}]};
   const predictionDocument={kind:'prematch-forecast-report',simulated:false,
     generatedAt:'2026-11-02T08:56:00.000Z',publication:{reportId},model:{id:'venue-poisson-v2',version:2},
@@ -56,4 +56,23 @@ test('report HTML escapes untrusted fields and never claims Telegram accepted',(
   assert.ok(h.includes('NOT_SENT')===false);
   assert.match(h,new RegExp(r.heartbeatId));
   assert.ok(!h.includes('TELEGRAM_ACCEPTED'));
+});
+
+test('redacted real acquisition entries with no full URL produce 6 successful unique transport calls',()=>{
+  const x=input();
+  const first=x.sourceManifest.diagnostics[0];
+  delete first.endpoint;
+  delete x.sourceManifest.diagnostics[1].endpoint;
+  const d=x.sourceManifest.diagnostics;
+  d.splice(2,0,{id:'openligadb',league:'BL1',season:'2025',checkedAt:'2026-11-02T08:55:00.000Z',
+    fetchedAt:'2026-11-02T08:55:02.000Z',httpStatus:200,status:'partial'});
+  for(const league of ['PD','SA','FL1'])d.push({id:'thesportsdb-free',league,
+    checkedAt:'2026-11-02T08:55:00.000Z',fetchedAt:'2026-11-02T08:55:03.000Z',
+    httpStatus:200,status:'partial'});
+  delete d[3].endpoint;
+  const result=buildHeartbeat(x);
+  assert.equal(result.probes.successful,5);
+  assert.equal(result.probes.failed,1);
+  assert.equal(result.probes.unknown,0);
+  assert.equal(result.probes.total,6);
 });
