@@ -215,6 +215,8 @@ def store(raw, *, source, season, fetched_at, out_root, mode, response_at=None):
         fail('ARCHIVE_ROOT_UNTRUSTED')
     sub = root / source / fetched_at[:10]
     sub.mkdir(parents=True, mode=0o700, exist_ok=True)
+    if sub.is_symlink() or sub.resolve() != sub:
+        fail('ARCHIVE_SUBDIR_UNTRUSTED')
     raw_hash = h(raw)
     uid = h((source + '|' + str(season) + '|' + fetched_at + '|' + raw_hash).encode('utf-8'))
     target = sub / uid
@@ -236,6 +238,11 @@ def store(raw, *, source, season, fetched_at, out_root, mode, response_at=None):
         if target.exists():
             fail('ARCHIVE_DUPLICATE_RUN')
         os.rename(staging, target)
+        fd = os.open(sub, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
     finally:
         if staging.exists():
             shutil.rmtree(staging)
@@ -246,6 +253,9 @@ def verify(directory):
     if path.is_symlink() or not path.is_dir():
         fail('ARCHIVE_INVALID')
     try:
+        if any((path / name).is_symlink() or not (path / name).is_file()
+               for name in ('raw.bin', 'receipt.json', 'projection.json')):
+            fail('ARCHIVE_FILE_UNTRUSTED')
         raw = (path / 'raw.bin').read_bytes()
         receipt = json.loads((path / 'receipt.json').read_text('utf-8'))
         projection = (path / 'projection.json').read_bytes()
