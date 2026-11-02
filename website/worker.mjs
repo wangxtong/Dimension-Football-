@@ -2,6 +2,7 @@ import * as REPORT_FEED from './report-feed.mjs';
 import { handleHostedRequest, loadHostedBundle, updateHostedReceipt } from './hosted-publications.mjs';
 import { verifyActionsIdentity } from './github-oidc.mjs';
 import { saveDailyResearch, readDailyResearch } from './research-daily-store.mjs';
+import { deliverHeartbeat, readHeartbeatReceipt } from './system-heartbeat.mjs';
 import { notifyHostedReport } from './hosted-notifications.mjs';
 import { notifyDailyObservation, readDailyObservationStatus } from './daily-observation-notifications.mjs';
 import { handleTelegramWebhook, readTelegramBotStatus } from './telegram-bot.mjs';
@@ -109,6 +110,30 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
           return response(JSON.stringify({error:code}),allowed.includes(error.code)?error.status:400,'application/json; charset=utf-8');
         }
       }
+      if(path==='/internal/system-heartbeat') {
+        if(!['POST','GET'].includes(method))return response(JSON.stringify({error:'METHOD_NOT_ALLOWED'}),405,'application/json; charset=utf-8');
+        try{await verifyActionsIdentity(request,env,{fetchImpl,now:clock()});}
+        catch{return response(JSON.stringify({error:'MACHINE_IDENTITY_REQUIRED'}),401,'application/json; charset=utf-8');}
+        if(method==='GET'){
+          try{return response(JSON.stringify(await readHeartbeatReceipt(env,clock())),200,'application/json; charset=utf-8');}
+          catch{return response(JSON.stringify({error:'HEARTBEAT_STORAGE_UNAVAILABLE'}),503,'application/json; charset=utf-8');}
+        }
+        if(request.headers.get('content-type')?.split(';',1)[0].trim().toLowerCase()!=='application/json')
+          return response(JSON.stringify({error:'HEARTBEAT_REQUEST_INVALID'}),415,'application/json; charset=utf-8');
+        let body;try{body=JSON.parse(await boundedBody(request,16000));}
+        catch{return response(JSON.stringify({error:'HEARTBEAT_REQUEST_INVALID'}),400,'application/json; charset=utf-8');}
+        try{
+          const outcome=await deliverHeartbeat(env,body,{now:clock(),fetchImpl});
+          return response(JSON.stringify(outcome),outcome.status==='accepted'?200:outcome.status==='failed'?502:503,
+            'application/json; charset=utf-8');
+        }catch(error){
+          const codes=['HEARTBEAT_INPUT_INVALID','HEARTBEAT_HASH_MISMATCH','HEARTBEAT_DISABLED',
+            'HEARTBEAT_ENV_INVALID','HEARTBEAT_CHANNEL_UNAVAILABLE','HEARTBEAT_DESTINATION_DENIED',
+            'HEARTBEAT_DATE_CHANGED','HEARTBEAT_STORAGE_CORRUPT'];
+          const code=codes.includes(error.code)?error.code:'HEARTBEAT_DELIVERY_FAILED';
+          return response(JSON.stringify({error:code}),codes.includes(error.code)?error.status:503,'application/json; charset=utf-8');
+        }
+      }
       if(path==='/internal/observation-notifications') {
         if(method!=='POST')return response('不支持此请求方式。',405);
         try {await verifyActionsIdentity(request,env,{fetchImpl,now:clock()});}
@@ -185,6 +210,13 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
         return response(method==='HEAD'?null:JSON.stringify(record||{error:'RESEARCH_REPORT_NOT_FOUND'}),record?200:404,
           'application/json; charset=utf-8',record?{'X-Research-Report-Id':record.reportId}:{});
       }catch{return response(JSON.stringify({error:'RESEARCH_STORAGE_UNAVAILABLE'}),503,'application/json; charset=utf-8');}
+    }
+    if(path==='/api/system-heartbeat') {
+      if(env.VANTIS_SYSTEM_HEARTBEAT_ENABLED!=='true')
+        return response(JSON.stringify({error:'HEARTBEAT_DISABLED'}),404,'application/json; charset=utf-8');
+      try {const result=await readHeartbeatReceipt(env,clock());
+        return response(method==='HEAD'?null:JSON.stringify(result),200,'application/json; charset=utf-8');}
+      catch{return response(JSON.stringify({error:'HEARTBEAT_STORAGE_UNAVAILABLE'}),503,'application/json; charset=utf-8');}
     }
     if(path==='/api/telegram-bot-status') {
       try {const result=await readTelegramBotStatus(env,{now:clock()});return response(method==='HEAD'?null:JSON.stringify(result),200,'application/json; charset=utf-8');}
