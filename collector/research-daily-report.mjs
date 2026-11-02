@@ -84,7 +84,8 @@ function chronology(doc, ledger, nowMs) {
       sourceReportId: reportId, modelId: record.model.id, modelVersion: record.model.version,
       modelHash: record.modelHash, trainingHash: record.trainingHash,
       probabilities: record.probabilities, selection: Object.entries(record.probabilities)
-        .sort((a, b) => b[1] - a[1])[0][0], calibrated: record.model.calibrated === true });
+        .sort((a, b) => b[1] - a[1])[0][0], calibrated: record.model.calibrated === true,
+      expectedGoals: record.expectedGoals ?? null, topScores: record.topScores ?? [] });
   }
   return pool.sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff) || a.fixtureId.localeCompare(b.fixtureId));
 }
@@ -133,12 +134,20 @@ export function renderDailyResearchMarkdown(report) {
   const lines = ['# 维度足球｜每日1X2研究参考', '', '**研究参考，非投注建议。** 不是正式推荐，不保证命中率。', '',
     '北京时间：' + report.beijingDay + '；版本：' + report.codeSha + '；报告ID：' + report.reportId, '',
     '研究状态：' + report.state + '；今日有效冻结 ' + report.forecasts.total + ' 场；严格盘口实际对外候选 0 场（独立核验）。', '',
-    '| 赛事 | 开球(UTC) | 主胜 | 平 | 客胜 | 研究最高概率 |',
-    '| --- | --- | ---: | ---: | ---: | --- |'];
-  for (const row of report.forecasts.candidates) lines.push('| ' + teamName(row.home).replace(/[|\r\n]/g,' ') + ' vs '
-    + teamName(row.away).replace(/[|\r\n]/g,' ') + ' | ' + row.kickoff + ' | '
-    + pct(row.probabilities.home) + ' | ' + pct(row.probabilities.draw) + ' | '
-    + pct(row.probabilities.away) + ' | ' + ({home:'主胜',draw:'平',away:'客胜'}[row.selection]) + ' |');
+    '| 赛事 | 开球(UTC) | 主胜 | 平 | 客胜 | 研究最高概率 | 预期进球(主/客) | 大小球 | 比分参考 |',
+    '| --- | --- | ---: | ---: | ---: | --- | ---: | --- | --- |'];
+  for (const row of report.forecasts.candidates) {
+    const eg = row.expectedGoals;
+    const total = eg ? eg.home + eg.away : null;
+    const scores = row.topScores.map(s => s.home + ':' + s.away).join('/') || '—';
+    lines.push('| ' + teamName(row.home).replace(/[|\r\n]/g,' ') + ' vs '
+      + teamName(row.away).replace(/[|\r\n]/g,' ') + ' | ' + row.kickoff + ' | '
+      + pct(row.probabilities.home) + ' | ' + pct(row.probabilities.draw) + ' | '
+      + pct(row.probabilities.away) + ' | ' + ({home:'主胜',draw:'平',away:'客胜'}[row.selection]) + ' | '
+      + (eg ? eg.home.toFixed(1) + '/' + eg.away.toFixed(1) : '—') + ' | '
+      + (total === null ? '—' : (total >= 2.5 ? '大2.5' : '小2.5') + '(' + total.toFixed(1) + ')') + ' | '
+      + scores + ' |');
+  }
   if (!report.forecasts.total) lines.push('| — | — | — | — | — | 无合格赛前研究预测，不补场 |');
   lines.push('', '## 真实前瞻FT核账（每场只计一次）', '',
     '| 窗口 | 冻结场数 | 已评分 | 待FT | 无效/作废 | 命中率 | Brier | LogLoss |',

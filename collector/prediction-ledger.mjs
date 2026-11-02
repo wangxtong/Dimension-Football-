@@ -30,6 +30,10 @@ export function createPredictionRecord({ fixture, forecast, model, reportId, now
     modelHash: digest(model), validUntil: forecast.freshness.validUntil,
     generatedAt: new Date(isoMillis(forecast.generatedAt)).toISOString(), recordedAt: new Date(isoMillis(nowISO)).toISOString(), trainingCutoff: forecast.trainingCutoff,
     trainingHash: forecast.trainingHash, probabilities: Object.fromEntries(['home', 'draw', 'away'].map(key => [key, forecast.probabilities[key]])),
+    ...(forecast.expectedGoals?.home != null && forecast.expectedGoals?.away != null
+      ? { expectedGoals: { home: forecast.expectedGoals.home, away: forecast.expectedGoals.away } } : {}),
+    ...(Array.isArray(forecast.topScores) && forecast.topScores.length
+      ? { topScores: forecast.topScores.slice(0, 3).map(s => ({ home: s.home, away: s.away, probability: s.probability })) } : {}),
     generationHorizonHours: (isoMillis(fixture.kickoff) - isoMillis(forecast.generatedAt)) / 3600000,
     horizonHours: (isoMillis(fixture.kickoff) - isoMillis(nowISO)) / 3600000, horizonBasis: 'recordedAt' };
   return { ...record, predictionId: digest([record.source, record.fixtureId, record.model, record.generatedAt]) };
