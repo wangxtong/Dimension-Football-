@@ -29,6 +29,8 @@ jobs:
           OPENFOOTBALL_SNAPSHOT_DIRECTORY: ${{ runner.temp }}/openfootball-fixed
         run: npm test
       - run: npm run collect:demo
+      - name: 验证可选Scrapling公开采集器（无需外部API、无真实网络）
+        run: python3 -m unittest discover -s collector/sources/test -p test_scrapling_archive.py -v
       - run: python -m unittest scripts/test_package.py
       - run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest deploy/test_bundle.py deploy/test_handoff.py
       - run: for script in deploy/*.sh; do bash -n "$script" || exit; done
@@ -52,8 +54,24 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: ${{ github.workspace }}/collector/browser-runtime/node_modules/playwright/index.mjs
         run: node --test --test-isolation=none website/test/e2e.mjs website/test/observation-panels.e2e.mjs
+  scrapling-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: 安装固定版本Scrapling HTTP抓取引擎（不安装浏览器、不访问足球源）
+        run: |
+          python -m pip install --no-cache-dir --disable-pip-version-check -r config/scrapling-requirements.txt
+          python -c "import importlib.metadata; from scrapling.fetchers import Fetcher; assert importlib.metadata.version('scrapling') == '0.5'; assert callable(Fetcher.get)"
+      - name: 离线合约与跨进程哈希复核
+        run: python -m unittest discover -s collector/sources/test -p test_scrapling_archive.py -v
   release:
-    needs: [test, browser]
+    needs: [test, browser, scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
