@@ -1,6 +1,7 @@
 import * as REPORT_FEED from './report-feed.mjs';
 import { handleHostedRequest, loadHostedBundle, updateHostedReceipt } from './hosted-publications.mjs';
 import { verifyActionsIdentity } from './github-oidc.mjs';
+import { saveDailyResearch, readDailyResearch } from './research-daily-store.mjs';
 import { notifyHostedReport } from './hosted-notifications.mjs';
 import { notifyDailyObservation, readDailyObservationStatus } from './daily-observation-notifications.mjs';
 import { handleTelegramWebhook, readTelegramBotStatus } from './telegram-bot.mjs';
@@ -80,6 +81,28 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     const loginPath = view ? '/login?view='+view : '/login';
     const sameOrigin=request.headers.get('origin')===config.origin;
     if(env.HOSTED_PUBLICATION_ENABLED==='true'&&path.startsWith('/internal/')) {
+      if(path==='/internal/research-daily') {
+        if(!['GET','POST'].includes(method))return response(JSON.stringify({error:'METHOD_NOT_ALLOWED'}),405,'application/json; charset=utf-8');
+        try { await verifyActionsIdentity(request,env,{fetchImpl,now:clock()}); }
+        catch { return response(JSON.stringify({error:'MACHINE_IDENTITY_REQUIRED'}),401,'application/json; charset=utf-8'); }
+        try {
+          if(method==='GET') {
+            const record=await readDailyResearch(env);
+            return response(record?JSON.stringify(record):JSON.stringify({error:'RESEARCH_REPORT_NOT_FOUND'}),record?200:404,'application/json; charset=utf-8');
+          }
+          if(request.headers.get('content-type')?.split(';',1)[0].trim().toLowerCase()!=='application/json')
+            return response(JSON.stringify({error:'RESEARCH_REQUEST_INVALID'}),415,'application/json; charset=utf-8');
+          const record=JSON.parse(await boundedBody(request,750000));
+          const saved=await saveDailyResearch(env,record,{now:clock()});
+          return response(JSON.stringify(saved),200,'application/json; charset=utf-8');
+        }catch(error){
+          const allowed=['RESEARCH_REPORT_INVALID','RESEARCH_FORECAST_INVALID','RESEARCH_DUPLICATE_FIXTURE',
+            'RESEARCH_REPORT_HASH_MISMATCH','RESEARCH_REPORT_STALE','RESEARCH_REPORT_ORDER_CONFLICT','RESEARCH_POINTER_CONFLICT',
+            'RESEARCH_STORAGE_INVALID','RESEARCH_STORAGE_UNAVAILABLE','RESEARCH_REPORT_CONFLICT'];
+          const code=allowed.includes(error.code)?error.code:'RESEARCH_REQUEST_INVALID';
+          return response(JSON.stringify({error:code}),allowed.includes(error.code)?error.status:400,'application/json; charset=utf-8');
+        }
+      }
       if(path==='/internal/observation-notifications') {
         if(method!=='POST')return response('不支持此请求方式。',405);
         try {await verifyActionsIdentity(request,env,{fetchImpl,now:clock()});}
@@ -148,6 +171,15 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     const signedIn=await authenticated(request,config,now);
     if(path==='/login')return signedIn?redirect(landing):method==='HEAD'?response(null,200,'text/html; charset=utf-8'):loginPage('',200,{},view);
     if(!signedIn)return path==='/'||path==='/index.html'?redirect(loginPath):response('请先登录。',401);
+    if(path==='/api/research-daily') {
+      if(env.HOSTED_PUBLICATION_ENABLED!=='true')
+        return response(JSON.stringify({error:'RESEARCH_STORAGE_UNAVAILABLE'}),503,'application/json; charset=utf-8');
+      try {
+        const record=await readDailyResearch(env);
+        return response(method==='HEAD'?null:JSON.stringify(record||{error:'RESEARCH_REPORT_NOT_FOUND'}),record?200:404,
+          'application/json; charset=utf-8',record?{'X-Research-Report-Id':record.reportId}:{});
+      }catch{return response(JSON.stringify({error:'RESEARCH_STORAGE_UNAVAILABLE'}),503,'application/json; charset=utf-8');}
+    }
     if(path==='/api/telegram-bot-status') {
       try {const result=await readTelegramBotStatus(env,{now:clock()});return response(method==='HEAD'?null:JSON.stringify(result),200,'application/json; charset=utf-8');}
       catch{return response(JSON.stringify({error:'BOT_STATUS_UNAVAILABLE'}),503,'application/json; charset=utf-8');}
