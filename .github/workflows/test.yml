@@ -265,7 +265,7 @@ jobs:
                 && Date.parse(row.forecast.freshness?.validUntil)>Date.parse(daily.generatedAt);
             });
             // Upcoming 4–6 day forecasts are genuine frozen research samples,
-            // but MUST NOT be mislabeled as today's <=36-hour recommendations.
+            // but MUST NOT be mislabeled as current-day <=36-hour recommendations.
             assert.equal(daily.forecasts.total,due.length);
             assert.equal(daily.prospective.retainedFrozen,source.summary.forecasts);
             assert.equal(daily.forecasts.skipped,source.summary.fixtures-due.length);
