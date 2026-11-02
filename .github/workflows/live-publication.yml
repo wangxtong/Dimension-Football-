@@ -54,6 +54,15 @@ jobs:
       - name: 研究轨道生成每日1X2冻结快照和真实FT复盘（不触发正式预测外发）
         if: success() && env.HOSTED_MODE == 'research'
         run: node collector/research-daily-report.mjs --root "$RUNNER_TEMP/dimension-live"
+      - name: 每日真实采集与模型四字段心跳写入持久验证工件
+        if: success() && env.HOSTED_MODE == 'research'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node collector/heartbeat-contract.mjs --produce "$RUNNER_TEMP/dimension-live"
+          node collector/heartbeat-contract.mjs --verify "$RUNNER_TEMP/dimension-live"
+          # Presence of this artifact does NOT imply Bot API sendMessage accepted.
+          # A separate Site-side receipt is mandatory for TG acceptance.
       - name: 将研究日报同步至受保护Web并核验同reportId（需独立QA准入）
         if: success() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_WEB_ENABLED == 'true'
         run: node collector/publish-research-daily.mjs --root "$RUNNER_TEMP/dimension-live"
