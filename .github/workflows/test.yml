@@ -73,7 +73,7 @@ jobs:
   # One bounded real public-source probe for THIS research PR only.
   # Does not change the default hosted collection schedule or send forecasts.
   scrapling-live-public:
-    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feat/scrapling-public-archive-20261102' }}
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'feat/web-tg-shared-research-preview-20261102') }}
     needs: [scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 9
@@ -162,7 +162,7 @@ jobs:
   stage1-private-research:
     # This PR-only job exercises user-approved private research, without
     # touching ECS, public website, Telegram, or protected source endpoints.
-    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feat/scrapling-public-archive-20261102' }}
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'feat/web-tg-shared-research-preview-20261102') }}
     needs: [scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 17
@@ -243,6 +243,11 @@ jobs:
       - name: 校验两条隔离通道与原始数据，再生成内部研究Web试验页
         run: |
           node scripts/stage1-private-research-report.mjs --root "$RESEARCH_ROOT" --commit "$COLLECTOR_COMMIT"
+      - name: Web/TG同一reportId生成私有研究预览并跨进程复核
+        run: |
+          set -euo pipefail
+          node scripts/export-research-web-tg.mjs export "$RESEARCH_ROOT"
+          node scripts/export-research-web-tg.mjs verify "$RESEARCH_ROOT/dual-channel-private-preview"
       - name: 归档阶段一全部证据（仅私有Actions附件，不发布Web/Telegram）
         if: always()
         uses: actions/upload-artifact@v7
