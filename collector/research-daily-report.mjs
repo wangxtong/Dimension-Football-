@@ -6,6 +6,8 @@ import { readJson, atomicJson } from './storage.mjs';
 import { readPredictionLedger, frozenPredictionIssues, scorePredictionRecord } from './prediction-ledger.mjs';
 import { scoreProbabilities, validProbabilities } from './forecast-evaluation.mjs';
 import { teamName } from './sources/team-names.mjs';
+import { venueFor } from './sources/venue-coordinates.mjs';
+import { attachWeather, weatherSummary } from './sources/weather.mjs';
 
 const DAY = 86_400_000;
 const HASH = /^[a-f0-9]{64}$/;
@@ -18,6 +20,27 @@ const validTime = value => typeof value === 'string' && Number.isFinite(Date.par
 const dayCN = value => new Date(Date.parse(value) + 8 * 3600_000).toISOString().slice(0, 10);
 const lowerDay = (now, days) => new Date(Date.parse(dayCN(now) + 'T00:00:00.000Z') - (days - 1) * DAY).toISOString().slice(0, 10);
 const plain = value => typeof value === 'string' && value.length <= 200 && !/[\x00-\x1f\x7f]/u.test(value);
+const finiteOrNull = value => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+// 天气是“开球时段实况预报”的展示附件，不参与任何概率或账本计算；非法输入一律降级成 unavailable。
+const WEATHER_REASONS = new Set(['disabled', 'no-venue', 'no-kickoff', 'hour-out-of-range',
+  'budget-exhausted', 'request-failed', 'timeout', 'invalid-response', 'not-fetched']);
+function safeWeather(row) {
+  if (!row || typeof row !== 'object' || row.status !== 'ok') {
+    const reason = row && typeof row.reason === 'string' && WEATHER_REASONS.has(row.reason)
+      ? row.reason : 'not-fetched';
+    return { status: 'unavailable', reason };
+  }
+  const hourUTC = typeof row.hourUTC === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:00$/.test(row.hourUTC)
+    ? row.hourUTC : null;
+  const temperatureC = finiteOrNull(row.temperatureC);
+  if (hourUTC === null || temperatureC === null) return { status: 'unavailable', reason: 'invalid-response' };
+  return { status: 'ok', hourUTC, temperatureC, windKmh: finiteOrNull(row.windKmh),
+    precipitationMm: finiteOrNull(row.precipitationMm),
+    precipitationProbabilityPct: finiteOrNull(row.precipitationProbabilityPct),
+    weatherCode: finiteOrNull(row.weatherCode),
+    source: plain(row.source) ? row.source : 'open-meteo',
+    model: plain(row.model) ? row.model : 'best_match' };
+}
 function safeForecast(row) {
   return row && SOURCES.has(row.source) && LEAGUES.has(row.league)
     && HASH.test(row.reportId || '') && HASH.test(row.modelHash || '')
@@ -89,7 +112,7 @@ function chronology(doc, ledger, nowMs) {
   }
   return pool.sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff) || a.fixtureId.localeCompare(b.fixtureId));
 }
-export function buildDailyResearchReport({ document = null, ledger, nowISO, codeSha }) {
+export function buildDailyResearchReport({ document = null, ledger, nowISO, codeSha, weather = null }) {
   if (!validTime(nowISO) || !COMMIT.test(codeSha || '') || !ledger || !Array.isArray(ledger.events))
     throw new Error('RESEARCH_INPUT_INVALID');
   const today = dayCN(nowISO), nowMs = Date.parse(nowISO);
@@ -99,6 +122,7 @@ export function buildDailyResearchReport({ document = null, ledger, nowISO, code
     throw new Error('RESEARCH_SOURCE_REPORT_INVALID');
   const current = document && dayCN(document.generatedAt) === today;
   const predictions = current && ledger.exists ? chronology(document, ledger, nowMs) : [];
+  const weatherRows = weather && typeof weather === 'object' && !Array.isArray(weather) ? weather : {};
   const all = ledger.events.map(event => ({ event, frozen: chooseFrozen(event, nowMs) }))
     .filter(row => row.frozen)
     .map(({ event, frozen }) => ({ kickoffDay: dayCN(frozen.kickoff), league: frozen.league, source: frozen.source,
@@ -111,7 +135,9 @@ export function buildDailyResearchReport({ document = null, ledger, nowISO, code
     sourceReportSha256: current ? hash(document) : null,
     state: !current ? 'no-today-source-report' : !ledger.exists ? 'ledger-not-restored'
       : predictions.length ? 'frozen-research-forecasts' : 'zero-qualified-forecasts',
-    forecasts: { total: predictions.length, candidates: predictions, skipped: current
+    forecasts: { total: predictions.length, candidates: predictions.map(row => ({ ...row,
+      venue: venueFor(row.home) ? { city: venueFor(row.home).city } : null,
+      weather: safeWeather(weatherRows[row.source + ':' + row.fixtureId]) })), skipped: current
       ? document.fixtures.length - predictions.length : 0, isPublishedRecommendation: false },
     prospective: { provenance: 'immutable-prematch-ledger-plus-observed-full-time',
       uniqueFixtureRule: 'earliest-valid-frozen-prediction-per-source-fixture',
@@ -122,7 +148,8 @@ export function buildDailyResearchReport({ document = null, ledger, nowISO, code
       releasedCandidates: 0, reviewed: false, note: '严格盘口必须独立验真双源和供应商原生初盘；本研究报表不替盘口授权或正式发布。' },
     commercialReleaseGate: 'BLOCKED', researchGate: 'INDEPENDENT_OF_COMMERCIAL',
     externalTelegramSent: false,
-    limitations: ['结果按真实赛前冻结账本及事后实际取得的90分钟FT计算；未取得FT的保持pending。',
+    limitations: ['天气为开球整点（UTC）的 Open-Meteo 预报（免费、无key、CC-BY-4.0），按主队所在城市坐标获取；查不到坐标显示“—”，不猜测；天气不参与概率、预期进球、大小球或比分计算，也不写入冻结账本。',
+      '结果按真实赛前冻结账本及事后实际取得的90分钟FT计算；未取得FT的保持pending。',
       '每日、7日、30日为北京时间赛事开赛日窗口；同场只计最早合格冻结一次，按联赛/版本查看避免混合解释。',
       '研究模型未经正式校准，当前输出不代表投注建议或正式预测发布。',
       '常规研究不依赖双源盘口；严格盘口仍需双独立来源、真实初盘，0场可为0场。',
@@ -134,22 +161,25 @@ export function renderDailyResearchMarkdown(report) {
   const lines = ['# 维度足球｜每日1X2研究参考', '', '**研究参考，非投注建议。** 不是正式推荐，不保证命中率。', '',
     '北京时间：' + report.beijingDay + '；版本：' + report.codeSha + '；报告ID：' + report.reportId, '',
     '研究状态：' + report.state + '；今日有效冻结 ' + report.forecasts.total + ' 场；严格盘口实际对外候选 0 场（独立核验）。', '',
-    '| 赛事 | 开球(UTC) | 主胜 | 平 | 客胜 | 研究最高概率 | 预期进球(主/客) | 大小球 | 比分参考 |',
-    '| --- | --- | ---: | ---: | ---: | --- | ---: | --- | --- |'];
+    '| 赛事 | 开球(UTC) | 天气(开球时段) | 主胜 | 平 | 客胜 | 研究最高概率 | 预期进球(主/客) | 大小球 | 比分参考 |',
+    '| --- | --- | --- | ---: | ---: | ---: | --- | ---: | --- | --- |'];
   for (const row of report.forecasts.candidates) {
     const eg = row.expectedGoals;
     const total = eg ? eg.home + eg.away : null;
     const scores = row.topScores.map(s => s.home + ':' + s.away).join('/') || '—';
     lines.push('| ' + teamName(row.home).replace(/[|\r\n]/g,' ') + ' vs '
       + teamName(row.away).replace(/[|\r\n]/g,' ') + ' | ' + row.kickoff + ' | '
+      + weatherSummary(row.weather).cn + ' | '
       + pct(row.probabilities.home) + ' | ' + pct(row.probabilities.draw) + ' | '
       + pct(row.probabilities.away) + ' | ' + ({home:'主胜',draw:'平',away:'客胜'}[row.selection]) + ' | '
       + (eg ? eg.home.toFixed(1) + '/' + eg.away.toFixed(1) : '—') + ' | '
       + (total === null ? '—' : (total >= 2.5 ? '大2.5' : '小2.5') + '(' + total.toFixed(1) + ')') + ' | '
       + scores + ' |');
   }
-  if (!report.forecasts.total) lines.push('| — | — | — | — | — | 无合格赛前研究预测，不补场 |');
-  lines.push('', '## 真实前瞻FT核账（每场只计一次）', '',
+  if (!report.forecasts.total) lines.push('| — | — | — | — | — | — | 无合格赛前研究预测，不补场 |');
+  lines.push('', '天气：Open-Meteo 免费接口（CC-BY-4.0），取开球整点（UTC）预报，按主队所在城市坐标获取；'
+    + '查不到坐标显示“—”，不猜测、不插值。天气仅是展示附件，不参与概率、预期进球、大小球或比分计算。', '',
+    '## 真实前瞻FT核账（每场只计一次）', '',
     '| 窗口 | 冻结场数 | 已评分 | 待FT | 无效/作废 | 命中率 | Brier | LogLoss |',
     '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
   for (const row of [report.prospective.oneDay, report.prospective.sevenDays, report.prospective.thirtyDays])
@@ -167,7 +197,17 @@ export async function produceDailyResearchReport({ root, nowISO = new Date().toI
   try { document = await readJson(join(out, 'predictions.json')); }
   catch (error) { if (error.code !== 'ENOENT') throw error; }
   const ledger = await readPredictionLedger({ directory });
-  const report = buildDailyResearchReport({ document, ledger, nowISO, codeSha });
+  let report = buildDailyResearchReport({ document, ledger, nowISO, codeSha });
+  if (report.forecasts.total && process.env.WEATHER_ENABLED !== '0') {
+    try {
+      const matches = report.forecasts.candidates.map(row => ({ key: row.source + ':' + row.fixtureId,
+        home: row.home, kickoff: row.kickoff }));
+      const attached = await attachWeather(matches, { venueByKey: venueFor });
+      report = buildDailyResearchReport({ document, ledger, nowISO, codeSha, weather: attached.weather });
+    } catch {
+      // 天气属于展示附件：获取失败保留无天气版本，绝不阻断日报。
+    }
+  }
   const target = join(out, 'research-daily');
   await mkdir(target, { recursive: true });
   await atomicJson(join(target, 'latest.json'), report);
