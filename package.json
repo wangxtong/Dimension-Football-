@@ -26,6 +26,8 @@
     "site:build": "node website/build.mjs dist",
     "operations:help": "node collector/operations.mjs --help",
     "orchestrate:help": "node collector/orchestrate.mjs --help",
+    "research:daily": "node collector/research-daily-report.mjs",
+    "research:web:sync": "node collector/publish-research-daily.mjs",
     "check": "node --check collector/run.mjs",
     "audit:sources": "node collector/source-readiness.mjs",
     "audit:markets": "node collector/market-readiness.mjs",
