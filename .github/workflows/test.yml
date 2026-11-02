@@ -29,6 +29,8 @@ jobs:
           OPENFOOTBALL_SNAPSHOT_DIRECTORY: ${{ runner.temp }}/openfootball-fixed
         run: npm test
       - run: npm run collect:demo
+      - name: 验证可选Scrapling公开采集器（无需外部API、无真实网络）
+        run: python3 -m unittest discover -s collector/sources/test -p test_scrapling_archive.py -v
       - run: python -m unittest scripts/test_package.py
       - run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest deploy/test_bundle.py deploy/test_handoff.py
       - run: for script in deploy/*.sh; do bash -n "$script" || exit; done
@@ -52,8 +54,237 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: ${{ github.workspace }}/collector/browser-runtime/node_modules/playwright/index.mjs
         run: node --test --test-isolation=none website/test/e2e.mjs website/test/observation-panels.e2e.mjs
+  scrapling-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: 安装固定版本Scrapling HTTP抓取引擎（不安装浏览器、不访问足球源）
+        run: |
+          python -m pip install --no-cache-dir --disable-pip-version-check -r config/scrapling-requirements.txt
+          python -c "import importlib.metadata; from scrapling.fetchers import Fetcher; assert importlib.metadata.version('scrapling') == '0.5'; assert callable(Fetcher.get)"
+      - name: 离线合约与跨进程哈希复核
+        run: python -m unittest discover -s collector/sources/test -p test_scrapling_archive.py -v
+  # One bounded real public-source probe for THIS research PR only.
+  # Does not change the default hosted collection schedule or send forecasts.
+  scrapling-live-public:
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2') }}
+    needs: [scrapling-engine]
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: 安装固定Scrapling并执行公开德甲一次真实取数
+        run: |
+          set -euo pipefail
+          python -m pip install --no-cache-dir --disable-pip-version-check -r config/scrapling-requirements.txt
+          umask 077
+          mkdir -p "$RUNNER_TEMP/scrapling-evidence"
+          python3 collector/sources/scrapling_archive.py \
+            --source openligadb-bl1-history --season 2025 --live \
+            --out-root "$RUNNER_TEMP/scrapling-evidence" \
+            > "$RUNNER_TEMP/scrapling-evidence/first-run.json"
+      - name: 新独立进程逐字节验证原始来源和完整FT
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'scrapling-evidence'
+          receipt = json.loads((root / 'first-run.json').read_text('utf-8'))
+          directory = Path(receipt['directory'])
+          if not directory.is_relative_to(root) or not directory.is_dir():
+              raise SystemExit('ARCHIVE_DIRECTORY_INVALID')
+          if receipt['receipt']['observationMode'] != 'LIVE_SOURCE_HTTP' or receipt['receipt']['httpStatus'] != 200:
+              raise SystemExit('LIVE_HTTP_NOT_VERIFIED')
+          second = subprocess.run([sys.executable, 'collector/sources/scrapling_archive.py',
+              '--verify', str(directory)], capture_output=True, text=True, check=True)
+          verified = json.loads(second.stdout)
+          projection = json.loads((directory / 'projection.json').read_text('utf-8'))
+          if verified['rawSha256'] != receipt['receipt']['rawSha256'] or projection['kind'] != 'historical-match-results':
+              raise SystemExit('RAW_READBACK_MISMATCH')
+          if projection['sourceId'] != 'openligadb' or projection['seasonStart'] != 2025:
+              raise SystemExit('SOURCE_IDENTITY_MISMATCH')
+          if projection['validIdentities'] != 306 or projection['finishedWithVerifiedFT'] != 306:
+              raise SystemExit('UNEXPECTED_HISTORICAL_COUNT')
+          public = dict(status='REAL_PUBLIC_HTTP_ARCHIVED_E2', source='openligadb',
+              season=2025, recordCount=verified['records'], rawSha256=verified['rawSha256'],
+              releaseGate='BLOCKED', forecastPublished=False,
+              historicalPregameObserved=False)
+          (root / 'verified.json').write_text(json.dumps(public, sort_keys=True)+'\n')
+          print(json.dumps(public, sort_keys=True))
+          PY
+      - name: Node A3数据层跨语言读入同一真实RAW并核resultId
+        run: |
+          set -euo pipefail
+          INPUT_DIRECTORY=$(python3 -c "import json,os; from pathlib import Path; p=Path(os.environ['RUNNER_TEMP'])/'scrapling-evidence/first-run.json'; print(json.loads(p.read_text())['directory'])")
+          mkdir -p "$RUNNER_TEMP/scrapling-evidence/normalized"
+          node collector/data/scrapling-history-bridge.mjs \
+            "$INPUT_DIRECTORY" "$RUNNER_TEMP/scrapling-evidence/normalized" \
+            > "$RUNNER_TEMP/scrapling-evidence/node-import-receipt.json"
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import assert from "node:assert/strict";
+            const dir = process.env.RUNNER_TEMP + "/scrapling-evidence/";
+            const receipt = JSON.parse(readFileSync(dir+"node-import-receipt.json", "utf8"));
+            const batch = JSON.parse(readFileSync(receipt.outputFile, "utf8"));
+            const source = JSON.parse(readFileSync(dir+"verified.json", "utf8"));
+            assert.equal(receipt.status, "RESEARCH_HISTORICAL_RAW_IMPORTED");
+            assert.equal(receipt.rawSha256, source.rawSha256);
+            assert.equal(batch.coverage.scoredFT, 306);
+            assert.equal(batch.records.length, 306);
+            assert.equal(batch.releaseGate, "BLOCKED");
+            assert.equal(batch.modelReadyForProspective, false);
+            assert.equal(batch.historicalPregameObserved, false);
+            console.log(JSON.stringify({status:"REAL_SCRAPLING_TO_NODE_HISTORY_BRIDGE_E2",
+              rawSha256:receipt.rawSha256,normalizedSha256:receipt.batchSha256,
+              records:receipt.records, releaseGate:receipt.releaseGate}));
+          '
+      - name: 私有保存本轮原始RAW与二次验真收据（非永久生产存储）
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: scrapling-live-research-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/scrapling-evidence/
+          if-no-files-found: warn
+          retention-days: 14
+  stage1-private-research:
+    # This PR-only job exercises user-approved private research, without
+    # touching ECS, public website, Telegram, or protected source endpoints.
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2') }}
+    needs: [scrapling-engine]
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    permissions:
+      contents: read
+    env:
+      COLLECTOR_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: 安装隔离研究环境Scrapling
+        run: python3 -m pip install --no-cache-dir --disable-pip-version-check -r config/scrapling-requirements.txt
+      - name: 初始化私有研究工作目录
+        run: |
+          set -euo pipefail
+          umask 077
+          echo "RESEARCH_ROOT=$RUNNER_TEMP/dimension-stage1-private" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/dimension-stage1-private/raw" "$RUNNER_TEMP/dimension-stage1-private/normalized" "$RUNNER_TEMP/dimension-stage1-private/state" "$RUNNER_TEMP/dimension-stage1-private/reports"
+      - name: 从公开源真实取数并跨进程核SHA/导入历史
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 collector/sources/scrapling_archive.py \
+            --source openligadb-bl1-history --season 2025 --live \
+            --out-root "$RESEARCH_ROOT/raw" > "$RESEARCH_ROOT/scrapling-receipt.json"
+          RECORD_DIR=$(python3 -c 'import json,os;print(json.load(open(os.environ["RESEARCH_ROOT"]+"/scrapling-receipt.json"))["directory"])')
+          python3 collector/sources/scrapling_archive.py --verify "$RECORD_DIR" > "$RESEARCH_ROOT/raw-verification.json"
+          node collector/data/scrapling-history-bridge.mjs "$RECORD_DIR" \
+            "$RESEARCH_ROOT/normalized" > "$RESEARCH_ROOT/normalized-receipt.json"
+          node --input-type=module -e '
+            import {readFileSync,writeFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const root=process.env.RESEARCH_ROOT;
+            const source=JSON.parse(readFileSync(root+"/scrapling-receipt.json","utf8"));
+            const receipt=JSON.parse(readFileSync(root+"/normalized-receipt.json","utf8"));
+            const history=JSON.parse(readFileSync(receipt.outputFile,"utf8"));
+            assert.equal(source.receipt.observationMode,"LIVE_SOURCE_HTTP");
+            assert.equal(source.receipt.httpStatus,200);
+            assert.equal(receipt.rawSha256,history.rawSha256);
+            assert.equal(history.records.length,306);
+            assert.equal(history.historicalPregameObserved,false);
+            assert.equal(history.releaseGate,"BLOCKED");
+            writeFileSync(root+"/historical-input.json",JSON.stringify({history:history.records})+"\n",{mode:0o600});
+            console.log(JSON.stringify({stage1:"HISTORICAL_INPUT_VERIFIED",records:history.records.length,rawSha256:history.rawSha256}));
+          '
+      - name: 赛后结果私有入账（允许零前瞻评分，不偷换历史为胜率）
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          HISTORY_FILE="$RESEARCH_ROOT/historical-input.json" node collector/orchestrate.mjs \
+            --lane results --mode private-research --state "$RESEARCH_ROOT/state/state.json" \
+            --out "$RESEARCH_ROOT/reports" --budget-minutes 4 > "$RESEARCH_ROOT/results-console.log" 2>&1
+          outcome=$?
+          set -e
+          echo "$outcome" > "$RESEARCH_ROOT/results-exit.txt"
+          cat "$RESEARCH_ROOT/results-console.log"
+      - name: 真实未来赛程和内部研究预测（绝不发送发布通道）
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          node collector/orchestrate.mjs --lane fixtures --mode private-research \
+            --state "$RESEARCH_ROOT/state/state.json" --out "$RESEARCH_ROOT/reports" \
+            --budget-minutes 4 > "$RESEARCH_ROOT/fixtures-console.log" 2>&1
+          outcome=$?
+          set -e
+          echo "$outcome" > "$RESEARCH_ROOT/fixtures-exit.txt"
+          cat "$RESEARCH_ROOT/fixtures-console.log"
+      - name: 校验两条隔离通道与原始数据，再生成内部研究Web试验页
+        run: |
+          node scripts/stage1-private-research-report.mjs --root "$RESEARCH_ROOT" --commit "$COLLECTOR_COMMIT"
+      - name: 同一真实公开源与赛前冻结账本生成每日研究1X2和FT证据（不得发TG）
+        shell: bash
+        run: |
+          set -euo pipefail
+          node collector/research-daily-report.mjs --root "$RESEARCH_ROOT" > "$RESEARCH_ROOT/research-daily-console.json"
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { readFileSync } from "node:fs";
+            const root=process.env.RESEARCH_ROOT+"/reports";
+            const source=JSON.parse(readFileSync(root+"/predictions.json","utf8"));
+            const daily=JSON.parse(readFileSync(root+"/research-daily/latest.json","utf8"));
+            assert.equal(daily.kind,"research-daily-1x2");
+            assert.equal(daily.commercialReleaseGate,"BLOCKED");
+            assert.equal(daily.externalTelegramSent,false);
+            assert.equal(daily.strictMarkets.releasedCandidates,0);
+            const due=source.fixtures.filter(row=>{
+              if(row.forecast?.status!=="forecast")return false;
+              const lead=Date.parse(row.fixture.kickoff)-Date.parse(daily.generatedAt);
+              return lead>0 && lead<=36*3600_000
+                && Date.parse(row.forecast.freshness?.validUntil)>Date.parse(daily.generatedAt);
+            });
+            // Upcoming 4–6 day forecasts are genuine frozen research samples,
+            // but MUST NOT be mislabeled as current-day <=36-hour recommendations.
+            assert.equal(daily.forecasts.total,due.length);
+            assert.equal(daily.prospective.retainedFrozen,source.summary.forecasts);
+            assert.equal(daily.forecasts.skipped,source.summary.fixtures-due.length);
+            assert.equal(daily.sourceReportId,source.publication.reportId);
+            assert.equal(daily.prospective.thirtyDays.scored,0);
+            assert.match(daily.disclaimer,/非投注建议/);
+            console.log(JSON.stringify({research:"SAME_REPORT_REAL_SOURCE_FROZEN",sourceReportId:daily.sourceReportId,frozen:daily.forecasts.total,scored:daily.prospective.thirtyDays.scored,reportId:daily.reportId}));
+          '
+      - name: 归档阶段一全部证据（仅私有Actions附件，不发布Web/Telegram）
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stage1-private-research-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dimension-stage1-private/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
   release:
-    needs: [test, browser]
+    needs: [test, browser, scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

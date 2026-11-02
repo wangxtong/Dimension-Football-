@@ -8,6 +8,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { pbkdf2Sync, createHash } from 'node:crypto';
 import { loadReportBundle } from '../../collector/report-store.mjs';
+import { buildDailyResearchReport } from '../../collector/research-daily-report.mjs';
+import { createPredictionRecord } from '../../collector/prediction-ledger.mjs';
 import { NOW, ORIGIN, sampleBundle } from './fixtures.mjs';
 import { MemoryBucket, fakeKeys, machineRequest, stateFile, token } from './hosted-fixtures.mjs';
 
@@ -32,7 +34,8 @@ after(async () => { if (output) await rm(output, { recursive: true, force: true 
 
 function setup(now = NOW) {
   const env = { DASHBOARD_AUTH: JSON.stringify(auth), DASHBOARD_SESSION_SECRET: 'a2'.repeat(32), DASHBOARD_ORIGIN: ORIGIN,
-    HOSTED_PUBLICATION_ENABLED: 'true', BUCKET: new MemoryBucket(), REPORTS_PROBE_TOKEN: 'c3'.repeat(32) };
+    HOSTED_PUBLICATION_ENABLED: 'true', VANTIS_RESEARCH_WEB_ENABLED: 'true',
+    BUCKET: new MemoryBucket(), REPORTS_PROBE_TOKEN: 'c3'.repeat(32) };
   const keys = fakeKeys();
   const app = createDashboard(assets, { clock: () => now, fetchImpl: async (url, init) => {
     assert.equal(url, 'https://token.actions.githubusercontent.com/.well-known/jwks', 'No report or notification may use real network access in this test');
@@ -164,4 +167,125 @@ test('built Worker blocks actual collector forecasts but permits their redacted 
   assert.equal(served.reportHash, projected.reportHash); assert.equal(served.report.summary.forecasts, 0);
   assert.equal(served.report.summary.strictCandidates, 0); assert.equal(served.report.generatedAt, bundle.report.generatedAt);
   assert.equal(served.sourceData.openligadb.reportId, projected.reportId); assert.deepEqual(served.sourceData.openligadb.history, []);
+});
+
+
+test('research daily 1X2 stored behind session auth is independent of commercial publishing and TG', async () => {
+  const { env, call, visit, login, publish } = setup();
+  const nowISO = new Date(NOW).toISOString();
+  const report = buildDailyResearchReport({ ledger: { exists: true, events: [] }, nowISO, codeSha: 'a'.repeat(40) });
+  assert.equal(report.forecasts.total, 0);
+  assert.equal(report.prospective.thirtyDays.scored, 0);
+  assert.equal(report.commercialReleaseGate, 'BLOCKED');
+  assert.equal((await visit('/api/research-daily')).status, 401);
+  assert.equal((await visit('/internal/research-daily')).status, 401);
+  const uploaded = await call('/internal/research-daily', { method: 'POST', body: report });
+  assert.equal(uploaded.status, 200, await uploaded.clone().text());
+  assert.equal((await uploaded.json()).reportId, report.reportId);
+  assert.deepEqual(await (await call('/internal/research-daily')).json(), report);
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report })).status, 200);
+  const cookie = await login();
+  assert.deepEqual(await (await visit('/api/research-daily', cookie)).json(), report);
+  assert.equal((await visit('/research-daily.html', cookie)).status, 200);
+  assert.equal((await visit('/research-daily-client.mjs', cookie)).status, 200);
+  assert.equal((await publish(sampleBundle())).status, 409, 'Original release gate stays closed');
+  assert.equal(env.BUCKET.rows.size, 2, 'Separate report+pointer; no official publication created');
+  const forged = structuredClone(report);
+  forged.strictMarkets.releasedCandidates = 1;
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: forged })).status, 400);
+  const mixed = structuredClone(report);
+  mixed.forecasts.isPublishedRecommendation = true;
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: mixed })).status, 400);
+  assert.equal(env.BUCKET.rows.size, 2);
+});
+
+test('research report updates reject tampering, unknown machine, and stale inputs', async () => {
+  const { env, call } = setup();
+  const report = buildDailyResearchReport({ ledger: { exists: true, events: [] },
+    nowISO: new Date(NOW).toISOString(), codeSha: 'a'.repeat(40) });
+  const changed = structuredClone(report);
+  changed.disclaimer = '研究参考，非投注建议，但新增字段后没有更新哈希';
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: changed })).status, 409);
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report, bearer: token({ ref: 'refs/heads/feature' }) })).status, 401);
+  const future = structuredClone(report);
+  future.generatedAt = new Date(NOW + 3_600_000).toISOString();
+  const priorId = future.reportId; delete future.reportId;
+  future.reportId = createHash('sha256').update(JSON.stringify(future)).digest('hex');
+  assert.notEqual(future.reportId, priorId);
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: future })).status, 409);
+  assert.equal(env.BUCKET.rows.size, 0);
+});
+
+test('actual prematch prediction is displayed on research-only Web without a commercial release bypass', async () => {
+  const { call, visit, login, env } = setup();
+  const nowISO = new Date(NOW).toISOString();
+  const created = new Date(NOW - 3 * 60000).toISOString();
+  const registered = new Date(NOW - 60000).toISOString();
+  const kickoff = new Date(NOW + 12 * 3600000).toISOString();
+  const fixture = { id: 'source-match-98', source: 'openligadb', league: 'BL1',
+    home: '模拟俱乐部A', away: '模拟俱乐部B',
+    homeTeamId:'a', awayTeamId:'b', kickoff, season:'2026' };
+  const model = { id: 'venue-poisson-v2', version:2, calibrated:false };
+  const original = 'b'.repeat(64);
+  const forecast = { fixtureId:fixture.id, status:'forecast', generatedAt:created, trainingCutoff:created,
+    trainingHash:'c'.repeat(64), probabilities:{home:0.6,draw:0.2,away:0.2},
+    freshness:{validUntil:new Date(NOW+1800000).toISOString()} };
+  const frozen = createPredictionRecord({fixture,forecast,model,reportId:original,nowISO:registered});
+  const document = {kind:'prematch-forecast-report', simulated:false, generatedAt:nowISO,
+    publication:{reportId:original},fixtures:[{fixture,forecast}],summary:{fixtures:1,forecasts:1,strictCandidates:0}};
+  const report=buildDailyResearchReport({document,ledger:{exists:true,events:[{predictions:[frozen],results:[],opportunities:[]}]},
+    nowISO,codeSha:'f'.repeat(40)});
+  assert.equal(report.forecasts.total,1);
+  assert.equal(report.forecasts.candidates[0].probabilities.home,0.6);
+  assert.equal(report.sourceReportId,original);
+  const posting=await call('/internal/research-daily',{method:'POST',body:report});
+  assert.equal(posting.status,200,await posting.clone().text());
+  const cookie=await login();
+  const visible=await (await visit('/api/research-daily',cookie)).json();
+  assert.equal(visible.forecasts.candidates.length,1);
+  assert.equal(visible.forecasts.candidates[0].predictionId,frozen.predictionId);
+  assert.equal(visible.strictMarkets.releasedCandidates,0);
+  assert.equal(visible.externalTelegramSent,false);
+  assert.equal(env.BUCKET.rows.size,2);
+});
+
+test('A8 default-off Web switch prevents all research ingress, pages and stored readback without clearing unrelated data', async () => {
+  const { env, call, visit, login } = setup();
+  const nowISO = new Date(NOW).toISOString();
+  const report = buildDailyResearchReport({ ledger: { exists: true, events: [] }, nowISO, codeSha: 'a'.repeat(40) });
+  const cookie = await login();
+
+  delete env.VANTIS_RESEARCH_WEB_ENABLED;
+  for (const path of ['/internal/research-daily', '/api/research-daily', '/research-daily.html', '/research-daily-client.mjs']) {
+    const req = path.startsWith('/internal') ? call(path) : visit(path, cookie);
+    const disabled = await req;
+    assert.equal(disabled.status, 404, path + ' must fail closed without Site feature flag');
+    assert.equal((await disabled.json()).error, 'RESEARCH_WEB_DISABLED');
+  }
+  const blocked = await call('/internal/research-daily', { method: 'POST', body: report });
+  assert.equal(blocked.status, 404);
+  assert.equal(env.BUCKET.rows.size, 0, 'Default-off must not persist stale research input');
+  assert.equal((await visit('/', cookie)).status, 200);
+  assert.doesNotMatch(await (await visit('/', cookie)).text(), /href="\/research-daily.html"/);
+  env.VANTIS_RESEARCH_WEB_ENABLED = 'false';
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report })).status, 404);
+
+  env.VANTIS_RESEARCH_WEB_ENABLED = 'true';
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report })).status, 200);
+  assert.equal((await visit('/api/research-daily', cookie)).status, 200);
+  assert.equal(env.BUCKET.rows.size, 2);
+  assert.match(await (await visit('/', cookie)).text(), /href="\/research-daily.html"/);
+
+  // Disabling after a previously successful upload must revoke EVERY
+  // endpoint, even though the immutable report remains in storage.
+  env.VANTIS_RESEARCH_WEB_ENABLED = 'false';
+  for (const path of ['/internal/research-daily','/api/research-daily','/research-daily.html','/research-daily-client.mjs']) {
+    const response = path.startsWith('/internal') ? await call(path) : await visit(path, cookie);
+    assert.equal(response.status, 404, 'Existing Bucket state may never override disabled switch: '+path);
+  }
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report })).status, 404);
+  assert.equal(env.BUCKET.rows.size, 2, 'Emergency revoke does not rewrite historical evidence');
+  assert.equal((await visit('/api/report', cookie)).status !== 404, true, 'Original nonresearch route stays independent');
+  env.VANTIS_RESEARCH_WEB_ENABLED = 'true';
+  assert.deepEqual(await (await visit('/api/research-daily', cookie)).json(), report, 'Explicit reenable restores the same read-only report');
 });

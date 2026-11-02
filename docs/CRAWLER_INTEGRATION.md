@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | [Crawlee](https://github.com/apify/crawlee) | Apify 维护，Apache-2.0，支持浏览器池、资源调度与浏览器指纹配置；与 Node 项目一致 | `@crawlee/playwright` 固定 3.18.2；使用 PlaywrightCrawler，按来源外层策略限制重试 |
 | [Playwright](https://github.com/microsoft/playwright) | Microsoft 维护，Apache-2.0，提供 Chromium 自动化、页面 JavaScript 与隔离会话 | 固定 1.64.1；实际 Chromium 动态页面、Cookie/localStorage 恢复测试通过 |
-| [Scrapling](https://github.com/D4Vinci/Scrapling) | 活跃的 Python 项目，BSD-3-Clause；官方提供自适应选择器、会话与浏览器抓取能力 | 已评估，未安装或接入；本版避免同时维护第二套语言运行链路 |
+| [Scrapling](https://github.com/D4Vinci/Scrapling) | 活跃的 Python 项目，BSD-3-Clause；2026-10-17 v0.5，官方提供普通HTTP抓取、解析和浏览器扩展 | 新独立候选接入固定v0.5 HTTP Fetcher + 两个固定公开源、不可变SHA归档与独立Python CI；未进入生产自动采集，详见 [SCRAPLING_PUBLIC_ARCHIVE.md](SCRAPLING_PUBLIC_ARCHIVE.md) |
 
 官方能力参考：[Crawlee 介绍](https://crawlee.dev/js/docs/introduction)、[PlaywrightCrawler](https://crawlee.dev/js/api/playwright-crawler/class/PlaywrightCrawler)、[Playwright 授权状态复用](https://playwright.dev/docs/auth)、[Scrapling 文档](https://scrapling.readthedocs.io/en/latest/)。站点验证机制会变化，任何工具的功能介绍都不能替代针对该来源的实测。
 

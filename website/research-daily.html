@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>维度足球｜每日1X2研究预测</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{font:15px/1.65 system-ui,sans-serif;background:#0c151b;color:#ecf4f3;margin:0;padding:18px}
+main{max-width:1120px;margin:0 auto}a{color:#c1e6b3}header{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+h1{font-size:clamp(24px,5vw,34px);margin:20px 0 6px}h2{font-size:20px;margin:0 0 16px}p{margin:8px 0}
+.muted{color:#a5b9bd}.notice{border-left:4px solid #b5e08c;padding:10px 16px;background:#15261d}
+.panel{border:1px solid #324d49;background:#14252a;border-radius:12px;padding:22px;margin:20px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.metric{padding:15px;background:#102128;border-radius:9px}.metric b{display:block;font-size:28px;color:#c0e9b1}
+table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;border-bottom:1px solid #36504c;padding:9px}th{color:#b9d6cf}
+.scroll{overflow:auto}button{border:1px solid #709b83;background:#1a3d30;border-radius:6px;padding:10px 20px;color:white;cursor:pointer}
+.badge{color:#ddc98f}footer{font-size:13px;margin:24px 0;color:#a5b9bd}
+</style></head><body><main>
+<header><a href="/">← 维度足球 · 返回总览</a><button id="refresh" type="button">刷新研究日报</button></header>
+<h1>每日1X2研究预测</h1><p class="notice"><b>研究参考，非投注建议。</b> 模型概率尚未获得正式校准；不代表投注价值、确定性获胜或盈利建议。</p>
+<p class="muted" id="status" role="status" aria-live="polite">正在核验服务器上的研究报告…</p>
+<section class="panel"><h2>研究轨道 · 当日赛前冻结</h2><p id="meta"></p><p class="muted">下方仅显示实际赛前冻结并留存于不可变账本中的胜平负概率，不会根据赛后结果生成或修改预测。</p><div class="scroll"><table><thead><tr><th>联赛/球队</th><th>开赛（北京时间）</th><th>主胜</th><th>平局</th><th>客胜</th><th>研究方向</th></tr></thead><tbody id="forecast-rows"><tr><td colspan="6">读取中</td></tr></tbody></table></div></section>
+<section class="panel"><h2>真实前瞻赛后复盘</h2><div id="metrics" class="stats"></div><p class="muted">每日／7天／30天按北京时间的开赛日期统计；待FT、改期、无法验证的比赛不计入命中率。小样本只作描述，不给模型升级结论。</p><div class="scroll"><table><thead><tr><th>窗口</th><th>冻结</th><th>已评分</th><th>待FT</th><th>作废/无效</th><th>命中率</th><th>Brier</th><th>LogLoss</th></tr></thead><tbody id="results-rows"></tbody></table></div></section>
+<section class="panel"><h2>严格盘口（独立轨道）</h2><p>真实双独立来源＋供应商原生初盘，额外保留投注市场证据准入与独立复核；当前研究报告不发布任何严格盘口推荐。<strong>0场可以为0场。</strong></p></section>
+<footer>研究报告单独按 reportId 与SHA验证，原商业RELEASE_GATE不作为研究显示资格；对外正式预测、付费或投注推荐门禁未解除。当前历史回测不计入真实前瞻。</footer>
+<script type="module" src="/research-daily-client.mjs"></script></main></body></html>
