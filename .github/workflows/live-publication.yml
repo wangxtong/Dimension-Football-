@@ -52,6 +52,11 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: 恢复持久状态、分层采集并核验原站点（最多 3 分钟）
+        # 没有 football-data 凭据时采集会退化成 openligadb + thesportsdb 免费样本，
+        # 而研究冻结与结算都以 football-data 同源为准；缺这个 env 等于整条研究链路空转。
+        env:
+          FOOTBALL_DATA_API_TOKEN: ${{ secrets.FOOTBALL_DATA_API_TOKEN }}
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
         run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-live" --budget-minutes 3 --mode "$HOSTED_MODE"
       - name: 研究轨道生成每日1X2冻结快照和真实FT复盘（不触发正式预测外发）
         if: success() && env.HOSTED_MODE == 'research'
