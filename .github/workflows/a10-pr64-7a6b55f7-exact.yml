@@ -1,0 +1,128 @@
+name: A10 independent exact-SHA audit 7a6b55f7
+on:
+  push:
+    branches:
+      - audit/a10-pr64-7a6b55f7-clean-20261102
+permissions:
+  contents: read
+jobs:
+  independently-reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - name: Fresh exact target checkout, not source PR cache
+        uses: actions/checkout@v6
+        with:
+          ref: 7a6b55f71e3150fa3e2d7bf8f632229decc967aa
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Confirm immutable commit and clean worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "7a6b55f71e3150fa3e2d7bf8f632229decc967aa"
+          test -z "$(git status --porcelain)"
+          mkdir -p "$RUNNER_TEMP/a10-evidence"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/a10-evidence/target-sha.txt"
+          git status --porcelain > "$RUNNER_TEMP/a10-evidence/status-before.txt"
+          git show -s --format=fuller HEAD > "$RUNNER_TEMP/a10-evidence/commit-metadata.txt"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Recreate fixed test fixtures from target source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/restore-report-fixture.mjs --out "$RUNNER_TEMP/a10-real-report"
+          node scripts/restore-openfootball-fixture.mjs --out "$RUNNER_TEMP/a10-fixed"
+      - name: Unmodified full Node suite, capture original stdout and exact exit
+        shell: bash
+        run: |
+          export EVALUATION_TEST_REPORT_DIRECTORY="$RUNNER_TEMP/a10-real-report"
+          export HOSTED_TEST_REPORT_DIRECTORY="$RUNNER_TEMP/a10-real-report"
+          export OPENFOOTBALL_SNAPSHOT_DIRECTORY="$RUNNER_TEMP/a10-fixed"
+          set +e
+          npm test > "$RUNNER_TEMP/a10-evidence/node-full.log" 2>&1
+          code=$?
+          echo "$code" > "$RUNNER_TEMP/a10-evidence/node-exit.txt"
+          grep -E 'ℹ (tests|pass|fail|skipped)|✖ failing tests|AssertionError|HISTORY_' "$RUNNER_TEMP/a10-evidence/node-full.log" | tail -35 || true
+          echo "A10_NODE_EXIT=$code"
+          exit 0
+      - name: Original Python tests and independent source-test discovery
+        shell: bash
+        run: |
+          set +e
+          python3 -m unittest scripts/test_package.py > "$RUNNER_TEMP/a10-evidence/python-package.log" 2>&1
+          echo "$?" > "$RUNNER_TEMP/a10-evidence/python-package-exit.txt"
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest deploy/test_bundle.py deploy/test_handoff.py > "$RUNNER_TEMP/a10-evidence/python-deploy.log" 2>&1
+          echo "$?" > "$RUNNER_TEMP/a10-evidence/python-deploy-exit.txt"
+          python3 -m unittest discover -s collector/sources/test -p 'test_*.py' -v > "$RUNNER_TEMP/a10-evidence/python-source-discovery.log" 2>&1
+          echo "$?" > "$RUNNER_TEMP/a10-evidence/python-source-exit.txt"
+          tail -7 "$RUNNER_TEMP/a10-evidence/python-package.log" || true
+          tail -7 "$RUNNER_TEMP/a10-evidence/python-deploy.log" || true
+          tail -7 "$RUNNER_TEMP/a10-evidence/python-source-discovery.log" || true
+          exit 0
+      - name: Independently exercise real adapter functions with controlled transport
+        shell: bash
+        run: |
+          set +e
+          node --input-type=module > "$RUNNER_TEMP/a10-evidence/independent-probes.log" 2>&1 <<'JSAUDIT'
+          import assert from 'node:assert/strict';
+          import {fetchApiFootballHistoricalMonth} from './collector/sources/api-football-historical.mjs';
+          const nowISO='2026-11-02T03:00:00.000Z';
+          const args={league:'PL',season:2023,from:'2023-10-01',to:'2023-10-31',nowISO,apiKey:'A10_SYNTHETIC_KEY'};
+          const payload={get:'fixtures',errors:[],results:1,paging:{current:1,total:1},response:[{
+            fixture:{id:123456,date:'2023-10-12T16:00:00+00:00',timestamp:1697126400,status:{short:'FT'}},
+            league:{id:39,season:2023},teams:{home:{id:1,name:'Home'},away:{id:2,name:'Away'}},
+            goals:{home:2,away:1},score:{fulltime:{home:2,away:1}}
+          }]};
+          const raw=Buffer.from(JSON.stringify(payload));
+          const complete='2026-11-02T03:00:08.000Z';
+          let closed=false;
+          const body=new ReadableStream({start(c){c.enqueue(raw);},pull(c){c.close();closed=true;}});
+          const response={ok:true,status:200,headers:new Headers({Date:new Date(complete).toUTCString()}),body};
+          const result=await fetchApiFootballHistoricalMonth({...args,fetchImpl:async()=>response,clock:()=>{
+            assert.equal(closed,true,'must finish stream before sampling');return complete;
+          }});
+          assert.equal(result.sourceRequestStartedAt,nowISO);
+          assert.equal(result.sourceFetchedAt,complete);
+          assert.equal(result.httpStatus,200);
+          console.log('PASS completion after stream and status200 at real adapter entrypoint');
+          for(const t of ['2026-11-02T02:59:59.000Z','2026-11-02T03:01:01.000Z']){
+            await assert.rejects(fetchApiFootballHistoricalMonth({...args,clock:()=>t,
+              fetchImpl:async()=>new Response(raw,{status:200,headers:{Date:new Date(nowISO).toUTCString()}})
+            }),e=>e.code==='HISTORY_OBSERVATION_CLOCK_INVALID');
+            console.log('PASS clock negative '+t);
+          }
+          await assert.rejects(fetchApiFootballHistoricalMonth({...args,
+            fetchImpl:async()=>new Response('{}',{status:403})
+          }),e=>e.code==='HISTORY_PLAN_DENIED' && e.httpStatus===403);
+          console.log('PASS 403 permission status and reason');
+          await assert.rejects(fetchApiFootballHistoricalMonth({...args,
+            fetchImpl:async()=>new Response(raw,{status:200,headers:{Date:'Wed, 01 Jan 2020 00:00:00 GMT'}})
+          }),e=>e.code==='HISTORY_OBSERVATION_CLOCK_INVALID');
+          console.log('PASS stale Date old fixture actually rejects at observation clock stage');
+          console.log('INDEPENDENT_PROBES_PASSED=5');
+          JSAUDIT
+          code=$?
+          echo "$code" > "$RUNNER_TEMP/a10-evidence/independent-probes-exit.txt"
+          tail -25 "$RUNNER_TEMP/a10-evidence/independent-probes.log"
+          exit 0
+      - name: Preserve raw results, hashes and test exit codes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: A10-PR64-7a6b55f7-exact-clean
+          path: ${{ runner.temp }}/a10-evidence/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Fail audit if full target suite or probes fail
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in node python-package python-deploy python-source independent-probes; do
+            code=$(cat "$RUNNER_TEMP/a10-evidence/$f-exit.txt")
+            echo "$f=$code"
+            test "$code" = "0"
+          done
