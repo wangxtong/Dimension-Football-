@@ -113,3 +113,18 @@ test('real persisted ledger is re-read independently and emits immutable-identif
   assert.equal(reopened.forecasts.total, 1);
   assert.equal(reopened.researchGate, 'INDEPENDENT_OF_COMMERCIAL');
 });
+
+test('four-to-six-day archived genuine freezes count as prospective samples but not todays 36h selection', async t => {
+  const root=await workspace(t),directory=join(root,'forecast-ledger');
+  const future={...fixture,kickoff:'2026-11-08T14:30:00.000Z'};
+  await appendPrediction({directory,fixture:future,forecast,model,reportId:REPORT,nowISO:NOW});
+  const ledger=await readPredictionLedger({directory});
+  const study=buildDailyResearchReport({document:{...doc,fixtures:[{fixture:future,forecast}]},
+    ledger,nowISO:NOW_PLUS,codeSha:SHA});
+  assert.equal(study.state,'zero-qualified-forecasts');
+  assert.equal(study.forecasts.total,0);
+  assert.equal(study.forecasts.skipped,1);
+  assert.equal(study.prospective.retainedFrozen,1);
+  assert.equal(study.prospective.oneDay.scored,0);
+  assert.equal(study.prospective.sevenDays.scored,0);
+});

@@ -258,7 +258,17 @@ jobs:
             assert.equal(daily.commercialReleaseGate,"BLOCKED");
             assert.equal(daily.externalTelegramSent,false);
             assert.equal(daily.strictMarkets.releasedCandidates,0);
-            assert.equal(daily.forecasts.total,source.summary.forecasts);
+            const due=source.fixtures.filter(row=>{
+              if(row.forecast?.status!=="forecast")return false;
+              const lead=Date.parse(row.fixture.kickoff)-Date.parse(daily.generatedAt);
+              return lead>0 && lead<=36*3600_000
+                && Date.parse(row.forecast.freshness?.validUntil)>Date.parse(daily.generatedAt);
+            });
+            // Upcoming 4–6 day forecasts are genuine frozen research samples,
+            // but MUST NOT be mislabeled as today's <=36-hour recommendations.
+            assert.equal(daily.forecasts.total,due.length);
+            assert.equal(daily.prospective.retainedFrozen,source.summary.forecasts);
+            assert.equal(daily.forecasts.skipped,source.summary.fixtures-due.length);
             assert.equal(daily.sourceReportId,source.publication.reportId);
             assert.equal(daily.prospective.thirtyDays.scored,0);
             assert.match(daily.disclaimer,/非投注建议/);
