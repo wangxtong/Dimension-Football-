@@ -24,7 +24,9 @@ on:
       - '.github/workflows/live-publication.yml'
 
 permissions:
-  contents: read
+  # 降级通道需要把最近一期研究日报提交到 docs/latest-daily.md；
+  # 这是本仓库内唯一用途，不放宽其它权限。
+  contents: write
   id-token: write
 
 concurrency:
@@ -83,6 +85,28 @@ jobs:
         with:
           path: ${{ runner.temp }}/tg-sent
           key: tg-sent-${{ steps.bjday.outputs.day }}
+
+      - name: 同步最近一期研究日报到仓库页面（Web 不可用时的降级通道）
+        # 线上 Worker 若未发布含 /internal/research-daily 的版本，Web 看板会一直 405；
+        # 这里把同一份 latest.md 提交到 docs/latest-daily.md，用户可在 GitHub 页面直接查看。
+        # 用 [skip ci] 避免自触发；内容未变则不提交；push 失败不阻断主流程。
+        continue-on-error: true
+        if: always() && env.HOSTED_MODE == 'research'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          SRC="$RUNNER_TEMP/dimension-live/reports/research-daily/latest.md"
+          [ -f "$SRC" ] || { echo "NO_REPORT"; exit 0; }
+          mkdir -p docs
+          cp "$SRC" docs/latest-daily.md
+          if git diff --quiet -- docs/latest-daily.md; then echo "UNCHANGED"; exit 0; fi
+          git config user.name "dimension-agent"
+          git config user.email "agent@dsh.local"
+          git add docs/latest-daily.md
+          git commit -m "chore: 更新最近一期研究日报（降级通道）[skip ci]"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin HEAD:main || echo "PUSH_FAILED_DOWNGRADE_CHANNEL"
       - name: 研究日报推送到Telegram（所有者授权的个人研究用途；严格候选与商业门禁保持BLOCKED）
         # Telegram 是独立通道：Web 同步失败（如线上 Worker 版本落后）不应连带阻断每日推送。
         # 幂等：receipt 在 $RUNNER_TEMP 里无法跨 runner 存活，10:10 与 10:40 补偿轮会各发一次；
