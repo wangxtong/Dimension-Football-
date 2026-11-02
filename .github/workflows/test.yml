@@ -125,6 +125,32 @@ jobs:
           (root / 'verified.json').write_text(json.dumps(public, sort_keys=True)+'\n')
           print(json.dumps(public, sort_keys=True))
           PY
+      - name: Node A3数据层跨语言读入同一真实RAW并核resultId
+        run: |
+          set -euo pipefail
+          INPUT_DIRECTORY=$(python3 -c "import json,os; from pathlib import Path; p=Path(os.environ['RUNNER_TEMP'])/'scrapling-evidence/first-run.json'; print(json.loads(p.read_text())['directory'])")
+          mkdir -p "$RUNNER_TEMP/scrapling-evidence/normalized"
+          node collector/data/scrapling-history-bridge.mjs \
+            "$INPUT_DIRECTORY" "$RUNNER_TEMP/scrapling-evidence/normalized" \
+            > "$RUNNER_TEMP/scrapling-evidence/node-import-receipt.json"
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import assert from "node:assert/strict";
+            const dir = process.env.RUNNER_TEMP + "/scrapling-evidence/";
+            const receipt = JSON.parse(readFileSync(dir+"node-import-receipt.json", "utf8"));
+            const batch = JSON.parse(readFileSync(receipt.outputFile, "utf8"));
+            const source = JSON.parse(readFileSync(dir+"verified.json", "utf8"));
+            assert.equal(receipt.status, "RESEARCH_HISTORICAL_RAW_IMPORTED");
+            assert.equal(receipt.rawSha256, source.rawSha256);
+            assert.equal(batch.coverage.scoredFT, 306);
+            assert.equal(batch.records.length, 306);
+            assert.equal(batch.releaseGate, "BLOCKED");
+            assert.equal(batch.modelReadyForProspective, false);
+            assert.equal(batch.historicalPregameObserved, false);
+            console.log(JSON.stringify({status:"REAL_SCRAPLING_TO_NODE_HISTORY_BRIDGE_E2",
+              rawSha256:receipt.rawSha256,normalizedSha256:receipt.batchSha256,
+              records:receipt.records, releaseGate:receipt.releaseGate}));
+          '
       - name: 私有保存本轮原始RAW与二次验真收据（非永久生产存储）
         uses: actions/upload-artifact@v7
         if: always()
