@@ -8,6 +8,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { pbkdf2Sync, createHash } from 'node:crypto';
 import { loadReportBundle } from '../../collector/report-store.mjs';
+import { buildDailyResearchReport } from '../../collector/research-daily-report.mjs';
 import { NOW, ORIGIN, sampleBundle } from './fixtures.mjs';
 import { MemoryBucket, fakeKeys, machineRequest, stateFile, token } from './hosted-fixtures.mjs';
 
@@ -164,4 +165,48 @@ test('built Worker blocks actual collector forecasts but permits their redacted 
   assert.equal(served.reportHash, projected.reportHash); assert.equal(served.report.summary.forecasts, 0);
   assert.equal(served.report.summary.strictCandidates, 0); assert.equal(served.report.generatedAt, bundle.report.generatedAt);
   assert.equal(served.sourceData.openligadb.reportId, projected.reportId); assert.deepEqual(served.sourceData.openligadb.history, []);
+});
+
+
+test('research daily 1X2 stored behind session auth is independent of commercial publishing and TG', async () => {
+  const { env, call, visit, login, publish } = setup();
+  const nowISO = new Date(NOW).toISOString();
+  const report = buildDailyResearchReport({ ledger: { exists: true, events: [] }, nowISO, codeSha: 'a'.repeat(40) });
+  assert.equal(report.forecasts.total, 0);
+  assert.equal(report.prospective.thirtyDays.scored, 0);
+  assert.equal(report.commercialReleaseGate, 'BLOCKED');
+  assert.equal((await visit('/api/research-daily')).status, 401);
+  assert.equal((await visit('/internal/research-daily')).status, 401);
+  const uploaded = await call('/internal/research-daily', { method: 'POST', body: report });
+  assert.equal(uploaded.status, 200, await uploaded.clone().text());
+  assert.equal((await uploaded.json()).reportId, report.reportId);
+  assert.deepEqual(await (await call('/internal/research-daily')).json(), report);
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report })).status, 200);
+  const cookie = await login();
+  assert.deepEqual(await (await visit('/api/research-daily', cookie)).json(), report);
+  assert.equal((await visit('/research-daily.html', cookie)).status, 200);
+  assert.equal((await visit('/research-daily-client.mjs', cookie)).status, 200);
+  assert.equal((await publish(sampleBundle())).status, 409, 'Original release gate stays closed');
+  assert.equal(env.BUCKET.rows.size, 2, 'Separate report+pointer; no official publication created');
+  const forged = structuredClone(report);
+  forged.strictMarkets.releasedCandidates = 1;
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: forged })).status, 400);
+  const mixed = structuredClone(report);
+  mixed.forecasts.isPublishedRecommendation = true;
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: mixed })).status, 400);
+  assert.equal(env.BUCKET.rows.size, 2);
+});
+
+test('research report updates reject tampering, unknown machine, and stale inputs', async () => {
+  const { env, call } = setup();
+  const report = buildDailyResearchReport({ ledger: { exists: true, events: [] },
+    nowISO: new Date(NOW).toISOString(), codeSha: 'a'.repeat(40) });
+  const changed = structuredClone(report);
+  changed.disclaimer = '研究参考，非投注建议，但新增字段后没有更新哈希';
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: changed })).status, 409);
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: report, bearer: token({ ref: 'refs/heads/feature' }) })).status, 401);
+  const future = structuredClone(report);
+  future.generatedAt = new Date(NOW + 3_600_000).toISOString();
+  assert.equal((await call('/internal/research-daily', { method: 'POST', body: future })).status, 400);
+  assert.equal(env.BUCKET.rows.size, 0);
 });
