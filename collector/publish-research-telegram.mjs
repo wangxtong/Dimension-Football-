@@ -269,39 +269,25 @@ export function richHtml(report) {
     '⚠️ 研究参考，非投注建议｜时间均为北京时间'];
   const candidates = report.forecasts.candidates || [];
   if (candidates.length) {
-    // 手机竖屏放不下 9 列：拆成「胜平负」和「进球比分」两张窄表，避免右侧被裁切。
-    lines.push('', '<table bordered striped compact>', '<caption>胜平负（研究参考）</caption>',
-      '<tr><th>联赛</th><th>赛事</th><th>主</th><th>平</th><th>客</th></tr>');
+    // 手机竖屏放不下任何多列比赛表（实测 5 列仍需左右滑）：赛事信息改成
+    // 「一场一块」的富文本卡片，每行都很短，永不横向滚动；只有 FT 核账这种
+    // 短数字表继续用 table。
     for (const row of candidates) {
       const p = row.probabilities || {};
-      lines.push('<tr><td>' + esc(LEAGUE_CN[row.league] || row.league) + '</td>'
-        + '<td>' + esc(teamName(row.home) + ' vs ' + teamName(row.away)) + '</td>'
-        + '<td>' + pctValue(p.home) + '</td><td>' + pctValue(p.draw) + '</td><td>' + pctValue(p.away) + '</td></tr>');
-    }
-    lines.push('</table>');
-    lines.push('', '<table bordered striped compact>', '<caption>进球 · 大小球 · 比分</caption>',
-      '<tr><th>赛事</th><th>开球</th><th>进球</th><th>大小</th><th>比分</th></tr>');
-    for (const row of candidates) {
       const eg = row.expectedGoals;
       const goals = eg && Number.isFinite(eg.home) && Number.isFinite(eg.away) ? eg.home + eg.away : null;
       const scores = Array.isArray(row.topScores) ? row.topScores.map(s => s.home + ':' + s.away).join(' ') : '';
-      lines.push('<tr><td>' + esc(teamName(row.home)) + '</td>'
-        + '<td>' + esc(beijingShort(row.kickoff).slice(6)) + '</td>'
-        + '<td>' + (eg ? eg.home.toFixed(1) + ':' + eg.away.toFixed(1) : '—') + '</td>'
-        + '<td>' + (goals === null ? '—' : (goals >= 2.5 ? '大2.5' : '小2.5')) + '</td>'
-        + '<td>' + esc(scores || '—') + '</td></tr>');
-    }
-    lines.push('</table>');
-    const weatherRows = candidates.filter(row => row.weather && row.weather.status === 'ok');
-    if (weatherRows.length) {
-      lines.push('', '<table bordered compact>', '<caption>开球时段天气</caption>',
-        '<tr><th>赛事</th><th>天气</th><th>城市</th></tr>');
-      for (const row of weatherRows) {
-        lines.push('<tr><td>' + esc(teamName(row.home)) + '</td>'
-          + '<td>' + esc(weatherNarrow(row) || '—') + '</td>'
-          + '<td>' + esc(row.venue ? cityName(row.venue.city) || '—' : '—') + '</td></tr>');
-      }
-      lines.push('</table>');
+      lines.push('');
+      lines.push('<b>⚽ ' + esc((LEAGUE_CN[row.league] || row.league) + ' · ' + beijingShort(row.kickoff).slice(6)) + '</b>');
+      lines.push(esc(teamName(row.home) + ' vs ' + teamName(row.away)));
+      lines.push('主' + pctValue(p.home) + ' 平' + pctValue(p.draw) + ' 客' + pctValue(p.away));
+      if (eg) lines.push('进球 ' + eg.home.toFixed(1) + ':' + eg.away.toFixed(1)
+        + ' · ' + (goals === null ? '—' : (goals >= 2.5 ? '大2.5' : '小2.5')));
+      if (scores) lines.push('比分 ' + esc(scores));
+      const weather = weatherNarrow(row);
+      if (weather) lines.push('🌦 ' + esc(weather));
+      const city = row.venue ? cityName(row.venue.city) : null;
+      if (city) lines.push('📍 ' + esc(city));
     }
   } else {
     lines.push('', '本轮没有符合赛前冻结条件的研究预测，不补场。');
