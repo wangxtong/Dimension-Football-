@@ -58,7 +58,9 @@ jobs:
         if: success() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_WEB_ENABLED == 'true'
         run: node collector/publish-research-daily.mjs --root "$RUNNER_TEMP/dimension-live"
       - name: 研究日报推送到Telegram（所有者授权的个人研究用途；严格候选与商业门禁保持BLOCKED）
-        if: success() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_TELEGRAM_ENABLED == 'true'
+        # Telegram 是独立通道：Web 同步失败（如线上 Worker 版本落后）不应连带阻断每日推送，
+        # 只要研究日报本身生成成功就发；报告未生成时该步骤会因文件缺失自然失败。
+        if: always() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_TELEGRAM_ENABLED == 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
