@@ -182,15 +182,27 @@ export function renderDailyResearchMarkdown(report) {
   lines.push('', '天气：Open-Meteo 免费接口（CC-BY-4.0），取开球整点（UTC）预报，按主队所在城市坐标获取；'
     + '查不到坐标显示“—”，不猜测、不插值。天气仅是展示附件，不参与概率、预期进球、大小球或比分计算。', '',
     '## 真实前瞻FT核账（每场只计一次）', '',
-    '| 窗口 | 冻结场数 | 已评分 | 待FT | 无效/作废 | 命中率 | Brier | LogLoss |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
+    '| 窗口 | 冻结场数 | 已评分 | 待FT | 无效/作废 | 命中率 | Brier | LogLoss | 样本状态 |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |');
   for (const row of [report.prospective.oneDay, report.prospective.sevenDays, report.prospective.thirtyDays])
     lines.push('| ' + row.days + '日 | ' + row.eligibleFrozen + ' | ' + row.scored + ' | '
       + row.pending + ' | ' + row.voided + ' | ' + pct(row.hitRate) + ' | '
       + (row.brier === null ? '—' : row.brier.toFixed(4)) + ' | '
-      + (row.logLoss === null ? '—' : row.logLoss.toFixed(4)) + ' |');
+      + (row.logLoss === null ? '—' : row.logLoss.toFixed(4)) + ' | '
+      + (row.sampleStatus === 'insufficient-prospective-sample' ? '不足30场（仅描述性）' : '≥30场（仅描述性）') + ' |');
   lines.push('', '说明：历史回测、模拟数据、赛后补造预测均不得计入真实前瞻。不同模型版本合并总体仅作描述性统计；若真实评分不足30场不作优劣结论。', '');
   return lines.join('\n');
+}
+// One stable machine-readable summary for CI logs and evidence, so the settled
+// 1/7/30-day numbers are visible even when the workflow only checks the exit code.
+export function dailyReportSummary(report) {
+  const window = row => row && ({ scored: row.scored, pending: row.pending, hitRate: row.hitRate,
+    brier: row.brier, logLoss: row.logLoss, sampleStatus: row.sampleStatus });
+  return { kind: report.kind, state: report.state, reportId: report.reportId,
+    frozen: report.forecasts.total, retainedFrozen: report.prospective.retainedFrozen,
+    oneDay: window(report.prospective.oneDay), sevenDays: window(report.prospective.sevenDays),
+    thirtyDays: window(report.prospective.thirtyDays),
+    commercialReleaseGate: report.commercialReleaseGate, telegramSent: report.externalTelegramSent };
 }
 export async function produceDailyResearchReport({ root, nowISO = new Date().toISOString(), codeSha = process.env.GITHUB_SHA } = {}) {
   if (!root) throw new Error('RESEARCH_ROOT_REQUIRED');
@@ -224,9 +236,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   } else {
     try {
       const value = await produceDailyResearchReport({ root: argv[1] });
-      console.log(JSON.stringify({ kind: value.kind, state: value.state, reportId: value.reportId,
-        frozen: value.forecasts.total, scored30Days: value.prospective.thirtyDays.scored,
-        commercialReleaseGate: value.commercialReleaseGate, telegramSent: value.externalTelegramSent }));
+      console.log(JSON.stringify(dailyReportSummary(value)));
     } catch(error) {
       console.error('RESEARCH_DAILY_REPORT_FAILED: ' + (/^RESEARCH_|^LEDGER_|^INVALID_/.test(error?.message || '') ? error.message : 'UNVERIFIED_INPUT'));
       process.exitCode = 1;
