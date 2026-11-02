@@ -33,6 +33,9 @@ export function allowedStatePath(path) {
   if (typeof path !== 'string' || path.length > 300 || path.includes('\\') || path.split('/').some(p => !p || p === '.' || p === '..' || PRIVATE_NAME.test(p))) return false;
   if (/^state\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\.json$/.test(path)) return true;
   if (path.startsWith('reports/') && TOP_REPORTS.has(path.slice(8))) return true;
+  // 研究日报与它的 Telegram 回执必须随 state 跨 runner 存活：否则每个新 runner 都是空回执，
+  // 同一天被 schedule 补偿重跑时会重复推送。
+  if (/^reports\/research-daily\/(?:latest|telegram-receipt)\.(?:json|md)$/.test(path)) return true;
   return /^reports\/forecast-ledger\/[a-f0-9]{64}\/(?:predictions|results|scores|opportunities)\/[a-f0-9]{64}\.json$/.test(path)
     || /^reports\/replays\/[a-f0-9]{64}\/(?:run-inputs|run-manifest)\.json$/.test(path)
     || path === 'reports/.delivery/current.json'
@@ -42,6 +45,7 @@ function allowedDirectory(path, currentId) {
   if (path.length > 300) return false;
   if (path === 'state' || /^state\/(?:[A-Za-z0-9_-]+\/?)+$/.test(path)) return !path.split('/').some(p => PRIVATE_NAME.test(p));
   if (['reports','reports/forecast-ledger','reports/replays','reports/.delivery','reports/.delivery/reports'].includes(path)) return true;
+  if (path === 'reports/research-daily') return true;
   return /^reports\/forecast-ledger\/[a-f0-9]{64}(?:\/(?:predictions|results|scores|opportunities))?$/.test(path)
     || /^reports\/replays\/[a-f0-9]{64}$/.test(path)
     || currentId && path === `reports/.delivery/reports/${currentId}`;
