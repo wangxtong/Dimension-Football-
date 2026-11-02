@@ -304,7 +304,21 @@ export async function settledToday({ root, beijingDay, limit = 8 } = {}) {
   } catch { return []; }
 }
 
-export function richHtml(report, settled = []) {
+// 窗口内 0 场时（例如国际比赛日），告诉用户下一批已冻结场次是什么时候，避免"没内容"的感觉。
+export async function upcoming({ root, limit = 3 } = {}) {
+  try {
+    const doc = await readJson(resolve(root, 'reports/predictions.json'), 4_000_000);
+    const now = Date.now();
+    return (doc?.fixtures || [])
+      .filter(row => row?.forecast?.status === 'forecast' && Number.isFinite(Date.parse(row?.fixture?.kickoff))
+        && Date.parse(row.fixture.kickoff) > now)
+      .sort((a, b) => Date.parse(a.fixture.kickoff) - Date.parse(b.fixture.kickoff))
+      .slice(0, limit)
+      .map(row => ({ kickoff: row.fixture.kickoff, league: row.fixture.league, home: row.fixture.home, away: row.fixture.away }));
+  } catch { return []; }
+}
+
+export function richHtml(report, settled = [], next = []) {
   const total = report.forecasts.total;
   const lines = ['<b>🏟 维度足球 · 每日 1X2 研究参考</b>',
     '📅 ' + esc(report.beijingDay) + '｜冻结 ' + total + ' 场｜严格盘口 0 场' + settleSuffix(report),
@@ -348,6 +362,13 @@ export function richHtml(report, settled = []) {
     for (const row of settled) {
       lines.push((row.hit ? '✅ ' : '❌ ') + esc(teamName(row.home) + ' vs ' + teamName(row.away)) + ' '
         + esc(row.score) + '｜' + esc(row.pick) + '→' + esc(row.actual));
+    }
+  }
+  if (Array.isArray(next) && next.length) {
+    lines.push('', '<b>📅 接下来（已冻结）</b>');
+    for (const row of next) {
+      lines.push('· ' + esc(beijingShort(row.kickoff)) + ' ' + esc((LEAGUE_CN[row.league] || row.league) + ' '
+        + teamName(row.home) + ' vs ' + teamName(row.away)));
     }
   }
   lines.push('', 'ℹ️ 回测与模拟数据不计入前瞻',
@@ -430,7 +451,8 @@ export async function publishResearchTelegram({ root, env = process.env, fetchIm
   try {
     // 优先富文本（真正的表格），失败才退回纯文本；任一成功都算送达，不重复发送。
     const settled = await settledToday({ root, beijingDay: report.beijingDay });
-    const rich = await post('sendRichMessage', { chat_id: chatId, rich_message: { html: richHtml(report, settled) } });
+    const next = await upcoming({ root });
+    const rich = await post('sendRichMessage', { chat_id: chatId, rich_message: { html: richHtml(report, settled, next) } });
     if (rich.ok && rich.data && rich.data.ok === true) result = accept(rich, 'rich');
     else {
       const plain = await post('sendMessage', { chat_id: chatId, text: telegramText(report),
