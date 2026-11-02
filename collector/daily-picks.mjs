@@ -32,10 +32,11 @@ export const settleHandicap = settleHhad;
 // 尤其不能用1X2的“平局”概率代替让球平。
 export function pickSide({ probabilities, goalLine } = {}) {
   if (!probabilities || !Number.isInteger(goalLine)) return null;
-  const home = Number(probabilities.home), draw = Number(probabilities.draw), away = Number(probabilities.away);
-  if (![home, draw, away].every(v => Number.isFinite(v) && v >= 0)) return null;
+  const home = probabilities.home, draw = probabilities.draw, away = probabilities.away;
+  // Number(null) and Number('') are zero; neither is a genuine model probability.
+  if (![home, draw, away].every(v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1)) return null;
   const total = home + draw + away;
-  if (!(total > 0)) return null;
+  if (!(total > 0) || Math.abs(total - 1) > 0.01) return null;
   const h = home / total, d = draw / total, a = away / total;
   let homeProxy = h, awayProxy = a;
   if (goalLine < 0) homeProxy = h - d * 0.5;
@@ -132,9 +133,16 @@ export function settleDailyPicks({ picks = [], results = [] } = {}) {
       || !Number.isFinite(kickoff) || !Number.isFinite(frozenAt)
       || !Number.isFinite(modelAt) || !Number.isFinite(sourceQuoteAt) || !Number.isFinite(quoteObservedAt)
       || !(modelAt <= quoteObservedAt && sourceQuoteAt <= quoteObservedAt
-        && quoteObservedAt <= frozenAt && frozenAt < kickoff && kickoff <= resultAt)
-      || r.home && r.home !== p.home || r.away && r.away !== p.away) { invalid++; continue; }
+        && quoteObservedAt <= frozenAt && frozenAt < kickoff && kickoff + 90 * 60000 <= resultAt)
+      // Source identity cannot be optional: a same-numbered match from another feed
+      // or a postponed match with a changed kickoff must not settle this freeze.
+      || typeof r.home !== 'string' || r.home !== p.home
+      || typeof r.away !== 'string' || r.away !== p.away
+      || typeof r.kickoff !== 'string' || Date.parse(r.kickoff) !== kickoff) { invalid++; continue; }
     const decimalOdds = p.handicap[p.pick.side];
+    // Price chosen at freeze time must still match its frozen market-side quote.
+    // This is an internal consistency check, not yet an immutable RAW proof.
+    if (p.pick.decimalOdds !== decimalOdds) { invalid++; continue; }
     const settled = settleHhad({ homeGoals: r.homeGoals, awayGoals: r.awayGoals,
       goalLine: p.handicap.goalLine, selection: p.pick.side, decimalOdds });
     if (!settled) { invalid++; continue; }
