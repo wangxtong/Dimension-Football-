@@ -363,8 +363,13 @@ export function richHtml(report, settled = [], next = []) {
   if (Array.isArray(settled) && settled.length) {
     lines.push('', '<b>🧾 近 1 日结算</b>');
     for (const row of settled) {
-      lines.push((row.hit ? '✅ ' : '❌ ') + esc(teamName(row.home) + ' vs ' + teamName(row.away)) + ' '
-        + esc(row.score) + '｜' + esc(row.pick) + '→' + esc(row.actual));
+      // 账本 result 只保留 teamId 不含队名；昨天冻结的场次不在今天的 predictions.json 里，
+      // 因此队名可能缺失。缺队名时退化为「联赛 比分」，不显示裸 fixtureId。
+      const hasName = row.home && row.away && row.away !== '—';
+      const title = hasName ? teamName(row.home) + ' vs ' + teamName(row.away)
+        : (LEAGUE_CN[row.league] || row.league || '赛事');
+      lines.push((row.hit ? '✅ ' : '❌ ') + esc(title) + ' ' + esc(row.score) + '｜'
+        + esc(row.pick) + '→' + esc(row.actual));
     }
   }
   if (Array.isArray(next) && next.length) {
