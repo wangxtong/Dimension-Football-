@@ -41,6 +41,34 @@ class ScraplingArchiveTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
 
+    def test_robots_explicit_disallow_blocks_live_request(self):
+        requests = []
+        def fake(url, **kwargs):
+            requests.append(url)
+            raise RuntimeError('must not fetch')
+        with self.assertRaisesRegex(module.ArchiveError, 'ROBOTS_DENIED'):
+            module.fetch_live('bbc-football-rss', None,
+                now=datetime(2026, 11, 2, 4, tzinfo=timezone.utc),
+                fetcher=fake, robots_checker=lambda url: False)
+        self.assertEqual(requests, [])
+
+    def test_robots_parser_allows_and_denies_exact_host_policy(self):
+        class Answer:
+            status = 200
+            def __init__(self, text):
+                self.text = text
+            def read(self, n):
+                return self.text
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+        allowed = b'User-agent: *\nAllow: /sport/football/\nDisallow: /private/\n'
+        denied = b'User-agent: *\nDisallow: /sport/football/\n'
+        u = module.target_url('bbc-football-rss', None)
+        self.assertTrue(module.robots_allows(u, open_request=lambda req, timeout: Answer(allowed)))
+        self.assertFalse(module.robots_allows(u, open_request=lambda req, timeout: Answer(denied)))
+
     def test_source_is_fixed_allowlist_not_generic_arbitrary_url(self):
         self.assertEqual(module.target_url('openligadb-bl1-history', 2025),
                          'https://api.openligadb.de/getmatchdata/bl1/2025')
@@ -62,7 +90,7 @@ class ScraplingArchiveTests(unittest.TestCase):
             requests.append((url, kwargs))
             return Response()
         raw, fetched, server = module.fetch_live('bbc-football-rss', None,
-            now=datetime(2026, 11, 2, 4, tzinfo=timezone.utc), fetcher=fake)
+            now=datetime(2026, 11, 2, 4, tzinfo=timezone.utc), fetcher=fake, robots_checker=lambda url: True)
         self.assertEqual(raw, xml())
         self.assertEqual(len(requests), 1)
         self.assertEqual(requests[0][1], {'follow_redirects': False, 'retries': 0,
@@ -72,7 +100,7 @@ class ScraplingArchiveTests(unittest.TestCase):
         Response.status = 403
         with self.assertRaisesRegex(module.ArchiveError, 'SOURCE_ACCESS_BLOCKED'):
             module.fetch_live('bbc-football-rss', None,
-                now=datetime(2026, 11, 2, 4, tzinfo=timezone.utc), fetcher=fake)
+                now=datetime(2026, 11, 2, 4, tzinfo=timezone.utc), fetcher=fake, robots_checker=lambda url: True)
 
     def test_bundesliga_ft_and_missing_are_distinguished_no_pregame_claim(self):
         raw = json.dumps([fixture(), {**fixture(), 'matchID': 43, 'matchIsFinished': False},
