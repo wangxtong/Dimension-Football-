@@ -35,6 +35,7 @@ test('no existing safe key means NOT_RUN and zero network calls, not a new autho
 test('reads exactly one bounded official month and keeps immutable raw SHA with provider fixture IDs', async () => {
   let calls = 0;
   const result = await fetchApiFootballHistoricalMonth({ ...opts, apiKey: testKey,
+    clock: () => nowISO,
     fetchImpl: async (url, options) => {
       calls++;
       const u = new URL(url);
@@ -63,6 +64,47 @@ test('reads exactly one bounded official month and keeps immutable raw SHA with 
   assert.equal(result.releaseGate, 'BLOCKED');
   assert.equal(result.rawSha256, createHash('sha256').update(result.rawBody).digest('hex'));
   assert.equal(JSON.stringify(result.records).includes(testKey), false);
+});
+
+
+test('HTTP RAW completion timestamp follows the response body, never request initiation', async () => {
+  const receivedAt = '2026-11-02T03:00:08.000Z';
+  const raw = Buffer.from(JSON.stringify(payload()));
+  let bodyClosed = false;
+  const responseBody = new ReadableStream({
+    start(controller) { controller.enqueue(raw); },
+    pull(controller) { controller.close(); bodyClosed = true; },
+  });
+  const response = {
+    ok: true, status: 200, headers: new Headers({ Date: new Date(receivedAt).toUTCString() }),
+    body: responseBody,
+  };
+  const result = await fetchApiFootballHistoricalMonth({ ...opts, apiKey: testKey,
+    fetchImpl: async () => response,
+    clock: () => {
+      assert.equal(bodyClosed, true, 'complete observation cannot precede stream EOF');
+      return receivedAt;
+    },
+  });
+  assert.equal(result.sourceRequestStartedAt, nowISO);
+  assert.equal(result.sourceFetchedAt, receivedAt);
+  assert.equal(result.responseAt, receivedAt);
+  assert.equal(result.httpStatus, 200);
+  assert.equal(result.records[0].sourceObservedAt, receivedAt);
+  assert.equal(result.modelReadyForProspective, false);
+  assert.equal(result.releaseGate, 'BLOCKED');
+  assert.equal(result.rawSha256, createHash('sha256').update(raw).digest('hex'));
+});
+
+test('clock rollback and impossible completion window fail before persisting provider facts', async () => {
+  for (const completed of ['2026-11-02T02:59:59.000Z', '2026-11-02T03:01:01.000Z']) {
+    await assert.rejects(fetchApiFootballHistoricalMonth({ ...opts, apiKey: testKey,
+      fetchImpl: async () => respond(), clock: () => completed,
+    }), /HISTORY_OBSERVATION_CLOCK_INVALID/);
+  }
+  assert.throws(() => parseApiFootballHistoricalSnapshot(Buffer.from(JSON.stringify(payload())), {
+    ...opts, responseAt: nowISO, requestStartedAt: '2026-11-02T03:05:00.000Z',
+  }), /HISTORY_TIME_UNVERIFIED/);
 });
 
 test('AET, missing or unverified full-time scores are excluded without fabricating FT', () => {
@@ -98,7 +140,8 @@ test('invalid month, incomplete API key and bad server time fail safely', async 
       status: 200, headers: { Date: 'Wed, 01 Jan 2020 00:00:00 GMT' },
     }) }), /HISTORY_SERVER_TIME_UNVERIFIED/);
   await assert.rejects(fetchApiFootballHistoricalMonth({ ...opts, apiKey: testKey,
-    fetchImpl: async () => respond({}, 403) }), /HISTORY_PLAN_DENIED/);
+    fetchImpl: async () => respond({}, 403) }), error =>
+      error.code === 'HISTORY_PLAN_DENIED' && error.httpStatus === 403);
 });
 
 test('mixed wrong identities and duplicates are excluded, not counted as usable history', () => {
