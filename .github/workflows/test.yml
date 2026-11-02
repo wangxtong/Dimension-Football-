@@ -73,7 +73,7 @@ jobs:
   # One bounded real public-source probe for THIS research PR only.
   # Does not change the default hosted collection schedule or send forecasts.
   scrapling-live-public:
-    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2') }}
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2' || github.head_ref == 'ops/research-delivery-heartbeat-contract') }}
     needs: [scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 9
@@ -162,7 +162,7 @@ jobs:
   stage1-private-research:
     # This PR-only job exercises user-approved private research, without
     # touching ECS, public website, Telegram, or protected source endpoints.
-    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2') }}
+    if: ${{ github.event_name == 'pull_request' && (github.head_ref == 'feat/scrapling-public-archive-20261102' || github.head_ref == 'fix/scrapling-causal-receipts-archive-20261102' || github.head_ref == 'a1/research-data-integrated-r2' || github.head_ref == 'ops/research-delivery-heartbeat-contract') }}
     needs: [scrapling-engine]
     runs-on: ubuntu-latest
     timeout-minutes: 17
@@ -273,6 +273,32 @@ jobs:
             assert.equal(daily.prospective.thirtyDays.scored,0);
             assert.match(daily.disclaimer,/非投注建议/);
             console.log(JSON.stringify({research:"SAME_REPORT_REAL_SOURCE_FROZEN",sourceReportId:daily.sourceReportId,frozen:daily.forecasts.total,scored:daily.prospective.thirtyDays.scored,reportId:daily.reportId}));
+          '
+      - name: 实时研究预测心跳四字段自动计算、跨进程哈希读回（TG未投递明确Unhealthy）
+        shell: bash
+        run: |
+          set -euo pipefail
+          node collector/heartbeat-contract.mjs --produce "$RESEARCH_ROOT" > "$RESEARCH_ROOT/heartbeat-produce-console.json"
+          node collector/heartbeat-contract.mjs --verify "$RESEARCH_ROOT" > "$RESEARCH_ROOT/heartbeat-verified-console.json"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            import assert from "node:assert/strict";
+            const r=process.env.RESEARCH_ROOT;
+            const data=JSON.parse(readFileSync(r+"/reports/heartbeat/heartbeat.json","utf8"));
+            const v=JSON.parse(readFileSync(r+"/heartbeat-verified-console.json","utf8"));
+            const source=JSON.parse(readFileSync(r+"/reports/predictions.json","utf8"));
+            assert.equal(data.kind,"dimension-football-daily-system-heartbeat");
+            assert.equal(data.reportId,source.publication.reportId);
+            assert.equal(data.forecastsGenerated,source.summary.forecasts);
+            assert.equal(data.model.id,"venue-poisson-v2");
+            assert.equal(data.telegram.status,"NOT_SENT");
+            assert.equal(data.deployment.status,"Unhealthy");
+            assert.equal(v.status,"MACHINE_HEARTBEAT_VERIFIED");
+            assert.equal(v.heartbeatId,data.heartbeatId);
+            console.log(JSON.stringify({status:"HEARTBEAT_REAL_SOURCE_CALCULATED_NOT_SENT",
+              success:data.probes.successful,failure:data.probes.failed,
+              modelComputedAt:data.model.computedAt,forecasts:data.forecastsGenerated,
+              deployment:data.deployment.status,heartbeatId:data.heartbeatId}));
           '
       - name: 归档阶段一全部证据（仅私有Actions附件，不发布Web/Telegram）
         if: always()
