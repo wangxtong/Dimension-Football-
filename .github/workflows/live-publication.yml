@@ -11,6 +11,8 @@ on:
   # GitHub schedules are best effort; five minutes is a target, not an SLA.
   schedule:
     - cron: '*/5 * * * *'
+    # 每日北京时间10:10一次研究冻结与赛后核账；不是24h SLA。
+    - cron: '10 2 * * *'
   push:
     branches: [main]
     paths:
@@ -38,7 +40,7 @@ jobs:
       # Collection/state can advance; publication requires the reviewed report gate.
       RELEASE_GATE: BLOCKED
       HOSTED_MARKET_OBSERVATIONS: 'true'
-      HOSTED_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observations' }}
+      HOSTED_MODE: ${{ github.event_name == 'schedule' && github.event.schedule == '10 2 * * *' && 'research' || github.event_name == 'workflow_dispatch' && inputs.mode || 'observations' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -49,6 +51,9 @@ jobs:
           package-manager-cache: false
       - name: 恢复持久状态、分层采集并核验原站点（最多 3 分钟）
         run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-live" --budget-minutes 3 --mode "$HOSTED_MODE"
+      - name: 研究轨道生成每日1X2冻结快照和真实FT复盘（不触发正式预测外发）
+        if: success() && env.HOSTED_MODE == 'research'
+        run: node collector/research-daily-report.mjs --root "$RUNNER_TEMP/dimension-live"
       - name: 北京时间 09 点后核验并发送当天赛事与数据状态日报
         if: success() && env.HOSTED_MODE == 'observations'
         run: node collector/observation-digest.mjs --root "$RUNNER_TEMP/dimension-live" --mode "$HOSTED_MODE"
@@ -81,8 +86,8 @@ jobs:
           状态来自原 Sites 的持久存储，以 revision 做条件更新；冲突或超限会停止，不使用空状态替代失败恢复。
           独立日报步骤在北京时间 09 点后，重新核验本轮同一观察报告后申请 Sites 发送当天赛事与数据状态；Sites 持久账本每日防重，未知结果不自动重发。日报不是预测推荐，runner 与 Sites 均不发送自动预测。
           Telegram 凭据仅绑定 Sites 运行环境，runner 仅提交已核验的报告 ID；缺少或错误配置会明确失败，附件仅保存脱敏回执。状态日报接通不代表用户要求的正式预测日报已完成。
-          本轮采集与运行记录保留为 90 天附件；仅手动 research 模式采集研究数据、冻结预测并优先核账，绝不调用正式发布或通知。
-          私有研究冻结不是已发布预测成绩；长期账本容量、归档与恢复尚待验证，因此不自动启用持续研究采样。
+          本轮采集与运行记录保留为 90 天附件；research 模式支持每日上午北京时间10:10计划调度，赛前冻结研究1X2、优先核账真实FT，并在私有Actions附件生成独立研究日报。0合格预测按0输出；不调用正式发布/Telegram；计划触发不等于必定准时。
+          研究日报与正式商业发布门禁隔离：正式 RELEASE_GATE 仍BLOCKED；严格盘口双独立来源+真实初盘门禁保持不变。私有研究冻结不是已公开发布预测成绩；研究输出只在受限附件内，Web/TG研究展示仍需独立安全验收。
           R2 保存观察报告与当前状态，既有预测账本不删除。
           网站成功仅以同 reportId、同报告摘要、hosted/available 实际回读为准；本工作流不表示 ECS 已部署。
           EOF
