@@ -50,3 +50,16 @@ python3 collector/sources/scrapling_archive.py --verify /var/lib/dimension-resea
 - 若要让其中的球队/比赛进入每日模型，必须补原生fixture身份/版本、当时赛前数据可见时间与可评估赔率等；历史赛果回填不能造赛前赔率。生产主线仍`BACKTEST_ALL_GREEN_ONLY=BACKTEST_INSUFFICIENT`/`RELEASE_GATE=BLOCKED`。
 
 更多背景见 [CRAWLER_INTEGRATION.md](CRAWLER_INTEGRATION.md)、[SOURCE_MANAGEMENT.md](SOURCE_MANAGEMENT.md)和A2/A3 / #53 工单。
+
+## 2026-11-02 实际 GitHub Runner 跨语言采集验证（研究态E2）
+
+以下内容是已执行的真实运行收据，不是开发示例或ECS部署：
+
+- 同一私有PR的真实 [Actions #41388436210](https://github.com/wangxtong/Dimension-Football-/actions/runs/41388436210) 中，`scrapling-live-public` 用锁定v0.5先做robots预检查，再以Scrapling官方普通`Fetcher.get`真实请求 `https://api.openligadb.de/getmatchdata/bl1/2025`，`HTTP 200`（2026-11-02 04:26:36 UTC）。
+- Python`raw.bin`原文SHA256 `4c03c11d78955f72d747a31dbdc05c1c2b47ea1c56f9aff3268c63bdd2709050`，306个provider fixtureId，严格90分钟FT **306/306**；Python新进程`--verify`通过。
+- 新增A3 Node`collector/data/scrapling-history-bridge.mjs`独立读取并核验Python原文/投影/收据，按源内fixtureId转换为已有`normalizeHistoryRecord`；本次转换**306/306**，产生归一化归档SHA256 `eb9dddb8f16e15e6ebd5f19b879df8b64699d413bbf16f7a9fa89396173656d3`，完整来源和记录时点保留为当期**赛后观察**，无赛前数据资格。
+- [Actions 原生附件 #13116167124](https://github.com/wangxtong/Dimension-Football-/actions/runs/41388436210/artifacts/13116167124)含原始JSON、投影、Python回执、Node导入归档；ZIP SHA256 `a6d7ee534a06b0efb45934fbae07d768f9138c5d853694a9c9d936cd2da70386`。独立获取原件并核ZIP 7/7、原文及Node输出SHA均一致。
+- 为避免Actions 14天留存过期造成研究数据丢失，已另存用户私有Library `/Dimension-Football/Research-Only-Evidence/SCRAPLING_REAL_OPENLIGADB_2025_RAW_NODE_E2_20261102.zip`（稳定文件ID `libfile_7e34a0b0e97081918ce83f0468457b25`），上传后第二次取回验证原ZIP SHA逐字节一致。此存储**不是自动运行仓库代码可读取的ECS持久卷**，A3仍需正式设计运行期R2/卷长久归档与恢复演练。
+- 新Node导入带不可变输出文件、来源原始SHA绑定、无FT隔离、取回时钟绑定及删除/篡改负例；CI需要完整同SHA结果和A10独立审核，生产接入未完成。
+
+此项真正打通的是**单公开来源历史赛果的Web外部HTTP→Scrapling→私有RAW→Node历史格式**。尚未打通五大联赛实时赛程/赔率、赛前真实初盘、600秒连续采集、ECS运行、模型正式前瞻及Web每日赛后自动回测。即使单轮跑绿，`modelReadyForProspective=false`、`RELEASE_GATE=BLOCKED`，严禁把2025赛季赛后赛果用于伪造当时预测。
