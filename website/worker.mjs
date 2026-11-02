@@ -71,8 +71,11 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
   const attempts=new Map();
   return {async fetch(request,env) {
     const path=new URL(request.url).pathname,method=request.method;
+    // The Bot reads the same research ledger as /api/research-daily and obeys the same
+    // read-time revocation: stopping the uploader must also hide existing snapshots.
+    const researchWebEnabled=env.HOSTED_PUBLICATION_ENABLED==='true'&&env.VANTIS_RESEARCH_WEB_ENABLED==='true';
     if(path==='/telegram/webhook')return handleTelegramWebhook(request,env,{fetchImpl,now:clock(),loadBundle:loadHostedBundle,
-      assets,loadObservationReceipt:readDailyObservationStatus});
+      assets,loadObservationReceipt:readDailyObservationStatus,loadResearch:researchWebEnabled?readDailyResearch:undefined});
     const config=configuration(env);if(!config)return response('登录服务尚未配置，请联系管理员。',503);
     const now=Math.floor(clock()/1000);
     const requestedView = new URL(request.url).searchParams.get('view');
@@ -82,7 +85,6 @@ export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args
     const sameOrigin=request.headers.get('origin')===config.origin;
     // This Worker flag is independent of the Actions scheduling variable. A
     // stopped uploader MUST also revoke reads of existing Bucket snapshots.
-    const researchWebEnabled=env.HOSTED_PUBLICATION_ENABLED==='true'&&env.VANTIS_RESEARCH_WEB_ENABLED==='true';
     if(!researchWebEnabled&&['/internal/research-daily','/api/research-daily',
       '/research-daily.html','/research-daily-client.mjs'].includes(path))
       return response(JSON.stringify({error:'RESEARCH_WEB_DISABLED'}),404,'application/json; charset=utf-8');
