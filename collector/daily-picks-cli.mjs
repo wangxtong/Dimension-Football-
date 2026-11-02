@@ -1,6 +1,7 @@
 // 研究专用：将体彩三项让球胜平负与赛前冻结的自有模型匹配。
 // 不是二项亚洲盘，不进入正式推荐；不明身份、比赛时间不一致或无冻结时间时不出方向。
-// 用法：node collector/daily-picks-cli.mjs --root /path [--limit 10] [--now ISO]
+// 用法：node collector/daily-picks-cli.mjs --root /path [--limit 10]
+// 真实HTTP取价不可传历史 --now 回填价格；回放需另建只读已冻结快照读取器。
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fetchSportteryMatches } from './sources/sporttery.mjs';
@@ -10,16 +11,19 @@ import { teamName } from './sources/team-names.mjs';
 const arg = (name, fallback) => { const i = process.argv.indexOf('--' + name); return i > 0 ? process.argv[i + 1] : fallback; };
 const root = resolve(arg('root', '/tmp/ci5'));
 const limit = Number(arg('limit', '10'));
-const nowISO = arg('now', new Date().toISOString());
+const overrideNow = process.argv.includes('--now');
 const cn = name => { try { return teamName(name) || name; } catch { return name; } };
 const matchupKey = (home, away, kickoff) => [home, away, kickoff].join('|');
 
 async function main() {
+  if (overrideNow) { console.log(JSON.stringify({status:'blocked',code:'LIVE_SNAPSHOT_TIME_OVERRIDE_FORBIDDEN'}));process.exitCode=1;return; }
   let predictions;
   try { predictions = JSON.parse(await readFile(resolve(root, 'reports/predictions.json'), 'utf8')); }
   catch { console.log(JSON.stringify({ status:'blocked', code:'PREDICTIONS_UNAVAILABLE' })); process.exitCode=1; return; }
   const jc = await fetchSportteryMatches();
   if (jc.error) { console.log(JSON.stringify({ status:'blocked', code:'SPORTTERY_' + jc.error })); process.exitCode=1; return; }
+  // This is the first defensible observation time for the live quote (after HTTP completion).
+  const nowISO = new Date().toISOString();
 
   // 不能只用中文队名进行赛事绑定：同队在其他日期有比赛，跨日误配会造出虚假预测。
   const modelByMatch = new Map(), ambiguous = new Set();
@@ -53,6 +57,7 @@ async function main() {
     picks:picks.picks.map(p=>({matchId:p.matchId,league:p.league,home:p.home,away:p.away,kickoff:p.kickoff,
       pool:p.handicap.pool, goalLine:p.handicap.goalLine, odds:{home:p.handicap.home,draw:p.handicap.draw,away:p.handicap.away},
       updatedAt:p.handicap.updatedAt, rank:[p.homeRank?.rank ?? null,p.awayRank?.rank ?? null],
-      probabilities:p.probabilities || null, predictionFrozenAt:p.predictionFrozenAt, pick:p.pick})) }));
+      probabilities:p.probabilities || null, modelGeneratedAt:p.modelGeneratedAt,
+      quoteObservedAt:p.quoteObservedAt, predictionFrozenAt:p.predictionFrozenAt, pick:p.pick})) }));
 }
 await main();
