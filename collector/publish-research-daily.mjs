@@ -29,7 +29,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   } else {
     try { console.log(JSON.stringify(await publishDailyResearch({ root: args[1] }))); }
     catch(error) {
-      const code = /^RESEARCH_[A-Z0-9_]+$/.test(error?.message || '') ? error.message : 'RESEARCH_DELIVERY_FAILED';
+      // HOSTED_* 是采集端既有的安全错误码（不含响应体、凭据或报告内容）。
+      // 保留它们才能区分“服务端拒绝(4xx/5xx)”与“本地校验失败”，否则一律塌成 RESEARCH_DELIVERY_FAILED。
+      const code = /^(?:RESEARCH|HOSTED)_[A-Z0-9_]+$/.test(error?.message || '')
+        ? error.message : 'RESEARCH_DELIVERY_FAILED';
       console.error(code); process.exitCode = 1;
     }
   }
