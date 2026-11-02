@@ -61,16 +61,47 @@ jobs:
       - name: 将研究日报同步至受保护Web并核验同reportId（需独立QA准入）
         if: success() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_WEB_ENABLED == 'true'
         run: node collector/publish-research-daily.mjs --root "$RUNNER_TEMP/dimension-live"
+      - name: 计算北京日期（跨 runner 幂等键）
+        id: bjday
+        if: env.HOSTED_MODE == 'research'
+        run: echo "day=$(TZ=Asia/Shanghai date +%F)" >> "$GITHUB_OUTPUT"
+      - name: 恢复当日推送标记
+        id: tgmark
+        if: env.HOSTED_MODE == 'research'
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/tg-sent
+          key: tg-sent-${{ steps.bjday.outputs.day }}
       - name: 研究日报推送到Telegram（所有者授权的个人研究用途；严格候选与商业门禁保持BLOCKED）
-        # Telegram 是独立通道：Web 同步失败（如线上 Worker 版本落后）不应连带阻断每日推送，
-        # 只要研究日报本身生成成功就发；报告未生成时该步骤会因文件缺失自然失败。
+        # Telegram 是独立通道：Web 同步失败（如线上 Worker 版本落后）不应连带阻断每日推送。
+        # 幂等：receipt 在 $RUNNER_TEMP 里无法跨 runner 存活，10:10 与 10:40 补偿轮会各发一次；
+        # 这里用 Actions cache 存当日标记，已推送过就跳过。只在推送成功后写标记，
+        # 失败不会污染标记，下一轮仍会重试。
         if: always() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_TELEGRAM_ENABLED == 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           # 群 ID 不是凭据（发消息仍需 bot token），放仓库变量便于审计与快速修正；
           # 之前 Secrets 里的值与真实群不匹配，Telegram 返回 400 chat not found。
           TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID || secrets.TELEGRAM_CHAT_ID }}
-        run: node collector/publish-research-telegram.mjs --root "$RUNNER_TEMP/dimension-live"
+        run: |
+          set -euo pipefail
+          MARK="${{ runner.temp }}/tg-sent/${{ steps.bjday.outputs.day }}"
+          if [ -f "$MARK" ]; then
+            echo '{"status":"skipped","code":"ALREADY_SENT_TODAY"}'
+            exit 0
+          fi
+          node collector/publish-research-telegram.mjs --root "$RUNNER_TEMP/dimension-live"
+          mkdir -p "${{ runner.temp }}/tg-sent"
+          date -u +%FT%TZ > "$MARK"
+      - name: 保存当日推送标记
+        # 同一天第二次运行会命中已有 cache，save 会因 key 已存在而报错；
+        # 标记已经存在时这本来就不需要成功，因此不阻断流水线。
+        continue-on-error: true
+        if: always() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_TELEGRAM_ENABLED == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/tg-sent
+          key: tg-sent-${{ steps.bjday.outputs.day }}
       - name: 北京时间 09 点后核验并发送当天赛事与数据状态日报
         if: success() && env.HOSTED_MODE == 'observations'
         run: node collector/observation-digest.mjs --root "$RUNNER_TEMP/dimension-live" --mode "$HOSTED_MODE"
