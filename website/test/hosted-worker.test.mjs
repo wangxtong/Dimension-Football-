@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 import { pbkdf2Sync, createHash } from 'node:crypto';
 import { loadReportBundle } from '../../collector/report-store.mjs';
 import { buildDailyResearchReport } from '../../collector/research-daily-report.mjs';
+import { createPredictionRecord } from '../../collector/prediction-ledger.mjs';
 import { NOW, ORIGIN, sampleBundle } from './fixtures.mjs';
 import { MemoryBucket, fakeKeys, machineRequest, stateFile, token } from './hosted-fixtures.mjs';
 
@@ -212,4 +213,37 @@ test('research report updates reject tampering, unknown machine, and stale input
   assert.notEqual(future.reportId, priorId);
   assert.equal((await call('/internal/research-daily', { method: 'POST', body: future })).status, 409);
   assert.equal(env.BUCKET.rows.size, 0);
+});
+
+test('actual prematch prediction is displayed on research-only Web without a commercial release bypass', async () => {
+  const { call, visit, login, env } = setup();
+  const nowISO = new Date(NOW).toISOString();
+  const created = new Date(NOW - 3 * 60000).toISOString();
+  const registered = new Date(NOW - 60000).toISOString();
+  const kickoff = new Date(NOW + 12 * 3600000).toISOString();
+  const fixture = { id: 'source-match-98', source: 'openligadb', league: 'BL1',
+    home: '模拟俱乐部A', away: '模拟俱乐部B',
+    homeTeamId:'a', awayTeamId:'b', kickoff, season:'2026' };
+  const model = { id: 'venue-poisson-v2', version:2, calibrated:false };
+  const original = 'b'.repeat(64);
+  const forecast = { fixtureId:fixture.id, status:'forecast', generatedAt:created, trainingCutoff:created,
+    trainingHash:'c'.repeat(64), probabilities:{home:0.6,draw:0.2,away:0.2},
+    freshness:{validUntil:new Date(NOW+1800000).toISOString()} };
+  const frozen = createPredictionRecord({fixture,forecast,model,reportId:original,nowISO:registered});
+  const document = {kind:'prematch-forecast-report', simulated:false, generatedAt:nowISO,
+    publication:{reportId:original},fixtures:[{fixture,forecast}],summary:{fixtures:1,forecasts:1,strictCandidates:0}};
+  const report=buildDailyResearchReport({document,ledger:{exists:true,events:[{predictions:[frozen],results:[],opportunities:[]}]},
+    nowISO,codeSha:'f'.repeat(40)});
+  assert.equal(report.forecasts.total,1);
+  assert.equal(report.forecasts.candidates[0].probabilities.home,0.6);
+  assert.equal(report.sourceReportId,original);
+  const posting=await call('/internal/research-daily',{method:'POST',body:report});
+  assert.equal(posting.status,200,await posting.clone().text());
+  const cookie=await login();
+  const visible=await (await visit('/api/research-daily',cookie)).json();
+  assert.equal(visible.forecasts.candidates.length,1);
+  assert.equal(visible.forecasts.candidates[0].predictionId,frozen.predictionId);
+  assert.equal(visible.strictMarkets.releasedCandidates,0);
+  assert.equal(visible.externalTelegramSent,false);
+  assert.equal(env.BUCKET.rows.size,2);
 });
