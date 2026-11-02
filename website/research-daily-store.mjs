@@ -1,7 +1,9 @@
 import { bucketPutCAS } from './hosted-publications.mjs';
 
 const ID = /^[a-f0-9]{64}$/, SHA = /^[a-f0-9]{40}$/;
-const SOURCES = new Set(['openligadb', 'thesportsdb-free', 'api-football', 'football-data']);
+// 'football-data.org' 才是采集端写入 fixture.source 的真实值；只认 'football-data'
+// 会让该来源的比赛在研究日报里整批被跳过（每天表现为 0 场）。
+const SOURCES = new Set(['openligadb', 'thesportsdb-free', 'api-football', 'football-data', 'football-data.org']);
 const LEAGUES = new Set(['PL', 'PD', 'SA', 'BL1', 'FL1']);
 const KEYS = 'beijingDay,codeSha,commercialReleaseGate,disclaimer,externalTelegramSent,forecasts,generatedAt,kind,limitations,mode,prospective,reportId,researchGate,sourceReportId,sourceReportSha256,state,strictMarkets,version';
 const MIN_REPORT_BYTES = 150;

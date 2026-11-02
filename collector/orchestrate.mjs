@@ -4,6 +4,7 @@ import { acquireLock, atomicJson, readJson } from './storage.mjs';
 import { runPublic } from './public.mjs';
 import { runCli, SAFE_ERRORS } from './run.mjs';
 import { fetchPublicResults } from './sources/public-fixtures.mjs';
+import { collectFootballDataHistory } from './sources/football-data-history.mjs';
 import { verifyAcquisitionSnapshot } from './data/acquisition-snapshot.mjs';
 import { verifyReplayBundle } from './data/run-manifest.mjs';
 import { prepareForecastHistory, BACKTEST_HORIZONS, FORECAST_MODEL } from './forecast.mjs';
@@ -86,7 +87,7 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
   if (options.help) { stdout(HELP); return { help: true, exitCode: 0 }; }
   const statePath = resolve(cwd, options.state || '/var/lib/vantis/state/state.json'), out = resolve(cwd, options.out || '/var/lib/vantis/reports');
   const started = performance.now(), remaining = () => Math.max(0, options.budgetMs - (performance.now() - started));
-  const dep = { runPublic, runCli, fetchPublicResults, appendResultAndScore, evaluatePredictionLedger, publishAll: dynamicPublisher, ...dependencies };
+  const dep = { runPublic, runCli, fetchPublicResults, appendResultAndScore, evaluatePredictionLedger, publishAll: dynamicPublisher, collectHistory: collectFootballDataHistory, ...dependencies };
   const common = { env, cwd, clock, fetchImpl, stdout, signal };
   let release = null, outcome;
   try {
@@ -133,8 +134,24 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
         }
       }
     } else if (options.lane === 'fixtures') {
-      const fallbackHistory = (await retainedInputs(out)).history;
+      const priorInputs = await retainedInputs(out);
+      let fallbackHistory = priorInputs.history;
       const managed = MANAGED_KEYS.some(key => typeof env[key] === 'string' && env[key].trim()) || !!env.FIXTURES_FILE;
+      const footballDataKey = [env.FOOTBALL_DATA_API_KEY, env.FOOTBALL_DATA_API_TOKEN]
+        .find(value => typeof value === 'string' && value.trim());
+      // 免费采集默认只有德甲(OpenLigaDB)历史，其余四大联赛样本不足会让当日可预测场次变成 0。
+      // 这里用同一 football-data 账号补齐同源已完赛结果；历史属于增强项，失败只降级、不阻断赛程采集。
+      if (managed && footballDataKey && options.mode === 'private-research') {
+        try {
+          const extra = await dep.collectHistory({ apiKey: footballDataKey.trim(), nowISO: clock(),
+            fetchImpl, signal, timeoutMs: 12_000 });
+          if (extra && Array.isArray(extra.history) && extra.history.length) {
+            const merged = new Map(fallbackHistory.map(row => [row.source + ':' + row.id, row]));
+            for (const row of extra.history) merged.set(row.source + ':' + row.id, row);
+            fallbackHistory = [...merged.values()];
+          }
+        } catch { /* 历史补齐失败时沿用既有 fallbackHistory */ }
+      }
       const result = await dep.runPublic(['--collect', ...args()], { ...common, collectMode: managed ? 'managed' : 'public',
         evidenceMode: 'none', fallbackHistory, persistAcquisition: true, runCliImpl: dep.runCli });
       const reportId = result.collection?.report?.publication?.reportId;

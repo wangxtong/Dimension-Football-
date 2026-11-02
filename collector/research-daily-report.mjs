@@ -12,7 +12,9 @@ import { attachWeather, weatherSummary } from './sources/weather.mjs';
 const DAY = 86_400_000;
 const HASH = /^[a-f0-9]{64}$/;
 const COMMIT = /^[a-f0-9]{40}$/;
-const SOURCES = new Set(['openligadb', 'thesportsdb-free', 'api-football', 'football-data']);
+// 'football-data.org' 才是采集端写入 fixture.source 的真实值；只认 'football-data'
+// 会让该来源的比赛在研究日报里整批被跳过（每天表现为 0 场）。
+const SOURCES = new Set(['openligadb', 'thesportsdb-free', 'api-football', 'football-data', 'football-data.org']);
 const LEAGUES = new Set(['PL', 'PD', 'SA', 'BL1', 'FL1']);
 const LABEL = '研究参考，非投注建议；概率未经正式校准，不代表有投注价值或保证命中率。';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
