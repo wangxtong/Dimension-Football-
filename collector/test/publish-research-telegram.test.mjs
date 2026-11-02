@@ -44,16 +44,37 @@ test('research telegram sends the simplified-Chinese study digest exactly once a
   await writeFile(join(root, 'reports/research-daily/latest.md'), MARKDOWN);
   const calls = [];
   const first = await publishResearchTelegram({ root, env: { TELEGRAM_BOT_TOKEN: TOKEN, TELEGRAM_CHAT_ID: CHAT },
-    fetchImpl: async (url, init) => { calls.push({ url: url.split('/bot')[0], body: JSON.parse(init.body) });
+    fetchImpl: async (url, init) => { calls.push({ url, body: JSON.parse(init.body) });
       assert.ok(url.startsWith('https://api.telegram.org/bot')); return telegramOk(JSON.parse(init.body)); } });
-  assert.equal(first.status, 'accepted'); assert.equal(first.messageId, 42);
-  assert.equal(calls[0].body.link_preview_options.is_disabled, true);
-  assert.ok(String(calls[0].body.text).includes('研究参考，非投注建议'));
+  assert.equal(first.status, 'accepted'); assert.equal(first.messageId, 42); assert.equal(first.channel, 'rich');
+  // 首选 sendRichMessage：rich_message.html 才是能渲染表格的富文本通道。
+  assert.ok(calls[0].url.endsWith('/sendRichMessage'), 'first attempt must be sendRichMessage');
+  assert.ok(String(calls[0].body.rich_message.html).includes('<table'), 'rich html must use real tables');
+  assert.ok(String(calls[0].body.rich_message.html).includes('研究参考，非投注建议'));
   const second = await publishResearchTelegram({ root, env: { TELEGRAM_BOT_TOKEN: TOKEN, TELEGRAM_CHAT_ID: CHAT },
     fetchImpl: async () => { throw Error('never'); } });
   assert.equal(second.status, 'skipped'); assert.equal(second.code, 'ALREADY_SENT_TODAY');
   const receipt = JSON.parse(await readFile(join(root, 'reports/research-daily/telegram-receipt.json'), 'utf8'));
   assert.equal(receipt.status, 'accepted'); assert.equal(receipt.reportId, report.reportId);
+});
+
+test('falls back to plain sendMessage when sendRichMessage is rejected', async t => {
+  const root = await fixture(t);
+  const { report } = dailyReport();
+  await writeFile(join(root, 'reports/research-daily/latest.json'), JSON.stringify(report));
+  await writeFile(join(root, 'reports/research-daily/latest.md'), MARKDOWN);
+  const methods = [];
+  const out = await publishResearchTelegram({ root, env: { TELEGRAM_BOT_TOKEN: TOKEN, TELEGRAM_CHAT_ID: CHAT },
+    fetchImpl: async (url, init) => {
+      const method = String(url).split('/').pop();
+      methods.push(method);
+      const body = JSON.parse(init.body);
+      if (method === 'sendRichMessage') return { ok: false, status: 400, body: { cancel: async () => {} } };
+      return telegramOk(body);
+    } });
+  assert.deepEqual(methods, ['sendRichMessage', 'sendMessage']);
+  assert.equal(out.status, 'accepted'); assert.equal(out.channel, 'plain');
+  assert.ok(String(out.messageId).length > 0);
 });
 
 test('research telegram refuses any report that released market candidates', async t => {
