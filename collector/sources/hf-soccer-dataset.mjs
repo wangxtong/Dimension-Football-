@@ -8,6 +8,11 @@
 // 通过 datasets-server（免 token、公开数据）分页读取，不下载整仓 parquet。
 const SERVER = 'https://datasets-server.huggingface.co';
 const CONFIGS = Object.freeze(['fixtures', 'teams', 'odds', 'fixture_lineups', 'match_stats', 'leagues']);
+// 数据集的 leagues.fd_code 用的是 football-data.co.uk 的编码（E0/SP1/I1/F1/D1），
+// 与 football-data.org 的联赛码（PL/PD/SA/FL1/BL1）不同，必须显式映射。
+const FD_CODES = Object.freeze({ E0: 'PL', SP1: 'PD', I1: 'SA', F1: 'FL1', D1: 'BL1' });
+const FINISHED_STATUS = 'FT';
+export { FD_CODES };
 const PAGE_MAX = 100;
 
 export { CONFIGS };
@@ -34,7 +39,7 @@ async function fetchRows({ dataset, config, split = 'train', offset = 0, length 
 export { fetchRows };
 
 function toHistoryRow(row, leagueByApiId) {
-  if (!row || !row.status || row.status !== 'Finished') return null;
+  if (!row || row.status !== FINISHED_STATUS) return null;
   if (!Number.isInteger(row.goals_home) || !Number.isInteger(row.goals_away)) return null;
   if (row.goals_home < 0 || row.goals_away < 0) return null;
   if (!Number.isFinite(Date.parse(row.date_utc || ''))) return null;
