@@ -50,9 +50,13 @@ async function limitedBytes(response) {
 }
 
 /** Inspect the actual acquired bytes, retaining every rejected row in the raw hash. */
-export function parseApiFootballHistoricalSnapshot(rawBytes, { league, season, from, to, nowISO, responseAt }) {
+export function parseApiFootballHistoricalSnapshot(rawBytes, { league, season, from, to, nowISO, responseAt,
+  requestStartedAt = null, httpStatus = 200 }) {
   requestWindow({ league, season, from, to, nowISO });
-  if (!utc(responseAt)) throw failure('HISTORY_TIME_UNVERIFIED');
+  if (!utc(responseAt) || httpStatus !== 200
+    || requestStartedAt !== null && (!utc(requestStartedAt) || Date.parse(requestStartedAt) > Date.parse(nowISO))
+    || Math.abs(Date.parse(responseAt) - Date.parse(nowISO)) > 300_000)
+    throw failure('HISTORY_TIME_UNVERIFIED');
   if (!(rawBytes instanceof Uint8Array) || rawBytes.byteLength < 2 || rawBytes.byteLength > MAX_BYTES) throw failure('HISTORY_RAW_INVALID');
   let body;
   try { body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(rawBytes)); }
@@ -98,8 +102,10 @@ export function parseApiFootballHistoricalSnapshot(rawBytes, { league, season, f
   return {
     kind: 'api-football-bounded-retrospective-history', version: 1,
     source: 'api-football', league, season, window: { from, to },
+    // Fetched/observed means the response body was fully received, not the initial request clock.
     sourceFetchedAt: new Date(Date.parse(nowISO)).toISOString(),
-    responseAt: new Date(Date.parse(responseAt)).toISOString(),
+    sourceRequestStartedAt: requestStartedAt === null ? null : new Date(Date.parse(requestStartedAt)).toISOString(),
+    httpStatus, responseAt: new Date(Date.parse(responseAt)).toISOString(),
     rawSha256, rawBytes: rawBytes.byteLength, rawBody: Buffer.from(rawBytes),
     received: body.response.length, acceptedFT: records.length, excluded: exclusions.length,
     records, exclusions, modelReadyForProspective: false, releaseGate: 'BLOCKED',
@@ -108,10 +114,12 @@ export function parseApiFootballHistoricalSnapshot(rawBytes, { league, season, f
 
 /** Exactly one API request for one bounded month; caller persists RAW bytes append-only. */
 export async function fetchApiFootballHistoricalMonth({ league, season, from, to,
-  nowISO = new Date().toISOString(), apiKey = '', fetchImpl = fetch } = {}) {
+  nowISO = new Date().toISOString(), apiKey = '', fetchImpl = fetch,
+  clock = () => new Date().toISOString() } = {}) {
   const window = requestWindow({ league, season, from, to, nowISO });
   if (typeof apiKey !== 'string' || apiKey.length > 256 || /[\r\n]/.test(apiKey)) throw failure('HISTORY_API_KEY_INVALID');
   if (typeof fetchImpl !== 'function') throw failure('HISTORY_FETCH_INVALID');
+  if (typeof clock !== 'function') throw failure('HISTORY_CLOCK_INVALID');
   const url = new URL('https://v3.football.api-sports.io/fixtures');
   url.searchParams.set('league', String(apiFootballLeagues[league]));
   url.searchParams.set('season', String(season));
@@ -129,15 +137,29 @@ export async function fetchApiFootballHistoricalMonth({ league, season, from, to
         : response?.status === 403 ? 'HISTORY_PLAN_DENIED'
           : response?.status === 429 ? 'HISTORY_RATE_LIMITED' : 'HISTORY_HTTP_UNAVAILABLE', response?.status);
       const serverTime = Date.parse(response.headers?.get('date'));
-      if (!Number.isFinite(serverTime) || Math.abs(serverTime - Date.parse(nowISO)) > 300_000) throw failure('HISTORY_SERVER_TIME_UNVERIFIED');
+      if (!Number.isFinite(serverTime)) throw failure('HISTORY_SERVER_TIME_UNVERIFIED');
       const raw = await limitedBytes(response);
-      return parseApiFootballHistoricalSnapshot(raw, { ...window, league, season,
-        responseAt: new Date(serverTime).toISOString() });
+      // Never stamp a RAW body with a request-start timestamp. The completion clock
+      // is acquired only after the stream finishes and the original bytes exist.
+      const completedAt = clock();
+      const startMillis = Date.parse(window.nowISO), completedMillis = Date.parse(completedAt);
+      if (!utc(completedAt) || !Number.isFinite(completedMillis)
+        || completedMillis < startMillis || completedMillis - startMillis > 60_000)
+        throw failure('HISTORY_OBSERVATION_CLOCK_INVALID');
+      if (Math.abs(serverTime - completedMillis) > 300_000)
+        throw failure('HISTORY_SERVER_TIME_UNVERIFIED');
+      return parseApiFootballHistoricalSnapshot(raw, {
+        ...window, nowISO: new Date(completedMillis).toISOString(),
+        requestStartedAt: window.nowISO, httpStatus: response.status, league, season,
+        responseAt: new Date(serverTime).toISOString(),
+      });
     })();
     return await Promise.race([task, new Promise((_, reject) => {
       timer = setTimeout(() => { controller.abort(); reject(failure('HISTORY_TIMEOUT')); }, FETCH_DEADLINE_MS);
     })]);
   } catch (error) {
-    throw failure(error?.code?.startsWith('HISTORY_') ? error.code : 'HISTORY_NETWORK_UNAVAILABLE');
+    // Only the bounded status code is preserved, never provider error bodies or headers.
+    throw failure(error?.code?.startsWith('HISTORY_') ? error.code : 'HISTORY_NETWORK_UNAVAILABLE',
+      Number.isInteger(error?.httpStatus) ? error.httpStatus : null);
   } finally { clearTimeout(timer); controller.abort(); }
 }
