@@ -150,3 +150,21 @@ test('冻结选项价格与市场原价不一致时拒绝ROI统计', () => {
   const s=settleDailyPicks({picks:drift,results:[result({homeGoals:3,awayGoals:1})]});
   assert.equal(s.total,0);assert.equal(s.coverage.invalid,1);
 });
+
+test('展示上限不许吞掉落选场、未展示选项和无效盘口分母', () => {
+  const x=buildDailyPicks({
+    matches:[match(),match({matchId:222}),match({matchId:333,handicap:{...match().handicap,pool:'asian-handicap'}}),match({matchId:111})],
+    forecasts:[forecast(),forecast({matchId:222})],nowISO:now,limit:1,
+  });
+  assert.equal(x.inputTotal,4);
+  assert.equal(x.total,2);
+  assert.equal(x.picks.length,1);
+  assert.equal(x.allPicks.length,2);
+  assert.equal(x.selected,1);
+  assert.equal(x.selectedAll,2);
+  assert.equal(x.hiddenTotal,1);
+  assert.equal(x.hiddenSelected,1);
+  assert.deepEqual(x.excludedCandidates.map(r=>r.reason),
+    ['INVALID_HHAD_MARKET','DUPLICATE_MATCH_ID']);
+  assert.equal(x.allPicks[1].pick.decimalOdds,2.07);
+});
