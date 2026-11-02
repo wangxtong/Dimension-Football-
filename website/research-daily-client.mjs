@@ -9,7 +9,9 @@ function show(report){
   if(report.kind!=='research-daily-1x2'||report.commercialReleaseGate!=='BLOCKED'||report.mode!=='research-reference'
     ||report.externalTelegramSent!==false||report.strictMarkets?.releasedCandidates!==0||!report.disclaimer.includes('非投注建议'))
     throw Error('RESEARCH_DATA_INVALID');
-  $('status').textContent='最近核验：'+beijing(report.generatedAt)+'（北京） · 报告 '+report.reportId.slice(0,12)+'… · '+report.state;
+  const localDay=new Date(Date.now()+8*3600_000).toISOString().slice(0,10);
+  const outdated=report.beijingDay!==localDay;
+  $('status').textContent=(outdated?'历史日报（不是今天新预测） · ':'最近核验 · ')+beijing(report.generatedAt)+'（北京） · 报告 '+report.reportId.slice(0,12)+'… · '+report.state;
   $('meta').textContent='研究日：'+report.beijingDay+' · 赛前冻结 '+report.forecasts.total+' 场 · 严格盘口正式推荐 0 场 · 模型不校准';
   const table=$('forecast-rows');table.replaceChildren();
   for(const match of report.forecasts.candidates){
