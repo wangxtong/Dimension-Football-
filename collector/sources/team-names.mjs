@@ -56,6 +56,9 @@ const reportTeamAliases = {
   'Stade Brestois 29': '布雷斯特', 'Brest': '布雷斯特', 'FC Nantes': '南特', 'Nantes': '南特',
   'Toulouse FC': '图卢兹', 'Toulouse': '图卢兹', 'AJ Auxerre': '欧塞尔', 'Auxerre': '欧塞尔',
   'Angers SCO': '昂热', 'Angers': '昂热', 'Le Havre AC': '勒阿弗尔', 'Le Havre': '勒阿弗尔',
+  'RC Deportivo La Coruña': '拉科鲁尼亚', 'Deportivo La Coruña': '拉科鲁尼亚',
+  'Málaga CF': '马拉加', 'Real Racing Club de Santander': '桑坦德竞技',
+  'CD Castellón': '卡斯特利翁', 'Real Sociedad B': '皇家社会B队',
   'FC Lorient': '洛里昂', 'Lorient': '洛里昂', 'FC Metz': '梅斯', 'Metz': '梅斯', 'Paris FC': '巴黎FC',
 };
 
