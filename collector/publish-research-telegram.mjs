@@ -443,8 +443,16 @@ export async function publishResearchTelegram({ root, env = process.env, fetchIm
   const receiptPath = join(directory, 'telegram-receipt.json');
   let prior = null;
   try { prior = await readJson(receiptPath, 16000); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-  if (prior?.beijingDay === report.beijingDay && prior?.codeSha === report.codeSha && prior?.status === 'accepted')
-    return { reportId: report.reportId, beijingDay: report.beijingDay, status: 'skipped', code: 'ALREADY_SENT_TODAY' };
+  // One accepted message per Beijing day, bound to the same exact report and code.
+  // A newer report may not borrow an earlier messageId as proof of delivery.
+  if (prior?.beijingDay === report.beijingDay && prior?.status === 'accepted') {
+    if (prior.reportId !== report.reportId || prior.codeSha !== report.codeSha
+      || !Number.isSafeInteger(prior.messageId) || prior.messageId <= 0)
+      throw Error('RESEARCH_REPORT_CONFLICT');
+    return { reportId: report.reportId, beijingDay: report.beijingDay,
+      status: 'skipped', code: 'ALREADY_SENT_TODAY',
+      messageId: prior.messageId, channel: prior.channel };
+  }
   await readFile(join(directory, 'latest.md'), 'utf8');
   const post = async (method, payload) => {
     const response = await fetchImpl('https://api.telegram.org/bot' + token + '/' + method, {
