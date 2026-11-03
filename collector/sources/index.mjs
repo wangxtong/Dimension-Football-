@@ -10,7 +10,7 @@ export {fetchApiFootballFixtures, apiFootballLeagues} from './api-football.mjs';
 
 export const sourceCapabilities = Object.freeze({
   hkjc: '香港赛马会官方公开 HDC 全场两方盘口；第一方现售快照，独立于 Titan007 转发渠道。保留官方池 updateAt 与当前响应时点，不生成初盘。',
-  macauslot: 'Macau SLOT 官方资讯站赛前全场亚洲盘；来源更新时间仅取真实响应 Last-Modified，独立生产渠道登记不等于商业授权；无真实初盘则保留缺项。',
+  macauslot: 'ACCESS_BLOCKED：当前未获来源采集准入；禁止实时请求、引用旧缓存或计入独立双源覆盖。历史解析仅供离线审计。',
   titan007: '读取球探公开 M88、12Bet、SBOBET 的赛前全场亚洲盘。三家公司共享球探采集渠道，独立来源组均为 titan007；不含皇冠。',
   statarea: '读取公开页面的五大联赛赛前 1X2 模型概率，仅覆盖已发布的当日至未来 3 天页面；不是亚洲盘赢盘概率。',
   tiantian: '仅监测天天盈球公开免费赛前列表；具体预测格式未核验，不生成预测信号。',
@@ -60,6 +60,8 @@ export async function collectPublicEvidence({fixtures = [], nowISO = new Date().
 }
 
 export async function collectCrawledEvidence({fixtures, nowISO, includeMacauslot = false, ...crawlerOptions}) {
+  // Deny unadmitted source before crawler, cached response and HTTP transport.
+  if (includeMacauslot) throw new Error('ACCESS_BLOCKED');
   const {result, crawler} = await withPublicCrawler(crawlerOptions,
     async fetchImpl => {
       if (!includeMacauslot) return collectPublicEvidence({fixtures, nowISO, fetchImpl});
@@ -93,7 +95,7 @@ export async function collectCrawledEvidence({fixtures, nowISO, includeMacauslot
  */
 export async function collectIntegratedEvidence({ fixtures, nowISO, env, providerStatePath, providerPolicy, ...crawlerOptions }) {
   const results = await Promise.allSettled([
-    collectCrawledEvidence({ fixtures, nowISO, ...crawlerOptions, includeMacauslot: true }),
+    collectCrawledEvidence({ fixtures, nowISO, ...crawlerOptions, includeMacauslot: false }),
     collectProviderEvidence({ fixtures, nowISO, env, statePath: providerStatePath, policy: providerPolicy,
       fetchImpl: crawlerOptions.fetchImpl, signal: crawlerOptions.signal, clock: crawlerOptions.clock, remaining: crawlerOptions.remaining }),
     fetchHkjcEvidence({ fixtures, nowISO, cooldownStatePath: crawlerOptions.statePath ? `${crawlerOptions.statePath}.hkjc-cooldown.json` : undefined,
@@ -105,6 +107,9 @@ export async function collectIntegratedEvidence({ fixtures, nowISO, env, provide
       code: ['PROVIDER_STATE_INVALID', 'PROVIDER_STATE_UNREADABLE', 'CRAWLER_STATE_INVALID', 'CRAWLER_STATE_UNREADABLE',
         'SOURCE_COOLDOWN_INVALID', 'SOURCE_COOLDOWN_UNREADABLE', 'COLLECTION_ALREADY_LOCKED'].includes(r.reason?.message)
         ? r.reason.message : 'COLLECTION_FAILED', checkedAt: nowISO }] });
-  return { quotes: data.flatMap(r => r.quotes), marketStates: data.flatMap(r => r.marketStates || []), signals: data.flatMap(r => r.signals), diagnostics: data.flatMap(r => r.diagnostics),
+  // A source blocked at ingress cannot count as an independent market group.
+  const admitted = row => row?.sourceId !== 'macauslot' && row?.id !== 'macauslot' && row?.provider !== 'macauslot-official';
+  const blockedDiagnostic = { id: 'macauslot', sourceId: 'macauslot', status: 'blocked', code: 'ACCESS_BLOCKED', checkedAt: nowISO };
+  return { quotes: data.flatMap(r => r.quotes).filter(admitted), marketStates: data.flatMap(r => r.marketStates || []).filter(admitted), signals: data.flatMap(r => r.signals).filter(admitted), diagnostics: [...data.flatMap(r => r.diagnostics).filter(admitted), blockedDiagnostic],
     fixtureDiagnostics: data.flatMap(row => row.fixtureDiagnostics || []), crawler: data[0].crawler || null, providers: data[1].providers || null };
 }
