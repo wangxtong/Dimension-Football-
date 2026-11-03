@@ -1,0 +1,13 @@
+{
+  "name": "dimension-football-research",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-11-03",
+  "workers_dev": true,
+  "vars": {
+    "HOSTED_PUBLICATION_ENABLED": "false",
+    "VANTIS_RESEARCH_WEB_ENABLED": "false"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
