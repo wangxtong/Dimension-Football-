@@ -13,7 +13,7 @@ ENV_FILE="${DF_ENV_FILE:-$HOME/df/.env.local}"
 STATE_DIR="$RUNTIME_ROOT/state"
 OUT_DIR="$RUNTIME_ROOT/reports"
 TARGET_BRANCH="${DF_TARGET_BRANCH:-main}"
-DRY_RUN="${DF_DRY_RUN:-0}"
+DRY_RUN="${DF_DRY_RUN:-1}"
 
 log() { printf '%s %s\n' "$(date -u +%H:%M:%SZ)" "$*"; }
 fail() { log "FAILED: $*"; exit 1; }
@@ -41,6 +41,18 @@ SHA="$(curl -fsS -H @"$GH_HEADER" \
   'https://api.github.com/repos/wangxtong/Dimension-Football-/commits/main' \
   | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')" \
   || fail "无法读取 main HEAD"
+# Exact code identity is mandatory: the remote SHA alone does not describe the checked-out code.
+LOCAL_SHA="$(git -C "$REPO_ROOT" rev-parse --verify HEAD 2>/dev/null)" || fail "LOCAL_HEAD_UNAVAILABLE"
+[ "$LOCAL_SHA" = "$SHA" ] || fail "EXECUTING_SHA_MISMATCH local=$LOCAL_SHA remote=$SHA"
+[ -z "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ] || fail "WORKTREE_DIRTY: 拒绝把未提交代码记作远程main SHA"
+
+# The research CLI does NOT verify GitHub CI or authorize a commercial release.
+# Any non-dry-run research outbound requires explicit per-SHA approval, and must never push to main.
+[ "$DRY_RUN" = "0" ] || [ "$DRY_RUN" = "1" ] || fail "INVALID_DRY_RUN: 只接受0或1"
+if [ "$DRY_RUN" = "0" ]; then
+  [ "$TARGET_BRANCH" != "main" ] && [ "$TARGET_BRANCH" != "master" ] || fail "DIRECT_MAIN_WRITE_BLOCKED: 必须走分支及PR审查"
+  [ "${DF_RESEARCH_OUTBOUND_APPROVED_SHA:-}" = "$SHA" ] || fail "RESEARCH_OUTBOUND_NOT_APPROVED_FOR_SHA"
+fi
 log "[1/5] fixtures lane sha=$SHA"
 node "$REPO_ROOT/collector/orchestrate.mjs" --lane fixtures --mode private-research \
   --state "$STATE_DIR/state.json" --out "$OUT_DIR" > "$RUNTIME_ROOT/fixtures.log" 2>&1 \
