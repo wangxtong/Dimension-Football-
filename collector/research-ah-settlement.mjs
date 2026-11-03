@@ -5,6 +5,8 @@
  * Does not certify the origin, timing, entitlement, or authenticity of input evidence.
  */
 const MAX_ABS_HANDICAP = 8;
+// Conservative research-only ceiling: stale quote snapshots must not inflate scored returns.
+const MAX_QUOTE_AGE_MS = 60 * 60 * 1000;
 const six = n => Math.round((n + Number.EPSILON) * 1e6) / 1e6;
 const isGoals = n => Number.isSafeInteger(n) && n >= 0 && n <= 30;
 const isOdds = n => typeof n === 'number' && Number.isFinite(n) && n > 1 && n <= 100;
@@ -78,6 +80,8 @@ export function settleFrozenAhResearch({ fixture, quote, forecast, result } = {}
       || observed > frozen || created > frozen || frozen >= start
       || finalized < start + 90 * 60 * 1000)
     return blocked('TIME_CAUSALITY_INVALID');
+  // A later official result cannot rehabilitate a market quote that was stale at freeze.
+  if (frozen - observed > MAX_QUOTE_AGE_MS) return blocked('QUOTE_STALE_AT_FREEZE');
   if (result.status !== 'FT') return blocked('RESULT_NOT_FT');
   const decimalOdds = selectedOdds;
   const settled = settleAsianHandicap({ homeGoals: result.homeGoals,

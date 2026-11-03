@@ -90,3 +90,11 @@ test('away selection locks away odds, not home odds',()=>{
   const x=run({forecast:{selection:'away',decimalOdds:1.94}});
   assert.equal(x.status,'SCORED'); assert.equal(x.decimalOdds,1.94);
 });
+
+test('AH stale historical quote is excluded from the scored denominator (research TTL 60m)',()=>{
+  assert.equal(run({quote:{observedAt:'2026-10-03T14:00:00.000Z'}}).reason,'QUOTE_STALE_AT_FREEZE');
+  assert.equal(run({quote:{observedAt:'2026-11-03T13:00:00.000Z'}}).reason,'QUOTE_STALE_AT_FREEZE');
+  const boundary = run({quote:{observedAt:'2026-11-03T13:10:00.000Z'}});
+  assert.equal(boundary.status,'SCORED');
+  assert.equal(boundary.outcome,HW);
+});
