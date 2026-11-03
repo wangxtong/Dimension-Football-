@@ -4,7 +4,10 @@ const ID = /^[a-f0-9]{64}$/, SHA = /^[a-f0-9]{40}$/;
 // 'football-data.org' 才是采集端写入 fixture.source 的真实值；只认 'football-data'
 // 会让该来源的比赛在研究日报里整批被跳过（每天表现为 0 场）。
 const SOURCES = new Set(['openligadb', 'thesportsdb-free', 'api-football', 'football-data', 'football-data.org']);
-const LEAGUES = new Set(['PL', 'PD', 'SA', 'BL1', 'FL1']);
+const LEAGUES = new Set(['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'BSA']);
+// 30 天分联赛统计固定为五大联赛：报表 schema 与历史 fixture 绑定 5 行，
+// 欧冠/巴西甲在 30 天窗口内样本量长期不足，单列会成为噪声行。
+const STAT_LEAGUES = new Set(['PL', 'PD', 'SA', 'BL1', 'FL1']);
 const KEYS = 'beijingDay,codeSha,commercialReleaseGate,disclaimer,externalTelegramSent,forecasts,generatedAt,kind,limitations,mode,prospective,reportId,researchGate,sourceReportId,sourceReportSha256,state,strictMarkets,version';
 const MIN_REPORT_BYTES = 150;
 const MAX_REPORT_BYTES = 750_000;
@@ -43,8 +46,8 @@ export async function validateDailyResearch(report, { now = Date.now(), fresh = 
     || !report.prospective || report.prospective.provenance !== 'immutable-prematch-ledger-plus-observed-full-time'
     || !count(report.prospective.retainedFrozen) || !validStats(report.prospective.oneDay)
     || !validStats(report.prospective.sevenDays) || !validStats(report.prospective.thirtyDays)
-    || !Array.isArray(report.prospective.byLeague30Days) || report.prospective.byLeague30Days.length !== 5
-    || !report.prospective.byLeague30Days.every(row => LEAGUES.has(row.league) && validStats(row))
+    || !Array.isArray(report.prospective.byLeague30Days) || report.prospective.byLeague30Days.length !== STAT_LEAGUES.size
+    || !report.prospective.byLeague30Days.every(row => STAT_LEAGUES.has(row.league) && validStats(row))
     || !Array.isArray(report.limitations) || report.limitations.length > 16 || !report.limitations.every(s => typeof s === 'string' && s.length < 500))
     fail('RESEARCH_REPORT_INVALID');
   if (report.forecasts.total > 3000 || report.state !== 'frozen-research-forecasts' && report.forecasts.total > 0
@@ -131,8 +134,8 @@ export function researchPanelData(report) {
     || !report.strictMarkets || report.strictMarkets.releasedCandidates !== 0
     || !report.prospective || !count(report.prospective.retainedFrozen)
     || ![report.prospective.oneDay, report.prospective.sevenDays, report.prospective.thirtyDays].every(validStats)
-    || !Array.isArray(report.prospective.byLeague30Days) || report.prospective.byLeague30Days.length !== 5
-    || !report.prospective.byLeague30Days.every(row => row && LEAGUES.has(row.league) && validStats(row))
+    || !Array.isArray(report.prospective.byLeague30Days) || report.prospective.byLeague30Days.length !== STAT_LEAGUES.size
+    || !report.prospective.byLeague30Days.every(row => row && STAT_LEAGUES.has(row.league) && validStats(row))
     || !report.forecasts.candidates.every(panelCandidate)) return null;
   const candidates = report.forecasts.candidates.slice(0, MAX_PANEL_CANDIDATES).map(row => ({
     source: row.source, league: row.league, home: row.home, away: row.away, kickoff: row.kickoff,

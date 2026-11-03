@@ -41,17 +41,20 @@ forecasts: 5 | unavailable: 3
 
 ---
 
-## 2. 改动清单（4 处白名单 + 1 参数）
+## 2. 改动清单（3 处白名单 + 1 参数）
 
-欧冠此前完全跑不动，根因是**四处独立的白名单**都只放五大联赛：
+欧冠此前完全跑不动，根因是**同一份联赛名单被抄在多处**，每处都只放五大联赛：
 
 | # | 文件 | 行 | 改动 |
 |---|---|---|---|
 | 1 | `collector/data/identity.mjs` | 6 | `leagues` Set 加 `'CL'`, `'BSA'` |
 | 2 | `collector/forecast.mjs` | 27 | `prepareForecastHistory` 联赛过滤数组加 `'CL'`, `'BSA'` |
-| 3 | `collector/research-daily-report.mjs` | 18 | `LEAGUES` 加 `'CL'`, `'BSA'` |
-| 4 | `collector/model-readiness.mjs` | 7 | `READINESS_LEAGUES` 加 `'CL'`, `'BSA'` |
+| 3 | `collector/research-daily-report.mjs` | 18 | `LEAGUES` 加 `'CL'`, `'BSA'`（仅用于候选过滤） |
+| 4 | `website/research-daily-store.mjs` | 7 | `LEAGUES` 加 `'CL'`, `'BSA'`（仅用于候选校验） |
 | 5 | `collector/forecast.mjs` | 10 | `maximumTeamAgeDays: 120 → 365` |
+| — | `collector/model-readiness.mjs` | 7 | **不改**，见 §6 |
+
+报表统计维度的 `byLeague30Days` 固定五大联赛（新增 `STAT_LEAGUES`），原因见 §6。
 
 `BSA`（巴西甲）一并加入，因为同一批体彩卡片里含巴西甲，且它是有稳定赛季的联赛，风险远低于杯赛。
 
@@ -97,3 +100,27 @@ git revert <本提交 sha>     # 白名单与参数一并回滚，无副作用
 - 白名单/参数生效后，明早 10:10 的定时任务才能把欧冠纳入日报。
 - **但 GitHub Actions 目前 100% 启动失败**（`steps=0`、`runner_name` 为空，1–13 秒即 failed）。今天的 10:10 是靠容器里的 `schedule-651dee16` 兜底发出的（`messageId 322`）。
 - 也就是说：**模型这一侧今晚可以通；调度这一侧仍不通**。这两件事必须分开说，不能拿模型跑通冒充链路跑通。
+
+---
+
+## 7. 白名单扩展踩到的 3 处回归（已修，附证据）
+
+改完跑全量测试，982 个用例从 0 fail 变成 5 fail。逐个二分定位：
+
+| 回归 | 现象 | 根因 | 修法 |
+|---|---|---|---|
+| A | `restore-report-fixture` 字节比对失败 | `READINESS_LEAGUES` 扩到 7 后，历史快照重建出的 readiness 段字节变化，**不可变历史资产无法精确复现** | 回滚 `model-readiness.mjs`（保持 5） |
+| B | `hosted-worker` 3 个用例 400 | `byLeague30Days` 随 `LEAGUES` 变成 7 行，worker 校验硬编码 `length !== 5` | 拆出 `STAT_LEAGUES`（固定 5），候选过滤仍用 7 |
+| C | `ReferenceError: allowExpired is not defined` | 上一轮「冻结 0 场」修复在 `chronology()` 里引用了外层变量，但没加参数 | `chronology(doc, ledger, nowMs, { allowExpired = false } = {})` |
+
+**A 是最有价值的发现**：`model-readiness` 是商业门禁，欧冠本来就不走商业发布；扩它不但没用，还会让历史证据失效。已经回滚。
+
+**B/C 说明同一件事**：`byLeague30Days` 是**报表 schema**，不是「模型支持哪些联赛」。把两者耦合，是这次改动最大的设计错误——我用 `STAT_LEAGUES` 把它们拆开了。
+
+现状：`982 tests / 978 pass / 1 fail`。剩下 1 个 `real private freezes survive a new runner` 在基线 `3e55b3d` 上**同样失败**，属既有问题，与本轮改动无关（已在基线复现两次）。
+
+---
+
+## 8. 补一句：我上一轮说错了
+
+我在 §2 原稿里写「四处白名单」，实际是 **5 处**（漏了 `website/research-daily-store.mjs`）。是测试把它顶出来的，不是我自己数出来的。

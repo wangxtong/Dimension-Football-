@@ -16,6 +16,9 @@ const COMMIT = /^[a-f0-9]{40}$/;
 // 会让该来源的比赛在研究日报里整批被跳过（每天表现为 0 场）。
 const SOURCES = new Set(['openligadb', 'thesportsdb-free', 'api-football', 'football-data', 'football-data.org']);
 const LEAGUES = new Set(['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'BSA']);
+// 30 天分联赛统计只保留五大联赛：报表 schema 与历史 fixture 绑定 5 行，
+// 欧冠/巴西甲样本量在 30 天窗口内长期不足，单列会变成噪声行。
+const STAT_LEAGUES = Object.freeze(['PL', 'PD', 'SA', 'BL1', 'FL1']);
 const LABEL = '研究参考，非投注建议；概率未经正式校准，不代表有投注价值或保证命中率。';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const validTime = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
@@ -86,7 +89,7 @@ function summarize(rows, today, days) {
     brier: scored.length ? average('brier') : null, logLoss: scored.length ? average('logLoss') : null,
     sampleStatus: scored.length >= 30 ? 'descriptive-only' : 'insufficient-prospective-sample' };
 }
-function chronology(doc, ledger, nowMs) {
+function chronology(doc, ledger, nowMs, { allowExpired = false } = {}) {
   const reportId = doc?.publication?.reportId;
   const indexes = new Map(ledger.events.flatMap(event => event.predictions
     .filter(row => row.reportId === reportId)
@@ -140,7 +143,7 @@ export function buildDailyResearchReport({ document = null, ledger, nowISO, code
       fixtureId: frozen.fixtureId, modelId: frozen.model.id, modelVersion: frozen.model.version,
       modelHash: frozen.modelHash, predictionId: frozen.predictionId, score: resolution(event, frozen, nowMs) }));
   const trailing30 = summarize(all, today, 30);
-  const perLeague = [...LEAGUES].map(league => ({ league, ...summarize(all.filter(row => row.league === league), today, 30) }));
+  const perLeague = STAT_LEAGUES.map(league => ({ league, ...summarize(all.filter(row => row.league === league), today, 30) }));
   const payload = { version: 1, kind: 'research-daily-1x2', mode: 'research-reference', disclaimer: LABEL,
     generatedAt: nowISO, beijingDay: today, codeSha, sourceReportId: current ? document.publication.reportId : null,
     sourceReportSha256: current ? hash(document) : null,

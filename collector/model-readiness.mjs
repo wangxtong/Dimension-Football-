@@ -4,7 +4,7 @@ import { FORECAST_MODEL } from './forecast.mjs';
 import { digest, isoMillis } from './policy.mjs';
 import { evaluatePredictionLedger, frozenPredictionIssues, readPredictionLedger } from './prediction-ledger.mjs';
 
-export const READINESS_LEAGUES = Object.freeze(['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'BSA']);
+export const READINESS_LEAGUES = Object.freeze(['PL', 'PD', 'SA', 'BL1', 'FL1']);
 export const MINIMUM_PROSPECTIVE_PER_LEAGUE = 200;
 const token = value => typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(value);
 const matchesModel = (row, model) => row.model?.id === model.id && row.model?.version === model.version;
