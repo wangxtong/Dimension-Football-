@@ -20,6 +20,7 @@ cat > "$ROOT/mock-bin/curl" <<'MOCKCURL'
 printf 'curl %s\n' "$*" >> "${MOCK_TRACE:?}"
 case "$*" in
   *"commits/main"*) printf '{"sha":"%s"}\n' "${MOCK_REMOTE_SHA:?}" ;;
+  *"contents/docs/latest-daily.md"*) if [[ " $* " == *" -X PUT "* ]]; then printf '{"commit":{"sha":"abcdef0123456789abcdef0123456789abcdef01"}}\n'; else printf '{"sha":"feed0123456789abcdef0123456789abcdef0123"}\n'; fi ;;
   *) echo "UNEXPECTED_CURL" >&2; exit 91 ;;
 esac
 MOCKCURL
@@ -29,6 +30,8 @@ printf 'node %s\n' "$*" >> "${MOCK_TRACE:?}"
 case "$*" in
   *"orchestrate.mjs"*"--mode private-research"*) echo "mock private research lane" ;;
   *"research-daily-report.mjs"*) mkdir -p "$DF_RUNTIME_ROOT/reports/research-daily"; printf 'TEST ONLY - NOT A REAL FORECAST\n' > "$DF_RUNTIME_ROOT/reports/research-daily/latest.md"; printf '{"kind":"research-daily-1x2","mode":"research-reference","commercialReleaseGate":"BLOCKED","externalTelegramSent":false,"strictMarkets":{"releasedCandidates":0},"codeSha":"%s","reportId":"%064d"}\n' "$MOCK_REMOTE_SHA" 0 > "$DF_RUNTIME_ROOT/reports/research-daily/latest.json"; echo "mock report" ;;
+  *"publish-research-daily.mjs"*) code="${MOCK_BAD_WEB:-0}"; printf '{"reportId":"%064d","status":"research-authenticated-web-verified","commercialReleaseGate":"BLOCKED"}\n' "$code" ;;
+  *"publish-research-telegram.mjs"*) code="${MOCK_BAD_TG:-0}"; printf '{"codeSha":"%s","reportId":"%064d","status":"accepted","messageId":42}\n' "$MOCK_REMOTE_SHA" "$code" > "$DF_RUNTIME_ROOT/reports/research-daily/telegram-receipt.json"; echo "mock TG" ;;
   *) echo "UNEXPECTED_NODE" >&2; exit 92 ;;
 esac
 MOCKNODE
@@ -47,7 +50,9 @@ run_case() {
   if [ "$expected" = 0 ] && [ "$status" -ne 0 ]; then okay=0; fi
   if [ "$expected" != 0 ] && [ "$status" -eq 0 ]; then okay=0; fi
   if [ -n "$marker" ] && ! grep -q "$marker" "$ROOT/output"; then okay=0; fi
-  if grep -Eq 'node .*publish-research-telegram|curl .*contents/docs/latest-daily' "$ROOT/trace"; then okay=0; fi
+  local allow=0; for arg in "$@"; do [ "$arg" = 'MOCK_ALLOW_PUBLICATION=1' ] && allow=1; done
+  if [ "$allow" = 0 ] && grep -Eq 'node .*publish-research-telegram|curl .*contents/docs/latest-daily' "$ROOT/trace"; then okay=0; fi
+  if [ "$expected" != 0 ] && [ "$allow" = 1 ] && grep -q 'curl .*contents/docs/latest-daily' "$ROOT/trace"; then okay=0; fi
   if [ "$okay" = 1 ]; then printf 'PASS %s (exit=%s)\n' "$name" "$status"; pass=$((pass+1))
   else printf 'FAIL %s (exit=%s)\n' "$name" "$status"; cat "$ROOT/output"; cat "$ROOT/trace"; fail=$((fail+1)); fi
 }
@@ -58,5 +63,8 @@ run_case 'dirty worktree rejected' 1 'WORKTREE_DIRTY' MOCK_DIRTY=1
 run_case 'main publication blocked' 1 'DIRECT_MAIN_WRITE_BLOCKED' DF_DRY_RUN=0 DF_TARGET_BRANCH=main DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
 run_case 'missing per-SHA approval blocked' 1 'RESEARCH_OUTBOUND_NOT_APPROVED_FOR_SHA' DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot
 run_case 'wrong-SHA approval blocked' 1 'RESEARCH_OUTBOUND_NOT_APPROVED_FOR_SHA' DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot DF_RESEARCH_OUTBOUND_APPROVED_SHA=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+run_case 'same-ID mocked Web+TG+branch is accepted' 0 'DONE  日报=' MOCK_ALLOW_PUBLICATION=1 DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
+run_case 'wrong Web report ID blocks before TG' 1 'WEB_READBACK_MISMATCH' MOCK_BAD_WEB=1 MOCK_ALLOW_PUBLICATION=1 DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
+run_case 'wrong TG report ID blocks before branch sync' 1 'TELEGRAM_RECEIPT_MISMATCH' MOCK_BAD_TG=1 MOCK_ALLOW_PUBLICATION=1 DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
 printf 'TOTAL pass=%s fail=%s (all mocked; no real data or external delivery)\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
