@@ -30,7 +30,7 @@ cat > "$ROOT/mock-bin/node" <<'MOCKNODE'
 printf 'node %s\n' "$*" >> "${MOCK_TRACE:?}"
 case "$*" in
   *"orchestrate.mjs"*"--mode private-research"*) echo "mock private research lane" ;;
-  *"research-daily-report.mjs"*) mkdir -p "$DF_RUNTIME_ROOT/reports/research-daily"; printf 'TEST ONLY - NOT A REAL FORECAST\n' > "$DF_RUNTIME_ROOT/reports/research-daily/latest.md"; printf '{"kind":"research-daily-1x2","mode":"research-reference","commercialReleaseGate":"BLOCKED","externalTelegramSent":false,"strictMarkets":{"releasedCandidates":0},"codeSha":"%s","reportId":"%064d"}\n' "$MOCK_REMOTE_SHA" 0 > "$DF_RUNTIME_ROOT/reports/research-daily/latest.json"; echo "mock report" ;;
+  *"research-daily-report.mjs"*) mkdir -p "$DF_RUNTIME_ROOT/reports/research-daily"; printf 'TEST ONLY - NOT A REAL FORECAST\n' > "$DF_RUNTIME_ROOT/reports/research-daily/latest.md"; printf '{"kind":"research-daily-1x2","mode":"research-reference","commercialReleaseGate":"BLOCKED","externalTelegramSent":false,"strictMarkets":{"releasedCandidates":0},"codeSha":"%s","reportId":"%064d"}\n' "${GITHUB_SHA:-$MOCK_REMOTE_SHA}" 0 > "$DF_RUNTIME_ROOT/reports/research-daily/latest.json"; echo "mock report" ;;
   *"publish-research-daily.mjs"*) code="${MOCK_BAD_WEB:-0}"; printf '{"reportId":"%064d","status":"research-authenticated-web-verified","commercialReleaseGate":"BLOCKED"}\n' "$code" ;;
   *"publish-research-telegram.mjs"*) code="${MOCK_BAD_TG:-0}"; printf '{"codeSha":"%s","reportId":"%064d","status":"accepted","messageId":42}\n' "$MOCK_REMOTE_SHA" "$code" > "$DF_RUNTIME_ROOT/reports/research-daily/telegram-receipt.json"; echo "mock TG" ;;
   *) echo "UNEXPECTED_NODE" >&2; exit 92 ;;
@@ -61,6 +61,10 @@ run_case 'default research-only/no publication' 0 'DONE (dry-run)'
 run_case 'invalid dry-run value rejected' 1 'INVALID_DRY_RUN' DF_DRY_RUN=oops
 run_case 'local remote SHA mismatch rejected' 1 'EXECUTING_SHA_MISMATCH' MOCK_LOCAL_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 run_case 'dirty worktree rejected' 1 'WORKTREE_DIRTY' MOCK_DIRTY=1
+run_case 'explicit Draft pin works in isolated dry-run' 0 'DRAFT_RESEARCH_PINNED_SHA' MOCK_LOCAL_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa DF_RESEARCH_DRAFT_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+run_case 'incorrect Draft pin rejected' 1 'DRAFT_SHA_MISMATCH' MOCK_LOCAL_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa DF_RESEARCH_DRAFT_SHA=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+run_case 'malformed Draft pin rejected' 1 'DRAFT_SHA_INVALID' DF_RESEARCH_DRAFT_SHA=bad
+run_case 'Draft pin cannot enable outbound' 1 'DRAFT_SHA_RESEARCH_ONLY' DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot DF_RESEARCH_DRAFT_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
 run_case 'git status failure must fail closed' 1 'WORKTREE_STATUS_UNAVAILABLE' MOCK_STATUS_FAIL=1
 run_case 'main publication blocked' 1 'DIRECT_MAIN_WRITE_BLOCKED' DF_DRY_RUN=0 DF_TARGET_BRANCH=main DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
 run_case 'full ref main alias cannot bypass branch gate' 1 'UNSAFE_TARGET_BRANCH' DF_DRY_RUN=0 DF_TARGET_BRANCH=refs/heads/main DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
