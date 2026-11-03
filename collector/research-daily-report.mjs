@@ -86,7 +86,7 @@ function summarize(rows, today, days) {
     brier: scored.length ? average('brier') : null, logLoss: scored.length ? average('logLoss') : null,
     sampleStatus: scored.length >= 30 ? 'descriptive-only' : 'insufficient-prospective-sample' };
 }
-function chronology(doc, ledger, nowMs) {
+function chronology(doc, ledger, nowMs, { allowExpired = false } = {}) {
   const reportId = doc?.publication?.reportId;
   const indexes = new Map(ledger.events.flatMap(event => event.predictions
     .filter(row => row.reportId === reportId)
