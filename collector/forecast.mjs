@@ -7,7 +7,7 @@ export const FORECAST_MODEL = Object.freeze({ id: 'venue-poisson-v2', version: 2
   description: '按主客场与时间衰减计算进失球率，向联赛均值收缩的独立泊松基线',
   lookbackDays: 540, halfLifeDays: 180, priorMatches: 6,
   minimumLeagueMatches: 40, minimumTeamMatches: 6, minimumVenueMatches: 2,
-  maximumTeamAgeDays: 365, resultLagHours: 4, backtestLimit: 80,
+  maximumTeamAgeDays: 120, resultLagHours: 4, backtestLimit: 80,
   calibrated: false, purpose: 'prematch-1x2-analysis', needsOdds: false });
 export const BACKTEST_HORIZONS = Object.freeze([1, 24, 72, 168]);
 const DAY = 86400000, OUTCOMES = ['home', 'draw', 'away'];
