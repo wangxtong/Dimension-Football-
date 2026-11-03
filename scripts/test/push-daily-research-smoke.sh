@@ -11,7 +11,8 @@ cat > "$ROOT/mock-bin/git" <<'MOCKGIT'
 #!/usr/bin/env bash
 case " $* " in
   *" rev-parse "*) printf '%s\n' "${MOCK_LOCAL_SHA:?}" ;;
-  *" status "*) [ "${MOCK_DIRTY:-0}" = 1 ] && printf ' M collector/orchestrate.mjs\n' || true ;;
+  *" status "*) [ "${MOCK_STATUS_FAIL:-0}" = 1 ] && exit 42
+    [ "${MOCK_DIRTY:-0}" = 1 ] && printf ' M collector/orchestrate.mjs\n' || true ;;
   *) echo "UNEXPECTED_GIT" >&2; exit 90 ;;
 esac
 MOCKGIT
@@ -60,6 +61,7 @@ run_case 'default research-only/no publication' 0 'DONE (dry-run)'
 run_case 'invalid dry-run value rejected' 1 'INVALID_DRY_RUN' DF_DRY_RUN=oops
 run_case 'local remote SHA mismatch rejected' 1 'EXECUTING_SHA_MISMATCH' MOCK_LOCAL_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 run_case 'dirty worktree rejected' 1 'WORKTREE_DIRTY' MOCK_DIRTY=1
+run_case 'git status failure must fail closed' 1 'WORKTREE_STATUS_UNAVAILABLE' MOCK_STATUS_FAIL=1
 run_case 'main publication blocked' 1 'DIRECT_MAIN_WRITE_BLOCKED' DF_DRY_RUN=0 DF_TARGET_BRANCH=main DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
 run_case 'missing per-SHA approval blocked' 1 'RESEARCH_OUTBOUND_NOT_APPROVED_FOR_SHA' DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot
 run_case 'wrong-SHA approval blocked' 1 'RESEARCH_OUTBOUND_NOT_APPROVED_FOR_SHA' DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot DF_RESEARCH_OUTBOUND_APPROVED_SHA=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
