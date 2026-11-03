@@ -28,7 +28,7 @@ cat > "$ROOT/mock-bin/node" <<'MOCKNODE'
 printf 'node %s\n' "$*" >> "${MOCK_TRACE:?}"
 case "$*" in
   *"orchestrate.mjs"*"--mode private-research"*) echo "mock private research lane" ;;
-  *"research-daily-report.mjs"*) mkdir -p "$DF_RUNTIME_ROOT/reports/research-daily"; printf 'TEST ONLY - NOT A REAL FORECAST\n' > "$DF_RUNTIME_ROOT/reports/research-daily/latest.md"; echo "mock report" ;;
+  *"research-daily-report.mjs"*) mkdir -p "$DF_RUNTIME_ROOT/reports/research-daily"; printf 'TEST ONLY - NOT A REAL FORECAST\n' > "$DF_RUNTIME_ROOT/reports/research-daily/latest.md"; printf '{"kind":"research-daily-1x2","mode":"research-reference","commercialReleaseGate":"BLOCKED","externalTelegramSent":false,"strictMarkets":{"releasedCandidates":0},"codeSha":"%s","reportId":"%064d"}\n' "$MOCK_REMOTE_SHA" 0 > "$DF_RUNTIME_ROOT/reports/research-daily/latest.json"; echo "mock report" ;;
   *) echo "UNEXPECTED_NODE" >&2; exit 92 ;;
 esac
 MOCKNODE
