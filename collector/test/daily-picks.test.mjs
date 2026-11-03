@@ -157,14 +157,55 @@ test('展示上限不许吞掉落选场、未展示选项和无效盘口分母',
     forecasts:[forecast(),forecast({matchId:222})],nowISO:now,limit:1,
   });
   assert.equal(x.inputTotal,4);
-  assert.equal(x.total,2);
+  assert.equal(x.total,1);
   assert.equal(x.picks.length,1);
-  assert.equal(x.allPicks.length,2);
+  assert.equal(x.allPicks.length,1);
   assert.equal(x.selected,1);
-  assert.equal(x.selectedAll,2);
-  assert.equal(x.hiddenTotal,1);
-  assert.equal(x.hiddenSelected,1);
+  assert.equal(x.selectedAll,1);
+  assert.equal(x.hiddenTotal,0);
+  assert.equal(x.hiddenSelected,0);
   assert.deepEqual(x.excludedCandidates.map(r=>r.reason),
-    ['INVALID_HHAD_MARKET','DUPLICATE_MATCH_ID']);
-  assert.equal(x.allPicks[1].pick.decimalOdds,2.07);
+    ['DUPLICATE_MATCH_ID','INVALID_HHAD_MARKET','DUPLICATE_MATCH_ID']);
+  assert.equal(x.allPicks[0].matchId,222);
+  assert.equal(x.allPicks[0].pick.decimalOdds,2.07);
+});
+
+test('同一体彩matchId冲突时整组隔离，不让第一行伪造胜率', () => {
+  const x = buildDailyPicks({matches:[match(),match({home:'其他主队',away:'其他客队'})],
+    forecasts:[forecast()],nowISO:now});
+  assert.equal(x.inputTotal,2);assert.equal(x.total,0);assert.equal(x.selectedAll,0);
+  assert.deepEqual(x.excludedCandidates.map(r=>r.reason),['IDENTITY_CONFLICT','IDENTITY_CONFLICT']);
+  assert.equal(x.excludedCandidates[0].handicap.source,'sporttery-jc');
+  const single=buildDailyPicks({matches:[match()],forecasts:[forecast()],nowISO:now}).allPicks[0];
+  const settled=settleDailyPicks({picks:[single,{...single,home:'其他主队'}],
+    results:[result({homeGoals:3,awayGoals:1})]});
+  assert.equal(settled.wins,0);assert.equal(settled.total,0);assert.equal(settled.coverage.duplicate,2);
+});
+
+test('重复forecast不得由后写覆盖产生方向，jc别名也算同key', () => {
+  const first=forecast(), last=forecast({fixtureKey:'jc-111',
+    probabilities:{home:.1,draw:.1,away:.8}});
+  for(const rows of [[first,last],[last,first]]) {
+    const x=buildDailyPicks({matches:[match()],forecasts:rows,nowISO:now});
+    assert.equal(x.forecastInputTotal,2); assert.equal(x.selectedAll,0);
+    assert.equal(x.total,0); assert.equal(x.excludedForecasts.length,2);
+    assert.deepEqual(x.excludedCandidates.map(r=>r.reason),['DUPLICATE_FORECAST']);
+  }
+});
+
+test('报价必须有来源且一小时外旧价不许伪装成刚冻结', () => {
+  const stale=match({handicap:{...match().handicap,updatedAt:'2026-10-22T08:00:00.000Z'}});
+  const x=buildDailyPicks({matches:[stale],forecasts:[forecast()],nowISO:now});
+  assert.equal(x.total,0);assert.equal(x.selectedAll,0);
+  assert.deepEqual(x.excludedCandidates.map(r=>r.reason),['QUOTE_STALE']);
+  assert.equal(x.excludedCandidates[0].handicap.updatedAt,'2026-10-22T08:00:00.000Z');
+  const anonymous=buildDailyPicks({matches:[match({handicap:{...match().handicap,source:undefined}})],
+    forecasts:[forecast()],nowISO:now});
+  assert.equal(anonymous.total,0);
+  assert.deepEqual(anonymous.excludedCandidates.map(r=>r.reason),['INVALID_HHAD_MARKET']);
+  const {allPicks}=buildDailyPicks({matches:[match()],forecasts:[forecast()],nowISO:now});
+  const tampered=structuredClone(allPicks);
+  tampered[0].handicap.updatedAt='2026-10-22T08:00:00.000Z';
+  const settled=settleDailyPicks({picks:tampered,results:[result({homeGoals:3,awayGoals:1})]});
+  assert.equal(settled.total,0);assert.equal(settled.coverage.invalid,1);
 });
