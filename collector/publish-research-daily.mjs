@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readJson } from './storage.mjs';
@@ -10,13 +12,20 @@ export async function publishDailyResearch({ root, env = process.env, fetchImpl 
     || report.commercialReleaseGate !== 'BLOCKED' || report.externalTelegramSent !== false
     || report?.strictMarkets?.releasedCandidates !== 0 || !/^[a-f0-9]{64}$/.test(report.reportId || ''))
     throw Error('RESEARCH_REPORT_INVALID');
+  // Research report IDs are SHA-256 of the JSON payload before the reportId field
+  // is added (see buildDailyResearchReport). Do not trust a 64-hex-shaped ID.
+  const { reportId, ...payload } = report;
+  const computedId = createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+  if (computedId !== reportId) throw Error('RESEARCH_REPORT_INVALID');
   const transport = client || createHostedClient({ env, fetchImpl });
   const status = await transport.request('/internal/research-daily', { method: 'POST', body: report });
   if (status?.reportId !== report.reportId || status.status !== 'research-available'
     || status.commercialReleaseGate !== 'BLOCKED') throw Error('RESEARCH_WRITE_UNCONFIRMED');
   const reloaded = await transport.request('/internal/research-daily', { method: 'GET' });
-  if (reloaded?.reportId !== report.reportId || reloaded?.codeSha !== report.codeSha
-    || reloaded?.beijingDay !== report.beijingDay || reloaded?.sourceReportId !== report.sourceReportId)
+  // Checking only four identifying fields can falsely accept a changed forecast,
+  // odds, release gate or omitted evidence. Require the *entire* original report
+  // back. Deep equality is insensitive to JSON object key order.
+  if (!isDeepStrictEqual(reloaded, report))
     throw Error('RESEARCH_READBACK_MISMATCH');
   return { reportId: report.reportId, beijingDay: report.beijingDay,
     status: 'research-authenticated-web-verified', telegramSent: false, commercialReleaseGate: 'BLOCKED' };
