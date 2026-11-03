@@ -1,6 +1,5 @@
 import { isoMillis } from '../policy.mjs';
 import { safeName } from './provider-utils.mjs';
-import { SourceCooldownError, withSourceCooldown } from './cooldown.mjs';
 
 export const MACAUSLOT_PAGE = 'https://www.macauslot.com/content/page/soccer/odds/all.html?sport=1&lang=cn';
 export const MACAUSLOT_EVENTS = 'https://www.macauslot.com/soccer/json/realtime/threeinone_event_cn_fb.json';
@@ -140,72 +139,12 @@ export function parseMacauslot(eventsPayload, oddsPayload, { fixtures, observedA
     quoteTimeBasis: 'whole-file-update', transactionUpdatedAt: null, openingStatus: 'not_provided' })] };
 }
 
-const allowedErrors = new Set(['invalid_request', 'invalid_snapshot', 'stale_snapshot', 'empty_snapshot', 'snapshot_too_large',
-  'authorization_required', 'rate_limited', 'http_unavailable', 'timeout', 'source_cooldown', 'crawler_budget_exhausted', 'crawler_cancelled']);
-async function readSnapshot(url, { fetchImpl, clock, signal, remaining }) {
-  const controller = new AbortController(), timeout = Math.min(fetchImpl.timeoutMs || 25_000, remaining());
-  if (signal?.aborted || timeout <= 0) throw new Error('crawler_budget_exhausted');
-  const joined = AbortSignal.any([controller.signal, signal].filter(Boolean));
-  let timer, onAbort;
-  const operation = (async () => {
-    const response = await fetchImpl(url, { method: 'GET', redirect: 'manual', signal: joined,
-      headers: { Accept: 'application/json', 'User-Agent': 'DimensionFootball-Collector/1.0' } });
-    const rejectResponse = async code => { await response.body?.cancel().catch(() => {}); throw Object.assign(new Error(code), { status: response.status }); };
-    if (joined.aborted) return rejectResponse('timeout');
-    if (!response.ok) return rejectResponse(response.status === 401 || response.status === 403 ? 'authorization_required' : response.status === 429 ? 'rate_limited' : 'http_unavailable');
-    if (!/application\/json/i.test(response.headers.get('content-type') || '')) return rejectResponse('invalid_snapshot');
-    const limit = url === MACAUSLOT_ODDS ? 4 * 1024 * 1024 : 1_500_000;
-    if (Number(response.headers.get('content-length')) > limit) return rejectResponse('snapshot_too_large');
-    const reader = response.body?.getReader(); if (!reader) throw new Error('empty_snapshot');
-    const decoder = new TextDecoder(); let text = '', bytes = 0;
-    try {
-      for (;;) { const part = await reader.read(); if (part.done) break; bytes += part.value.byteLength;
-        if (bytes > limit) throw new Error('snapshot_too_large'); text += decoder.decode(part.value, { stream: true }); }
-      text += decoder.decode();
-    } finally { await reader.cancel().catch(() => {}); }
-    const observedAt = clock(), now = isoMillis(observedAt), updated = Date.parse(response.headers.get('last-modified')),
-      served = Date.parse(response.headers.get('date')), age = Number(response.headers.get('age') || 0);
-    if (!Number.isFinite(now) || !Number.isFinite(updated) || !Number.isFinite(served) || !Number.isSafeInteger(age) || age < 0
-      || updated > served || served > now || now - served + age * 1000 > 300_000
-      || now - updated > (url === MACAUSLOT_ODDS ? 300_000 : 86400_000)) throw new Error('stale_snapshot');
-    if (!text) throw new Error('empty_snapshot');
-    let payload; try { payload = JSON.parse(text); } catch { throw new Error('invalid_snapshot'); }
-    return { payload, observedAt, sourceUpdatedAt: new Date(updated).toISOString(), sourceAsOf: new Date(served).toISOString() };
-  })();
-  try {
-    timer = setTimeout(() => controller.abort(), timeout);
-    return await Promise.race([operation, new Promise((_, reject) => {
-      onAbort = () => reject(new Error('timeout'));
-      if (joined.aborted) onAbort(); else joined.addEventListener('abort', onAbort, { once: true });
-    })]);
-  } finally { clearTimeout(timer); joined.removeEventListener('abort', onAbort); controller.abort(); }
-}
-
-// fetchImpl is the public crawler transport: it owns robots, host spacing and
-// request budgets. No private endpoints, credentials, browser bypass or POST.
-export async function fetchMacauslotEvidence({ fixtures = [], nowISO, fetchImpl, clock = () => new Date().toISOString(), signal,
-  remaining = () => Infinity, cooldownStatePath }) {
+// P0 admission boundary: historical offline parser is retained above, but the
+// retired live adapter cannot make requests, rehydrate cached quotes or accept
+// a mock transport as an authorization substitute.
+export async function fetchMacauslotEvidence({ fixtures = [], nowISO } = {}) {
   if (!Array.isArray(fixtures) || fixtures.length > 3000 || !Number.isFinite(isoMillis(nowISO))) throw new Error('invalid_request');
-  if (!fixtures.some(f => eligible(f, isoMillis(nowISO)))) return { quotes: [], marketStates: [], signals: [], diagnostics: [], fixtureDiagnostics: [] };
-  if (typeof fetchImpl !== 'function') throw new Error('controlled_transport_required');
-  try {
-    return await withSourceCooldown({ statePath: cooldownStatePath, clock, signal, remaining }, async cooldown => {
-      const guarded = (url, init) => cooldown.fetch('macauslot', fetchImpl, url, init);
-      guarded.timeoutMs = fetchImpl.timeoutMs;
-      const options = { fetchImpl: guarded, clock, signal, remaining };
-      const events = await readSnapshot(MACAUSLOT_EVENTS, options);
-      const odds = await readSnapshot(MACAUSLOT_ODDS, options);
-      return parseMacauslot(events.payload, odds.payload, { fixtures, observedAt: odds.observedAt,
-        sourceUpdatedAt: odds.sourceUpdatedAt, sourceAsOf: odds.sourceAsOf,
-        scheduleUpdatedAt: events.sourceUpdatedAt, scheduleAsOf: events.sourceAsOf, scheduleObservedAt: events.observedAt });
-    });
-  } catch (error) {
-    const code = signal?.aborted ? 'crawler_cancelled' : allowedErrors.has(error?.message) ? error.message
-      : /^crawler_|^robots_|^crawl_delay_|^access_|^redirect_|^cache_validation_/.test(error?.code || '') ? error.code : 'network_unavailable';
-    const cooldown = error instanceof SourceCooldownError ? error : null, checkedAt = clock();
-    return { quotes: [], marketStates: [], signals: [], diagnostics: [diag(checkedAt, { status: 'unavailable', code,
-      httpStatus: cooldown?.httpStatus ?? error.status ?? null, retryAfterMs: cooldown?.retryAfterMs ?? null,
-      nextProbeAt: cooldown?.nextProbeAt ?? null, matchedCount: 0 })],
-      fixtureDiagnostics: fixtures.map(f => diag(checkedAt, { fixtureId: f.id, status: 'unavailable', code })) };
-  }
+  return { quotes: [], marketStates: [], signals: [], diagnostics: [diag(nowISO, {
+    sourceId: 'macauslot', status: 'blocked', code: 'ACCESS_BLOCKED', httpStatus: null, matchedCount: 0 })],
+    fixtureDiagnostics: fixtures.map(f => diag(nowISO, { fixtureId: f?.id, sourceId: 'macauslot', status: 'blocked', code: 'ACCESS_BLOCKED' })) };
 }
