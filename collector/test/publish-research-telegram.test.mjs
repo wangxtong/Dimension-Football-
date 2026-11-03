@@ -54,6 +54,7 @@ test('research telegram sends the simplified-Chinese study digest exactly once a
   const second = await publishResearchTelegram({ root, env: { TELEGRAM_BOT_TOKEN: TOKEN, TELEGRAM_CHAT_ID: CHAT },
     fetchImpl: async () => { throw Error('never'); } });
   assert.equal(second.status, 'skipped'); assert.equal(second.code, 'ALREADY_SENT_TODAY');
+  assert.equal(second.messageId, 42, 'same-report skip must preserve actual accepted Telegram ID');
   const receipt = JSON.parse(await readFile(join(root, 'reports/research-daily/telegram-receipt.json'), 'utf8'));
   assert.equal(receipt.status, 'accepted'); assert.equal(receipt.reportId, report.reportId);
 });
@@ -116,4 +117,43 @@ test('an API rejection persists a failed receipt and is never auto-retried', asy
   assert.equal(out.status, 'failed'); assert.equal(out.code, 'TELEGRAM_API_REJECTED');
   const receipt = JSON.parse(await readFile(join(root, 'reports/research-daily/telegram-receipt.json'), 'utf8'));
   assert.equal(receipt.status, 'failed');
+});
+
+test('an accepted Telegram receipt cannot be reused for a different same-day report', async t => {
+  const root = await fixture(t), env = { TELEGRAM_BOT_TOKEN: TOKEN, TELEGRAM_CHAT_ID: CHAT };
+  const { report: original } = dailyReport();
+  const latest = join(root, 'reports/research-daily/latest.json');
+  const receiptFile = join(root, 'reports/research-daily/telegram-receipt.json');
+  await writeFile(latest, JSON.stringify(original));
+  await writeFile(join(root, 'reports/research-daily/latest.md'), MARKDOWN);
+  const first = await publishResearchTelegram({ root, env,
+    fetchImpl: async (url, init) => telegramOk(JSON.parse(init.body)) });
+  assert.equal(first.status, 'accepted');
+  const changed = dailyReport({ state: 'updated-research-only' }).report;
+  assert.notEqual(changed.reportId, original.reportId);
+  await writeFile(latest, JSON.stringify(changed));
+  let calls = 0;
+  await assert.rejects(publishResearchTelegram({ root, env,
+    fetchImpl: async () => { calls++; throw Error('must not send duplicate'); } }), /RESEARCH_REPORT_CONFLICT/);
+  assert.equal(calls, 0);
+  const receipt = JSON.parse(await readFile(receiptFile, 'utf8'));
+  assert.equal(receipt.reportId, original.reportId);
+  assert.equal(receipt.messageId, 42);
+});
+
+test('same-day changed code SHA or missing accepted message ID cannot be treated as delivered', async t => {
+  const root = await fixture(t), env = { TELEGRAM_BOT_TOKEN: TOKEN, TELEGRAM_CHAT_ID: CHAT };
+  const original = dailyReport().report;
+  const latest = join(root, 'reports/research-daily/latest.json');
+  const receiptFile = join(root, 'reports/research-daily/telegram-receipt.json');
+  await writeFile(latest, JSON.stringify(original));
+  await writeFile(receiptFile, JSON.stringify({ beijingDay: original.beijingDay,
+    codeSha: original.codeSha, reportId: original.reportId, status: 'accepted' }));
+  await assert.rejects(publishResearchTelegram({ root, env,
+    fetchImpl: async () => { throw Error('no request allowed'); } }), /RESEARCH_REPORT_CONFLICT/);
+  await writeFile(receiptFile, JSON.stringify({ beijingDay: original.beijingDay,
+    codeSha: original.codeSha, reportId: original.reportId, status: 'accepted', messageId: 42 }));
+  await writeFile(latest, JSON.stringify(dailyReport({ codeSha: 'b'.repeat(40) }).report));
+  await assert.rejects(publishResearchTelegram({ root, env,
+    fetchImpl: async () => { throw Error('no request allowed'); } }), /RESEARCH_REPORT_CONFLICT/);
 });
