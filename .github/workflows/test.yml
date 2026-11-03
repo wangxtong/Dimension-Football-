@@ -34,6 +34,10 @@ jobs:
       - run: python -m unittest scripts/test_package.py
       - run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest deploy/test_bundle.py deploy/test_handoff.py
       - run: for script in deploy/*.sh; do bash -n "$script" || exit; done
+      - name: 研究出站守卫与Draft执行身份烟测（全Mock，不对外发布）
+        run: |
+          bash -n scripts/push-daily-research.sh
+          bash scripts/test/push-daily-research-smoke.sh
       - run: node website/build.mjs /tmp/dimension-site-ci
   browser:
     runs-on: ubuntu-latest
