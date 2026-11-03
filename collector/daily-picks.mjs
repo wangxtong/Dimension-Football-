@@ -3,10 +3,13 @@
 // 本模块不向正式发布链路放行，不证明商业授权或模型已校准。
 const OUTCOME = Object.freeze({ WIN: '全赢', LOSS: '全输' });
 const SIDES = Object.freeze(['home', 'draw', 'away']);
+// Research quote freshness ceiling; never promote historical prices into a live freeze.
+const MAX_QUOTE_AGE_MS = 60 * 60 * 1000;
 const validGoals = n => Number.isInteger(n) && n >= 0 && n <= 30;
 const validOdds = n => typeof n === 'number' && Number.isFinite(n) && n > 1 && n <= 100;
 const validId = n => (typeof n === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(n)) || Number.isSafeInteger(n) && n > 0;
 const validMarket = m => m && m.pool === 'hhad' && Number.isInteger(m.goalLine)
+  && typeof m.source === 'string' && m.source.trim().length > 0 && m.source.length <= 160
   && validOdds(m.home) && validOdds(m.draw) && validOdds(m.away);
 const rounded = n => Math.round((n + Number.EPSILON) * 1e6) / 1e6;
 
@@ -52,34 +55,80 @@ export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 
   const now = Date.parse(nowISO);
   if (!Number.isFinite(now) || !Array.isArray(matches) || !Array.isArray(forecasts)
     || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) return { picks: [], total: 0, skipped: 'INVALID_INPUT' };
-  const byKey = new Map();
-  for (const f of forecasts) {
+  // Duplicate model entries must not pick a winner by input order (Map last-write-wins).
+  // The jc- prefix is an alias of the same Sporttery matchId, not a second forecast.
+  const forecastKey = f => {
     const key = f && (f.fixtureKey ?? f.matchId);
-    if (key !== undefined && key !== null && validId(key)) byKey.set(String(key), f);
+    return validId(key) ? String(key).replace(/^jc-/, '') : null;
+  };
+  const byKey = new Map(), forecastCounts = new Map(), excludedForecasts = [];
+  for (const f of forecasts) {
+    const key = forecastKey(f);
+    if (!key) {
+      excludedForecasts.push({ matchId: f?.matchId ?? null, fixtureKey: f?.fixtureKey ?? null,
+        reason: 'INVALID_FORECAST_KEY' });
+      continue;
+    }
+    const count = (forecastCounts.get(key) || 0) + 1;
+    forecastCounts.set(key, count);
+    if (count === 1) byKey.set(key, f);
+    else byKey.delete(key);
   }
-  const picks = [], seen = new Set(), excludedCandidates = [];
+  for (const f of forecasts) {
+    const key = forecastKey(f);
+    if (key && forecastCounts.get(key) > 1) excludedForecasts.push({
+      matchId: f.matchId ?? null, fixtureKey: f.fixtureKey ?? null,
+      generatedAt: f.generatedAt ?? f.recordedAt ?? null,
+      probabilities: f.probabilities ?? null, reason: 'DUPLICATE_FORECAST' });
+  }
+  // Reject every row in a duplicated matchId group BEFORE considering prices or selections.
+  // This also avoids counting the first row when later input proves its identity ambiguous.
+  const matchGroups = new Map(), conflictingMatches = new Map();
+  for (const m of matches) {
+    if (!m || !validId(m.matchId)) continue;
+    const id = String(m.matchId), group = matchGroups.get(id) || [];
+    group.push(m);
+    matchGroups.set(id, group);
+  }
+  for (const [id, group] of matchGroups) {
+    if (group.length < 2) continue;
+    const identities = new Set(group.map(m => JSON.stringify([
+      m.handicap?.source ?? null, m.home ?? null, m.away ?? null, m.kickoff ?? null,
+    ])));
+    conflictingMatches.set(id, identities.size > 1 ? 'IDENTITY_CONFLICT' : 'DUPLICATE_MATCH_ID');
+  }
+  const picks = [], excludedCandidates = [];
   const exclude = (m, reason) => excludedCandidates.push({
     matchId: m && validId(m.matchId) ? m.matchId : null,
     home: typeof m?.home === 'string' ? m.home : null,
     away: typeof m?.away === 'string' ? m.away : null,
     kickoff: typeof m?.kickoff === 'string' ? m.kickoff : null,
+    handicap: m?.handicap ? {
+      source: m.handicap.source ?? null, pool: m.handicap.pool ?? null,
+      goalLine: m.handicap.goalLine ?? null, home: m.handicap.home ?? null,
+      draw: m.handicap.draw ?? null, away: m.handicap.away ?? null,
+      updatedAt: m.handicap.updatedAt ?? null,
+    } : null,
     reason,
   });
   for (const m of matches) {
     if (!m || !validId(m.matchId)) { exclude(m, 'INVALID_MATCH_ID'); continue; }
+    const id = String(m.matchId);
+    if (conflictingMatches.has(id)) { exclude(m, conflictingMatches.get(id)); continue; }
+    if (forecastCounts.get(id) > 1) { exclude(m, 'DUPLICATE_FORECAST'); continue; }
     if (!validMarket(m.handicap)) { exclude(m, 'INVALID_HHAD_MARKET'); continue; }
     const kickoff = Date.parse(m.kickoff);
     if (!Number.isFinite(kickoff) || kickoff <= now) { exclude(m, 'KICKOFF_NOT_FUTURE'); continue; }
-    const id = String(m.matchId);
-    if (seen.has(id)) { exclude(m, 'DUPLICATE_MATCH_ID'); continue; }
-    seen.add(id);
-    const forecast = byKey.get('jc-' + id) || byKey.get(id) || null;
+    const sourceQuoteAt = typeof m.handicap.updatedAt === 'string' ? Date.parse(m.handicap.updatedAt) : NaN;
+    if (Number.isFinite(sourceQuoteAt) && sourceQuoteAt <= now && now - sourceQuoteAt > MAX_QUOTE_AGE_MS) {
+      exclude(m, 'QUOTE_STALE'); continue;
+    }
+    const forecast = byKey.get(id) || null;
     // Only pre-match source versions may be used; unknown timestamps must be explicit.
     const asOf = forecast?.generatedAt ?? forecast?.recordedAt ?? null;
     const asOfMs = typeof asOf === 'string' ? Date.parse(asOf) : NaN;
     // An old model forecast cannot establish that today's market price existed when the model ran.
     // The hhad price is first independently observed NOW; never backdate its selection to model generatedAt.
-    const sourceQuoteAt = typeof m.handicap.updatedAt === 'string' ? Date.parse(m.handicap.updatedAt) : NaN;
     const modelIsPrematch = Number.isFinite(asOfMs) && asOfMs <= now && asOfMs < kickoff;
     const quoteIsPrematch = Number.isFinite(sourceQuoteAt) && sourceQuoteAt <= now && sourceQuoteAt < kickoff;
     const isPrematch = modelIsPrematch && quoteIsPrematch;
@@ -100,8 +149,8 @@ export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 
   const displayed = picks.slice(0, limit), hidden = picks.slice(limit);
   // The display limit is not an audit filter: retain every candidate, rejected row,
   // selected direction and associated quote for later full-denominator evaluation.
-  return { picks: displayed, allPicks: picks, excludedCandidates,
-    inputTotal: matches.length, total: picks.length,
+  return { picks: displayed, allPicks: picks, excludedCandidates, excludedForecasts,
+    inputTotal: matches.length, forecastInputTotal: forecasts.length, total: picks.length,
     selected: displayed.filter(p => p.pick).length,
     selectedAll: picks.filter(p => p.pick).length,
     hiddenSelected: hidden.filter(p => p.pick).length,
@@ -122,13 +171,18 @@ export function settleDailyPicks({ picks = [], results = [] } = {}) {
     item.push(result);
     byMatch.set(key, item);
   }
-  const seen = new Set(), rows = [];
+  const pickCounts = new Map(), rows = [];
+  for (const p of picks) {
+    if (p && validId(p.matchId)) {
+      const key = String(p.matchId);
+      pickCounts.set(key, (pickCounts.get(key) || 0) + 1);
+    }
+  }
   let selected = 0, unselected = 0, pending = 0, invalid = 0, duplicate = 0;
   for (const p of picks) {
     if (!p || !validId(p.matchId)) { invalid++; continue; }
     const id = String(p.matchId);
-    if (seen.has(id)) { duplicate++; continue; }
-    seen.add(id);
+    if (pickCounts.get(id) > 1) { duplicate++; continue; }
     if (!validMarket(p.handicap) || p.pick?.market !== 'hhad' || !SIDES.includes(p.pick?.side)) {
       unselected++; continue;
     }
@@ -148,7 +202,8 @@ export function settleDailyPicks({ picks = [], results = [] } = {}) {
       || !Number.isFinite(kickoff) || !Number.isFinite(frozenAt)
       || !Number.isFinite(modelAt) || !Number.isFinite(sourceQuoteAt) || !Number.isFinite(quoteObservedAt)
       || !(modelAt <= quoteObservedAt && sourceQuoteAt <= quoteObservedAt
-        && quoteObservedAt <= frozenAt && frozenAt < kickoff && kickoff + 90 * 60000 <= resultAt)
+        && quoteObservedAt <= frozenAt && frozenAt - sourceQuoteAt <= MAX_QUOTE_AGE_MS
+        && frozenAt < kickoff && kickoff + 90 * 60000 <= resultAt)
       // Source identity cannot be optional: a same-numbered match from another feed
       // or a postponed match with a changed kickoff must not settle this freeze.
       || typeof r.home !== 'string' || r.home !== p.home
