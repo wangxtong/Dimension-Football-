@@ -121,8 +121,11 @@ export async function captureState(root, revision, limits = STATE_LIMITS) {
     for (const entry of entries.sort((a,b)=>a.name.localeCompare(b.name))) {
       const relative = `${path}/${entry.name}`, dir = allowedDirectory(relative,pointer?.reportId), file = allowedStatePath(relative);
       if (!dir && !file) continue;
-      if (entry.isSymbolicLink()) fail('HOSTED_STATE_UNSAFE_FILE');
-      if (entry.isDirectory()) { if(dir)await walk(relative); continue; }
+      // Dirent.d_type 不可信：某些文件系统/overlay 会把普通文件报成 symlink。
+      // 安全边界以 lstat 的真实类型为准，不能拿 d_type 放行或拒绝。
+      const meta = await lstat(resolve(root, relative));
+      if (meta.isSymbolicLink()) fail('HOSTED_STATE_UNSAFE_FILE');
+      if (meta.isDirectory()) { if(dir)await walk(relative); continue; }
       if (!file) continue;
       if (files.length >= limits.files) fail('HOSTED_STATE_LIMIT_EXCEEDED');
       const bytes = await safeBytes(root,relative,limits.decodedBytes-decodedBytes); decodedBytes += bytes.length;
@@ -209,8 +212,10 @@ async function capturePartitionedState(root, revision, client, previous, known, 
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       const relative = `${path}/${entry.name}`, directory = allowedDirectory(relative, pointer?.reportId), file = allowedStatePath(relative);
       if (!directory && !file) continue;
-      if (entry.isSymbolicLink()) fail('HOSTED_STATE_UNSAFE_FILE');
-      if (entry.isDirectory()) { if (directory) await walk(relative); continue; }
+      // 同上：以 lstat 真实类型判定，不信任 Dirent.d_type。
+      const meta = await lstat(resolve(root, relative));
+      if (meta.isSymbolicLink()) fail('HOSTED_STATE_UNSAFE_FILE');
+      if (meta.isDirectory()) { if (directory) await walk(relative); continue; }
       if (!file) continue;
       if (archivePath(relative)) {
         // Observation-only sessions deliberately preserve archive references
