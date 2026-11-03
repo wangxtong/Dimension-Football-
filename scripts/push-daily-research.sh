@@ -24,28 +24,41 @@ mkdir -p "$STATE_DIR" "$OUT_DIR"
 
 set -a; . "$ENV_FILE"; set +a
 
-# GitHub 令牌：优先 GITHUB_TOKEN，其次既有 header 文件，最后 git credential
-GH_HEADER="$(mktemp)"; trap 'rm -f "$GH_HEADER"' EXIT
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-  printf 'Authorization: Bearer %s\n' "$GITHUB_TOKEN" > "$GH_HEADER"
-elif [ -f "${DF_GH_HEADER:-/tmp/.h}" ]; then
-  cp "${DF_GH_HEADER:-/tmp/.h}" "$GH_HEADER"
-else
-  TOKEN="$(git -C "$REPO_ROOT" credential fill <<<'protocol=https
-host=github.com' 2>/dev/null | sed -n 's/^password=//p')"
-  [ -n "$TOKEN" ] || fail "无 GitHub 令牌（GITHUB_TOKEN / DF_GH_HEADER / git credential 均不可用）"
-  printf 'Authorization: Bearer %s\n' "$TOKEN" > "$GH_HEADER"
-fi
-
-SHA="$(curl -fsS -H @"$GH_HEADER" \
-  'https://api.github.com/repos/wangxtong/Dimension-Football-/commits/main' \
-  | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')" \
-  || fail "无法读取 main HEAD"
-# Exact code identity is mandatory: the remote SHA alone does not describe the checked-out code.
+# Local code identity is authoritative. Dry-run on a Draft may use an explicit
+# exact local SHA pin without GitHub credentials or a remote-main checkout.
+# This path NEVER enables Web/TG/GitHub report publication.
+[ "$DRY_RUN" = "0" ] || [ "$DRY_RUN" = "1" ] || fail "INVALID_DRY_RUN: 只接受0或1"
 LOCAL_SHA="$(git -C "$REPO_ROOT" rev-parse --verify HEAD 2>/dev/null)" || fail "LOCAL_HEAD_UNAVAILABLE"
-[ "$LOCAL_SHA" = "$SHA" ] || fail "EXECUTING_SHA_MISMATCH local=$LOCAL_SHA remote=$SHA"
+[[ "$LOCAL_SHA" =~ ^[a-f0-9]{40}$ ]] || fail "LOCAL_SHA_INVALID"
 WORKTREE_STATUS="$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all 2>/dev/null)" || fail "WORKTREE_STATUS_UNAVAILABLE"
-[ -z "$WORKTREE_STATUS" ] || fail "WORKTREE_DIRTY: 拒绝把未提交代码记作远程main SHA"
+[ -z "$WORKTREE_STATUS" ] || fail "WORKTREE_DIRTY: 不可将未提交代码当作已冻结执行体"
+
+if [ "$DRY_RUN" = "1" ] && [ -n "${DF_RESEARCH_DRAFT_SHA:-}" ]; then
+  [[ "$DF_RESEARCH_DRAFT_SHA" =~ ^[a-f0-9]{40}$ ]] || fail "DRAFT_SHA_INVALID"
+  [ "$LOCAL_SHA" = "$DF_RESEARCH_DRAFT_SHA" ] || fail "DRAFT_SHA_MISMATCH local=$LOCAL_SHA approved=$DF_RESEARCH_DRAFT_SHA"
+  SHA="$LOCAL_SHA"
+  log "DRAFT_RESEARCH_PINNED_SHA=$SHA (dry-run only; no GitHub credentials required)"
+else
+  [ -z "${DF_RESEARCH_DRAFT_SHA:-}" ] || fail "DRAFT_SHA_RESEARCH_ONLY"
+  # GitHub auth is only needed to verify remote main or write an approved draft archive.
+  GH_HEADER="$(mktemp)"; trap 'rm -f "$GH_HEADER"' EXIT
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    printf 'Authorization: Bearer %s\n' "$GITHUB_TOKEN" > "$GH_HEADER"
+  elif [ -f "${DF_GH_HEADER:-/tmp/.h}" ]; then
+    cp "${DF_GH_HEADER:-/tmp/.h}" "$GH_HEADER"
+  else
+    TOKEN="$(git -C "$REPO_ROOT" credential fill <<<'protocol=https
+host=github.com' 2>/dev/null | sed -n 's/^password=//p')"
+    [ -n "$TOKEN" ] || fail "无 GitHub 令牌（GITHUB_TOKEN / DF_GH_HEADER / git credential 均不可用）"
+    printf 'Authorization: Bearer %s\n' "$TOKEN" > "$GH_HEADER"
+  fi
+  SHA="$(curl -fsS -H @"$GH_HEADER" \\
+    'https://api.github.com/repos/wangxtong/Dimension-Football-/commits/main' \\
+    | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')" \\
+    || fail "无法读取 main HEAD"
+  [[ "$SHA" =~ ^[a-f0-9]{40}$ ]] || fail "REMOTE_MAIN_SHA_INVALID"
+  [ "$LOCAL_SHA" = "$SHA" ] || fail "EXECUTING_SHA_MISMATCH local=$LOCAL_SHA remote=$SHA"
+fi
 
 # The research CLI does NOT verify GitHub CI or authorize a commercial release.
 # Any non-dry-run research outbound requires explicit per-SHA approval, and must never push to main.
