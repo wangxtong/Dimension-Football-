@@ -63,6 +63,9 @@ run_case 'local remote SHA mismatch rejected' 1 'EXECUTING_SHA_MISMATCH' MOCK_LO
 run_case 'dirty worktree rejected' 1 'WORKTREE_DIRTY' MOCK_DIRTY=1
 run_case 'git status failure must fail closed' 1 'WORKTREE_STATUS_UNAVAILABLE' MOCK_STATUS_FAIL=1
 run_case 'main publication blocked' 1 'DIRECT_MAIN_WRITE_BLOCKED' DF_DRY_RUN=0 DF_TARGET_BRANCH=main DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
+run_case 'full ref main alias cannot bypass branch gate' 1 'UNSAFE_TARGET_BRANCH' DF_DRY_RUN=0 DF_TARGET_BRANCH=refs/heads/main DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
+run_case 'release branch cannot receive research archive' 1 'UNSAFE_TARGET_BRANCH' DF_DRY_RUN=0 DF_TARGET_BRANCH=release DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
+run_case 'draft traversal branch rejected' 1 'UNSAFE_TARGET_BRANCH' DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/../main DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
 run_case 'missing per-SHA approval blocked' 1 'RESEARCH_OUTBOUND_NOT_APPROVED_FOR_SHA' DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot
 run_case 'wrong-SHA approval blocked' 1 'RESEARCH_OUTBOUND_NOT_APPROVED_FOR_SHA' DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot DF_RESEARCH_OUTBOUND_APPROVED_SHA=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 run_case 'same-ID mocked Web+TG+branch is accepted' 0 'DONE  日报=' MOCK_ALLOW_PUBLICATION=1 DF_DRY_RUN=0 DF_TARGET_BRANCH=draft/research-snapshot DF_RESEARCH_OUTBOUND_APPROVED_SHA="$FAKE_SHA"
