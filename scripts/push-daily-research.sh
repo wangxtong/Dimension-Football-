@@ -53,39 +53,85 @@ if [ "$DRY_RUN" = "0" ]; then
   [ "$TARGET_BRANCH" != "main" ] && [ "$TARGET_BRANCH" != "master" ] || fail "DIRECT_MAIN_WRITE_BLOCKED: 必须走分支及PR审查"
   [ "${DF_RESEARCH_OUTBOUND_APPROVED_SHA:-}" = "$SHA" ] || fail "RESEARCH_OUTBOUND_NOT_APPROVED_FOR_SHA"
 fi
-log "[1/5] fixtures lane sha=$SHA"
+log "[1/6] fixtures lane sha=$SHA"
 node "$REPO_ROOT/collector/orchestrate.mjs" --lane fixtures --mode private-research \
   --state "$STATE_DIR/state.json" --out "$OUT_DIR" > "$RUNTIME_ROOT/fixtures.log" 2>&1 \
   || { tail -n 20 "$RUNTIME_ROOT/fixtures.log"; fail "fixtures lane"; }
 tail -n 3 "$RUNTIME_ROOT/fixtures.log"
 
-log "[2/5] results lane"
+log "[2/6] results lane"
 node "$REPO_ROOT/collector/orchestrate.mjs" --lane results --mode private-research \
   --state "$STATE_DIR/state.json" --out "$OUT_DIR" > "$RUNTIME_ROOT/results.log" 2>&1 \
   || { tail -n 20 "$RUNTIME_ROOT/results.log"; fail "results lane"; }
 tail -n 2 "$RUNTIME_ROOT/results.log"
 
-log "[3/5] daily report"
+log "[3/6] daily report"
 GITHUB_SHA="$SHA" node "$REPO_ROOT/collector/research-daily-report.mjs" --root "$RUNTIME_ROOT" \
   > "$RUNTIME_ROOT/report.log" 2>&1 \
   || { tail -n 20 "$RUNTIME_ROOT/report.log"; fail "daily report"; }
 tail -n 1 "$RUNTIME_ROOT/report.log"
 [ -f "$OUT_DIR/research-daily/latest.md" ] || fail "日报未生成: $OUT_DIR/research-daily/latest.md"
+[ -f "$OUT_DIR/research-daily/latest.json" ] || fail "研究JSON未生成: $OUT_DIR/research-daily/latest.json"
+# Bind every downstream channel to the report produced by this exact checked-out SHA.
+REPORT_ID="$(python3 - "$OUT_DIR/research-daily/latest.json" "$SHA" <<'PY_REPORT'
+import json, re, sys
+try:
+    row = json.load(open(sys.argv[1], encoding='utf-8'))
+    assert row.get('kind') == 'research-daily-1x2'
+    assert row.get('mode') == 'research-reference'
+    assert row.get('commercialReleaseGate') == 'BLOCKED'
+    assert row.get('externalTelegramSent') is False
+    assert row.get('strictMarkets', {}).get('releasedCandidates') == 0
+    assert row.get('codeSha') == sys.argv[2]
+    assert re.fullmatch(r'[a-f0-9]{64}', row.get('reportId', ''))
+    print(row['reportId'])
+except Exception:
+    sys.exit(1)
+PY_REPORT
+)" || fail "RESEARCH_REPORT_ID_INVALID"
 
 if [ "$DRY_RUN" = "1" ]; then
-  log "[4/5] telegram SKIPPED (dry-run)"
-  log "[5/5] page sync SKIPPED (dry-run)"
-  log "DONE (dry-run) 日报=$OUT_DIR/research-daily/latest.md"
+  log "[4/6] Web SKIPPED (research dry-run)"
+  log "[5/6] Telegram SKIPPED (research dry-run)"
+  log "[6/6] GitHub branch sync SKIPPED (research dry-run)"
+  log "DONE (dry-run) reportId=$REPORT_ID 日报=$OUT_DIR/research-daily/latest.md"
   exit 0
 fi
 
-log "[4/5] telegram"
+# The actual authenticated Site POST+GET readback is mandatory in live research
+# mode. A GitHub Markdown commit is NOT a substitute for web delivery.
+log "[4/6] authenticated Site Web POST + GET"
+node "$REPO_ROOT/collector/publish-research-daily.mjs" --root "$RUNTIME_ROOT" \
+  > "$RUNTIME_ROOT/web.log" 2>&1 \
+  || { tail -n 20 "$RUNTIME_ROOT/web.log"; fail "WEB_NOT_DELIVERED"; }
+python3 - "$RUNTIME_ROOT/web.log" "$REPORT_ID" <<'PY_WEB' || fail "WEB_READBACK_MISMATCH"
+import json, sys
+try:
+    record = json.loads(open(sys.argv[1], encoding='utf-8').read().strip().splitlines()[-1])
+    assert record.get('reportId') == sys.argv[2]
+    assert record.get('status') == 'research-authenticated-web-verified'
+    assert record.get('commercialReleaseGate') == 'BLOCKED'
+except Exception:
+    sys.exit(1)
+PY_WEB
+
+log "[5/6] Telegram research receipt"
 node "$REPO_ROOT/collector/publish-research-telegram.mjs" --root "$RUNTIME_ROOT" \
   > "$RUNTIME_ROOT/telegram.log" 2>&1 \
-  || { tail -n 20 "$RUNTIME_ROOT/telegram.log"; fail "telegram"; }
-tail -n 2 "$RUNTIME_ROOT/telegram.log"
+  || { tail -n 20 "$RUNTIME_ROOT/telegram.log"; fail "TELEGRAM_NOT_DELIVERED"; }
+python3 - "$OUT_DIR/research-daily/telegram-receipt.json" "$REPORT_ID" "$SHA" <<'PY_TG' || fail "TELEGRAM_RECEIPT_MISMATCH"
+import json, sys
+try:
+    receipt = json.load(open(sys.argv[1], encoding='utf-8'))
+    assert receipt.get('reportId') == sys.argv[2]
+    assert receipt.get('codeSha') == sys.argv[3]
+    assert receipt.get('status') == 'accepted'
+    assert isinstance(receipt.get('messageId'), int) and receipt['messageId'] > 0
+except Exception:
+    sys.exit(1)
+PY_TG
 
-log "[5/5] page sync -> $TARGET_BRANCH:docs/latest-daily.md"
+log "[6/6] archive GitHub draft branch -> $TARGET_BRANCH:docs/latest-daily.md"
 python3 - "$OUT_DIR/research-daily/latest.md" "$TARGET_BRANCH" "$GH_HEADER" <<'PY' || fail "page sync"
 import base64, json, subprocess, sys
 src, branch, header = sys.argv[1], sys.argv[2], sys.argv[3]
