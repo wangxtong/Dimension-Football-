@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDailyPicks } from '../daily-picks.mjs';
+import { buildDailyPicks, settleDailyPicks } from '../daily-picks.mjs';
 
 // Regression for PR #91: a forecast carrying contradictory matchId and
 // fixtureKey must never be attributed to either match, or counted as a win.
@@ -57,4 +57,49 @@ test('consistent jc aliases do not accidentally block legitimate forecasts', () 
   assert.equal(x.selectedAll, 1);
   assert.equal(x.allPicks[0].matchId, 111);
   assert.equal(x.excludedForecasts.length, 0);
+});
+
+const frozenHhadPick = () => ({
+  ...match(111),
+  modelGeneratedAt: '2026-11-03T07:50:00.000Z',
+  quoteObservedAt: nowISO,
+  predictionFrozenAt: nowISO,
+  pick: { market: 'hhad', side: 'home', decimalOdds: 2.07 },
+});
+const validFt = () => ({
+  matchId: 111, fixtureKey: 'jc-111',
+  home: 'Home 111', away: 'Away 111',
+  kickoff: '2026-11-03T16:00:00.000Z',
+  status: 'FT', resultObservedAt: '2026-11-03T18:00:00.000Z',
+  homeGoals: 2, awayGoals: 0,
+});
+
+test('contradictory FT matchId 111 / fixtureKey jc-222 is quarantined before scoring', () => {
+  const x = settleDailyPicks({
+    picks: [frozenHhadPick()],
+    results: [{ ...validFt(), fixtureKey: 'jc-222' }],
+  });
+  assert.equal(x.total, 0);
+  assert.equal(x.wins, 0);
+  assert.equal(x.coverage.inputPicks, 1);
+  assert.equal(x.coverage.selected, 1);
+  assert.equal(x.coverage.invalid, 1);
+  assert.equal(x.coverage.pending, 0);
+});
+
+test('a valid FT does not override a contradictory FT for the same identity', () => {
+  const x = settleDailyPicks({
+    picks: [frozenHhadPick()],
+    results: [validFt(), { ...validFt(), fixtureKey: 'jc-222' }],
+  });
+  assert.equal(x.total, 0);
+  assert.equal(x.coverage.invalid, 1);
+});
+
+test('legitimate FT jc-111 alias still settles in the hhad three-way pool', () => {
+  const x = settleDailyPicks({ picks: [frozenHhadPick()], results: [validFt()] });
+  assert.equal(x.total, 1);
+  assert.equal(x.wins, 1);
+  assert.equal(x.coverage.invalid, 0);
+  assert.equal(x.market, 'hhad-three-way');
 });
