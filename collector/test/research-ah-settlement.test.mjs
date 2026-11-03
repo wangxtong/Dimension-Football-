@@ -8,9 +8,11 @@ const quote = { source:'independent-quote-a', matchId:'FX-123', marketId:'asian-
   observedAt:'2026-11-03T14:00:00.000Z',rawSha256:'a'.repeat(64) };
 const fixture = {matchId:'FX-123',source:'fixtures-a',home:'甲',away:'乙',kickoff:'2026-11-03T16:00:00.000Z'};
 const forecast = {matchId:'FX-123',modelVersion:'v3-research',pool:'ah',marketId:'asian-ah-123',
-  homeHandicap:-0.75,selection:'home',generatedAt:'2026-11-03T14:05:00.000Z',
+  homeHandicap:-0.75,selection:'home',decimalOdds:1.86,quoteRawSha256:'a'.repeat(64),
+  generatedAt:'2026-11-03T14:05:00.000Z',
   frozenAt:'2026-11-03T14:10:00.000Z',rawSha256:'b'.repeat(64)};
 const result = {matchId:'FX-123',home:'甲',away:'乙',status:'FT',homeGoals:2,awayGoals:1,
+  kickoff:'2026-11-03T16:00:00.000Z',
   observedAt:'2026-11-03T18:05:00.000Z',rawSha256:'c'.repeat(64)};
 const run = (over={})=>score({fixture:{...fixture,...over.fixture},quote:{...quote,...over.quote},
   forecast:{...forecast,...over.forecast},result:{...result,...over.result}});
@@ -70,4 +72,21 @@ test('reject wrong fixture, live result, bogus hashes and early results',()=>{
 });
 test('nonexistent score cannot sneak into accuracy denominator',()=>{
   assert.equal(run({result:{homeGoals:undefined}}).reason,'SCORE_INVALID');
+});
+
+test('result kickoff must exist and match exact fixture, numeric ID alone insufficient',()=>{
+  assert.equal(run({result:{kickoff:undefined}}).reason,'FIXTURE_MISMATCH');
+  assert.equal(run({result:{kickoff:'2026-11-04T16:00:00.000Z'}}).reason,'FIXTURE_MISMATCH');
+});
+test('frozen selection locks exact side odds and raw quote hash',()=>{
+  assert.equal(run({forecast:{decimalOdds:1.92}}).reason,'FROZEN_QUOTE_MISMATCH');
+  assert.equal(run({forecast:{decimalOdds:undefined}}).reason,'FROZEN_QUOTE_MISMATCH');
+  assert.equal(run({forecast:{quoteRawSha256:'d'.repeat(64)}}).reason,'FROZEN_QUOTE_MISMATCH');
+  assert.equal(run({forecast:{quoteRawSha256:undefined}}).reason,'FROZEN_QUOTE_MISMATCH');
+  assert.equal(run({quote:{homeOdds:1.92}}).reason,'FROZEN_QUOTE_MISMATCH');
+});
+test('away selection locks away odds, not home odds',()=>{
+  assert.equal(run({forecast:{selection:'away',decimalOdds:1.86}}).reason,'FROZEN_QUOTE_MISMATCH');
+  const x=run({forecast:{selection:'away',decimalOdds:1.94}});
+  assert.equal(x.status,'SCORED'); assert.equal(x.decimalOdds,1.94);
 });
