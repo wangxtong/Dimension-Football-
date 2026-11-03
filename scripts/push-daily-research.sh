@@ -52,6 +52,11 @@ WORKTREE_STATUS="$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all 
 [ "$DRY_RUN" = "0" ] || [ "$DRY_RUN" = "1" ] || fail "INVALID_DRY_RUN: 只接受0或1"
 if [ "$DRY_RUN" = "0" ]; then
   [ "$TARGET_BRANCH" != "main" ] && [ "$TARGET_BRANCH" != "master" ] || fail "DIRECT_MAIN_WRITE_BLOCKED: 必须走分支及PR审查"
+  # A full ref such as refs/heads/main may resolve to the protected branch on GitHub.
+  # Permit explicit draft/* archive branches only; never arbitrary production branch names.
+  [[ "$TARGET_BRANCH" =~ ^draft/[A-Za-z0-9][A-Za-z0-9._/-]{0,120}$ ]] \
+    && [[ "$TARGET_BRANCH" != *".."* ]] && [[ "$TARGET_BRANCH" != *"//"* ]] \
+    && [[ "$TARGET_BRANCH" != */ ]] || fail "UNSAFE_TARGET_BRANCH: 仅允许draft/*归档分支"
   [ "${DF_RESEARCH_OUTBOUND_APPROVED_SHA:-}" = "$SHA" ] || fail "RESEARCH_OUTBOUND_NOT_APPROVED_FOR_SHA"
 fi
 log "[1/6] fixtures lane sha=$SHA"
