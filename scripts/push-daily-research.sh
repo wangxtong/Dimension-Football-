@@ -44,7 +44,8 @@ SHA="$(curl -fsS -H @"$GH_HEADER" \
 # Exact code identity is mandatory: the remote SHA alone does not describe the checked-out code.
 LOCAL_SHA="$(git -C "$REPO_ROOT" rev-parse --verify HEAD 2>/dev/null)" || fail "LOCAL_HEAD_UNAVAILABLE"
 [ "$LOCAL_SHA" = "$SHA" ] || fail "EXECUTING_SHA_MISMATCH local=$LOCAL_SHA remote=$SHA"
-[ -z "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ] || fail "WORKTREE_DIRTY: 拒绝把未提交代码记作远程main SHA"
+WORKTREE_STATUS="$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all 2>/dev/null)" || fail "WORKTREE_STATUS_UNAVAILABLE"
+[ -z "$WORKTREE_STATUS" ] || fail "WORKTREE_DIRTY: 拒绝把未提交代码记作远程main SHA"
 
 # The research CLI does NOT verify GitHub CI or authorize a commercial release.
 # Any non-dry-run research outbound requires explicit per-SHA approval, and must never push to main.
