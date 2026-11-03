@@ -7,7 +7,7 @@ export const FORECAST_MODEL = Object.freeze({ id: 'venue-poisson-v2', version: 2
   description: '按主客场与时间衰减计算进失球率，向联赛均值收缩的独立泊松基线',
   lookbackDays: 540, halfLifeDays: 180, priorMatches: 6,
   minimumLeagueMatches: 40, minimumTeamMatches: 6, minimumVenueMatches: 2,
-  maximumTeamAgeDays: 120, resultLagHours: 4, backtestLimit: 80,
+  maximumTeamAgeDays: 365, resultLagHours: 4, backtestLimit: 80,
   calibrated: false, purpose: 'prematch-1x2-analysis', needsOdds: false });
 export const BACKTEST_HORIZONS = Object.freeze([1, 24, 72, 168]);
 const DAY = 86400000, OUTCOMES = ['home', 'draw', 'away'];
@@ -24,7 +24,7 @@ export function prepareForecastHistory(input = []) {
   if (!Array.isArray(input) || input.length > 10000) throw new Error('INVALID_HISTORY_FILE');
   const matches = [], seen = new Map(); let rejected = 0, duplicates = 0;
   for (const row of input) {
-    if (!row || !['PL', 'PD', 'SA', 'BL1', 'FL1'].includes(row.league) || !token(row.id) || !token(row.source)
+    if (!row || !['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'BSA'].includes(row.league) || !token(row.id) || !token(row.source)
       || !team(row.home) || !team(row.away) || row.home.trim() === row.away.trim()
       || !token(row.homeTeamId) || !token(row.awayTeamId) || row.homeTeamId === row.awayTeamId
       || !Number.isFinite(isoMillis(row.kickoff)) || row.status !== 'FINISHED' || row.period !== 'full-time'

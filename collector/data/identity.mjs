@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 export const DATA_SCHEMA_VERSION = 2;
 export const validDataToken = value => typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(value);
 export const validDataHash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
-const leagues = new Set(['PL', 'PD', 'SA', 'BL1', 'FL1']);
+const leagues = new Set(['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'BSA']);
 
 export function canonicalTimestamp(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
