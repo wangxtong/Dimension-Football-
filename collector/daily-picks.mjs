@@ -178,8 +178,18 @@ export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 
 /** Read-only tally: unresolved, duplicate and unselected rows are never wins or losses. */
 export function settleDailyPicks({ picks = [], results = [] } = {}) {
   if (!Array.isArray(picks) || !Array.isArray(results)) return { rows: [], error: 'INVALID_INPUT' };
-  const byMatch = new Map();
+  const byMatch = new Map(), conflictingResultIds = new Set();
   for (const result of results) {
+    // Result feeds also carry two interchangeable IDs. An inconsistent pair
+    // must invalidate BOTH identities rather than silently choosing matchId.
+    const both = result?.matchId != null && result?.fixtureKey != null;
+    const matchKey = validId(result?.matchId) ? String(result.matchId).replace(/^jc-/, '') : null;
+    const fixtureKey = validId(result?.fixtureKey) ? String(result.fixtureKey).replace(/^jc-/, '') : null;
+    if (both && (!matchKey || !fixtureKey || matchKey !== fixtureKey)) {
+      if (matchKey) conflictingResultIds.add(matchKey);
+      if (fixtureKey) conflictingResultIds.add(fixtureKey);
+      continue;
+    }
     const id = result && (result.matchId ?? result.fixtureKey);
     if (!validId(id)) continue;
     const key = String(id).replace(/^jc-/, '');
@@ -203,6 +213,9 @@ export function settleDailyPicks({ picks = [], results = [] } = {}) {
       unselected++; continue;
     }
     selected++;
+    // If any conflicting result names this identity, do not settle it even
+    // if another seemingly valid FT is also present for that same ID.
+    if (conflictingResultIds.has(id)) { invalid++; continue; }
     const matched = byMatch.get(id) || [];
     if (!matched.length) { pending++; continue; }
     if (matched.length !== 1) { duplicate++; continue; }
