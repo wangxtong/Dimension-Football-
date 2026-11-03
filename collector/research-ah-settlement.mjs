@@ -58,13 +58,19 @@ export function settleFrozenAhResearch({ fixture, quote, forecast, result } = {}
       || !isOdds(quote.homeOdds) || !isOdds(quote.awayOdds)) return blocked('MARKET_NOT_AH');
   if (forecast.matchId !== fixture.matchId || quote.matchId !== fixture.matchId
       || result.matchId !== fixture.matchId || result.home !== fixture.home
-      || result.away !== fixture.away || (result.kickoff && result.kickoff !== fixture.kickoff))
+      || result.away !== fixture.away || result.kickoff !== fixture.kickoff)
     return blocked('FIXTURE_MISMATCH');
   if (!['home', 'away'].includes(forecast.selection) || forecast.pool !== 'ah'
       || forecast.marketId !== quote.marketId || forecast.homeHandicap !== quote.homeHandicap)
     return blocked('SELECTION_MISMATCH');
   if (![quote.rawSha256, forecast.rawSha256, result.rawSha256].every(isHash))
     return blocked('RAW_HASH_REQUIRED');
+  // A frozen selection must bind the exact quoted side, price, and quote digest.
+  // Digest format alone does not prove upstream provenance or source entitlement.
+  const selectedOdds = forecast.selection === 'home' ? quote.homeOdds : quote.awayOdds;
+  if (!isHash(forecast.quoteRawSha256) || forecast.quoteRawSha256 !== quote.rawSha256
+      || !isOdds(forecast.decimalOdds) || forecast.decimalOdds !== selectedOdds)
+    return blocked('FROZEN_QUOTE_MISMATCH');
   const start = asUtc(fixture.kickoff), observed = asUtc(quote.observedAt);
   const created = asUtc(forecast.generatedAt), frozen = asUtc(forecast.frozenAt);
   const finalized = asUtc(result.observedAt);
@@ -73,7 +79,7 @@ export function settleFrozenAhResearch({ fixture, quote, forecast, result } = {}
       || finalized < start + 90 * 60 * 1000)
     return blocked('TIME_CAUSALITY_INVALID');
   if (result.status !== 'FT') return blocked('RESULT_NOT_FT');
-  const decimalOdds = forecast.selection === 'home' ? quote.homeOdds : quote.awayOdds;
+  const decimalOdds = selectedOdds;
   const settled = settleAsianHandicap({ homeGoals: result.homeGoals,
     awayGoals: result.awayGoals, homeHandicap: quote.homeHandicap,
     selection: forecast.selection, decimalOdds });
