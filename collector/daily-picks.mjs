@@ -57,16 +57,29 @@ export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 
     || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) return { picks: [], total: 0, skipped: 'INVALID_INPUT' };
   // Duplicate model entries must not pick a winner by input order (Map last-write-wins).
   // The jc- prefix is an alias of the same Sporttery matchId, not a second forecast.
+  const normalizedId = value => validId(value) ? String(value).replace(/^jc-/, '') : null;
+  // Both identifiers may be supplied by different feeds. They must refer to
+  // the same fixture; otherwise a model for match 222 can be scored as 111.
+  const forecastIdentityMismatch = f => f && f.matchId != null && f.fixtureKey != null
+    && normalizedId(f.matchId) !== normalizedId(f.fixtureKey);
   const forecastKey = f => {
-    const key = f && (f.fixtureKey ?? f.matchId);
-    return validId(key) ? String(key).replace(/^jc-/, '') : null;
+    if (!f || forecastIdentityMismatch(f)) return null;
+    return normalizedId(f.fixtureKey) || normalizedId(f.matchId);
   };
+  const mismatchedForecastIds = new Set();
   const byKey = new Map(), forecastCounts = new Map(), excludedForecasts = [];
   for (const f of forecasts) {
     const key = forecastKey(f);
     if (!key) {
+      const mismatch = forecastIdentityMismatch(f);
+      if (mismatch) for (const value of [f.matchId, f.fixtureKey]) {
+        const id = normalizedId(value);
+        if (id) mismatchedForecastIds.add(id);
+      }
       excludedForecasts.push({ matchId: f?.matchId ?? null, fixtureKey: f?.fixtureKey ?? null,
-        reason: 'INVALID_FORECAST_KEY' });
+        probabilities: f?.probabilities ?? null,
+        generatedAt: f?.generatedAt ?? f?.recordedAt ?? null,
+        reason: mismatch ? 'FORECAST_IDENTITY_MISMATCH' : 'INVALID_FORECAST_KEY' });
       continue;
     }
     const count = (forecastCounts.get(key) || 0) + 1;
@@ -115,6 +128,9 @@ export function buildDailyPicks({ matches = [], forecasts = [], nowISO, limit = 
     if (!m || !validId(m.matchId)) { exclude(m, 'INVALID_MATCH_ID'); continue; }
     const id = String(m.matchId);
     if (conflictingMatches.has(id)) { exclude(m, conflictingMatches.get(id)); continue; }
+    // Quarantine both identities implicated by a contradictory forecast, even
+    // when an independent valid forecast happens to share one of those IDs.
+    if (mismatchedForecastIds.has(id)) { exclude(m, 'FORECAST_IDENTITY_MISMATCH'); continue; }
     if (forecastCounts.get(id) > 1) { exclude(m, 'DUPLICATE_FORECAST'); continue; }
     if (!validMarket(m.handicap)) { exclude(m, 'INVALID_HHAD_MARKET'); continue; }
     const kickoff = Date.parse(m.kickoff);
