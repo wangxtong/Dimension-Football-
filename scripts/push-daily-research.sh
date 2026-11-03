@@ -52,9 +52,9 @@ host=github.com' 2>/dev/null | sed -n 's/^password=//p')"
     [ -n "$TOKEN" ] || fail "无 GitHub 令牌（GITHUB_TOKEN / DF_GH_HEADER / git credential 均不可用）"
     printf 'Authorization: Bearer %s\n' "$TOKEN" > "$GH_HEADER"
   fi
-  SHA="$(curl -fsS -H @"$GH_HEADER" \\
-    'https://api.github.com/repos/wangxtong/Dimension-Football-/commits/main' \\
-    | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')" \\
+  SHA="$(curl -fsS -H @"$GH_HEADER" \
+    'https://api.github.com/repos/wangxtong/Dimension-Football-/commits/main' \
+    | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')" \
     || fail "无法读取 main HEAD"
   [[ "$SHA" =~ ^[a-f0-9]{40}$ ]] || fail "REMOTE_MAIN_SHA_INVALID"
   [ "$LOCAL_SHA" = "$SHA" ] || fail "EXECUTING_SHA_MISMATCH local=$LOCAL_SHA remote=$SHA"
