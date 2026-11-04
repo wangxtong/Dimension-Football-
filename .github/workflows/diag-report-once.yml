@@ -1,0 +1,70 @@
+name: One-off Dimension Football diagnostics (no secrets)
+on:
+  push:
+    branches:
+      - diag/exact-user-diagnostics-20261104
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnosis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Verify exact user script and no committed secret files
+        run: |
+          set -euo pipefail
+          echo '358ddec9a7a96635f25a3d0fc70d896b5b2c0a924291b46b6202d19677a72a3c  scripts/diag.sh' | sha256sum -c -
+          if git ls-files | grep -E '(^|/)\.env$|\.pem$|\.p12$|\.key$'; then
+            echo 'Refusing to execute with a committed credential file'
+            exit 1
+          fi
+          test ! -e .env
+      - name: Run the exact user-provided script
+        run: bash scripts/diag.sh
+      - name: Run isolated, uncredentialed public-source adapter checks
+        run: |
+          set -euo pipefail
+          node scripts/diag-source-probe.mjs > diag-sources.json
+          python3 -m json.tool diag-sources.json >/dev/null
+      - name: Record variable names only (no values)
+        run: |
+          python3 - <<'PY' > diag-environment.json
+          import os,json,re
+          from pathlib import Path
+          source=Path('.github/workflows/test.yml').read_text()
+          block=source.split('  stage1-private-research:',1)[1].split('\n  release:',1)[0]
+          part=block.split('    env:',1)[1].split('    steps:',1)[0] if '    env:' in block else ''
+          explicit=sorted(set(re.findall(r'(?m)^      ([A-Z][A-Z0-9_]*)\s*:',part)))
+          exported=sorted(set(re.findall(r'echo ["\x27]([A-Z][A-Z0-9_]*)=',block)))
+          print(json.dumps({'source':'workflow config; actual research job not executed by this diagnostic run',
+             'research_job_explicit_env_names':explicit,'research_job_exported_env_names':exported,
+             'diagnostic_runner_actual_env_names':sorted(os.environ.keys())},ensure_ascii=False,indent=2))
+          PY
+      - name: Recheck generated report for recognizable secret patterns
+        run: |
+          set -euo pipefail
+          if grep -qE 'gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|[0-9]{8,10}:[A-Za-z0-9_-]{30,}' diag.md diag-sources.json; then
+            rm -f diag.md diag-sources.json
+            echo 'Secret-like pattern found; report discarded'
+            exit 1
+          fi
+      - name: Upload diagnostic outputs privately (not committed)
+        uses: actions/upload-artifact@v7
+        with:
+          name: dimension-diag-${{ github.run_id }}
+          path: |
+            diag.md
+            diag-sources.json
+            diag-environment.json
+          retention-days: 1
+          if-no-files-found: error
