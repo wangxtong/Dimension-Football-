@@ -3,13 +3,37 @@
   "stateSchemaVersion": 1,
   "stateRelativePath": "state/state.json",
   "browserRequired": false,
-  "publicReportOrigin": "https://football.fotpredict.xyz/dimension-football/",
+  "publicReportOrigin": "https://dimension-football-research.anan220920shan.workers.dev/",
   "reportMaxAgeSeconds": 4200,
   "minimumDiskBytes": 1073741824,
   "jobs": [
-    {"id":"fixtures","intervalSeconds":900,"timeoutSeconds":150,"entrypoint":"collector/orchestrate.mjs","budgetMinutes":2},
-    {"id":"markets","intervalSeconds":120,"timeoutSeconds":90,"entrypoint":"collector/orchestrate.mjs","budgetMinutes":1},
-    {"id":"delivery","intervalSeconds":60,"timeoutSeconds":45,"entrypoint":"collector/orchestrate.mjs","budgetMinutes":0.5},
-    {"id":"results","intervalSeconds":3600,"timeoutSeconds":150,"entrypoint":"collector/orchestrate.mjs","budgetMinutes":2}
+    {
+      "id": "fixtures",
+      "intervalSeconds": 900,
+      "timeoutSeconds": 150,
+      "entrypoint": "collector/orchestrate.mjs",
+      "budgetMinutes": 2
+    },
+    {
+      "id": "markets",
+      "intervalSeconds": 120,
+      "timeoutSeconds": 90,
+      "entrypoint": "collector/orchestrate.mjs",
+      "budgetMinutes": 1
+    },
+    {
+      "id": "delivery",
+      "intervalSeconds": 60,
+      "timeoutSeconds": 45,
+      "entrypoint": "collector/orchestrate.mjs",
+      "budgetMinutes": 0.5
+    },
+    {
+      "id": "results",
+      "intervalSeconds": 3600,
+      "timeoutSeconds": 150,
+      "entrypoint": "collector/orchestrate.mjs",
+      "budgetMinutes": 2
+    }
   ]
 }

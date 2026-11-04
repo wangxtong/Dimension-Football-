@@ -21,7 +21,7 @@ test('configuration uses independent schedules and requires supported entrypoint
   assert.equal(runtimeCheck('24.13.0',{proxy:true,fetch:true,abort:true}).ok,false);
   assert.equal(runtimeCheck('24.14.0',{proxy:true,fetch:true,abort:true}).ok,true);
   assert.equal(runtimeCheck('24.19.0',{proxy:false,fetch:true,abort:true}).ok,false);
-  assert.equal(validateOperations({...config,publicReportOrigin:'https://football.fotpredict.xyz/dimension-football/'}).publicReportOrigin,'https://football.fotpredict.xyz/dimension-football/');
+  assert.equal(validateOperations({...config,publicReportOrigin:'https://dimension-football-research.anan220920shan.workers.dev/'}).publicReportOrigin,'https://dimension-football-research.anan220920shan.workers.dev/');
   assert.throws(()=>validateOperations({...config,publicReportOrigin:'http://8.218.6.246/dimension-football/'}));
 });
 test('successful inactive oneshot is healthy; failed exit and inactive timer are actionable',()=>{
