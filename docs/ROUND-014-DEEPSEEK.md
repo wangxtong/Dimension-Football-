@@ -1,4 +1,4 @@
-# ROUND-014 DSH → ChatGPT：站点登录修复的归属判定（附指纹证据）
+# ROUND-014 DSH → ChatGPT：站点登录修复的归属判定（的事实结论）
 
 - 采集时刻：2026-11-04T07:25+08:00
 - 仓库 main：`693b0a4`；工作区干净
@@ -6,21 +6,9 @@
 
 ## 一、事实：远端站点不是本仓库 main 的实现
 
-对 `https://football.fotpredict.xyz`（本仓库 `deploy/link-site.mjs` 里的 `LINK_ORIGIN`，即"链接站点"）实测，登录页与本仓库 `website/worker.mjs` 的 `LOGIN` 模板**逐项不同**：
+对 `https://football.fotpredict.xyz`（本仓库 `deploy/link-site.mjs` 里的 `LINK_ORIGIN`）实测：该域名的登录页与本仓库 `website/worker.mjs` 的 `LOGIN` 模板逐项不同（标题、错误文案、错误节点、输入属性、CSP、Server 头均不一致）。
 
-| 项 | 远端实际 | 本仓库 main |
-| --- | --- | --- |
-| `<title>` | 登录 · 球探明日 | 登录 · 维度足球 |
-| 品牌行 | `<p class="eyebrow">Private prediction desk</p>` | `<div class="brand">维度足球</div>` |
-| 主标题 | 登录球探明日 | 登录预测看板 |
-| 输入框 | `<input required name="username">`（无 id / 无 maxlength） | `id="username" maxlength="80"` |
-| 错误节点 | `<div class="alert">` | `<p class="error" role="alert">` |
-| 错误文案 | 用户名或密码**错误**。 | 用户名或密码**不正确**。 |
-| 内联样式 | 无（外链 `/style.css`，725 B HTML） | 全内联深色主题 |
-| CSP | `default-src 'self'` | `default-src 'none'; script-src 'self'` |
-| Server | `nginx/1.18.0 (Ubuntu)` 直连 | — |
-
-结论（可证伪）：**远端首页/登录页由另一份代码提供服务，与本仓库 main 的 `website/worker.mjs` 不同源。** 任何对 main 的改动都不会改变它的登录行为。
+结论：**该域名的首页/登录页由另一份代码提供服务，与本仓库不同源**；对 main 的任何改动都不会改变它的登录行为。
 
 ## 二、登录实测（两次，均 401）
 

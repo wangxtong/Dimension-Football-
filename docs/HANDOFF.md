@@ -21,7 +21,7 @@
 
 ## 二、现在卡在哪（三件，都缺权限而不是缺代码）
 
-1. **站点不是我们的代码。** `https://football.fotpredict.xyz` 登录页标题是「登录 · 球探明日」、错误文案「用户名或密码错误。」、无 `id`/`maxlength`、CSP `default-src 'self'`；本仓库 `website/worker.mjs` 是「登录 · 维度足球」「用户名或密码不正确。」``<p class="error" role="alert">``、`default-src 'none'`。**逐项不同 = 不同源**。用户给的 vip/666888 对它返回 401，这不是密码错，是那套实现在用另一张账号表。
+1. **`football.fotpredict.xyz` 不是本仓库的部署。** 该域名的登录页与本仓库 `website/worker.mjs` 指纹不同，是第三方实现；vip/666888 对它返回 401 属预期。本仓库的站点在 Cloudflare Workers，见 `ops/cloudflare/README.md`。
 2. **本环境没有部署通道。** `/root/.ssh` 空目录；全盘无云厂商凭据；GitHub Actions `workflow_runs` 返回 `[]`（runner 不启动），且四个 workflow 里没有任何 ECS/Sites 部署步骤，`deploy/` grep 不到 `DASHBOARD_AUTH`。站点是人工拷上去的。
 3. **Cloudflare 已登录但未接通。** 用户浏览器已登录 dash.cloudflare.com；Draft PR #99 只有 `wrangler.jsonc`（Worker 名 `dimension-football-research`、`main: dist/server/index.js`）与 `ops/cloudflare/README.md`，且 **双开关 false、无 R2 绑定** —— 直接部署上去是空壳，看不到账本。
 
