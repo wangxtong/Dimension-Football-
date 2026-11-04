@@ -8,6 +8,11 @@ on:
         type: choice
         default: observations
         options: [observations, research]
+      collection_only:
+        description: '仅采集观察并保存附件；不发送 Telegram、日报或其他通知'
+        type: boolean
+        required: false
+        default: false
   # GitHub schedules are best effort; five minutes is a target, not an SLA.
   schedule:
     - cron: '*/5 * * * *'
@@ -35,8 +40,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  collection-only:
+    # Keep this job in the existing workflow so its OIDC workflow_ref stays allowed.
+    # No digest, research publication, Telegram, or other notification steps run here.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.collection_only == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      COLLECTOR_COMMIT: ${{ github.sha }}
+      RELEASE_GATE: BLOCKED
+      HOSTED_MARKET_OBSERVATIONS: 'true'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: 仅采集并核验网站观察报告（不执行通知）
+        env:
+          FOOTBALL_DATA_API_TOKEN: ${{ vars.FOOTBALL_DATA_API_TOKEN || secrets.FOOTBALL_DATA_API_TOKEN }}
+          FOOTBALL_DATA_API_KEY: ${{ vars.FOOTBALL_DATA_API_KEY || secrets.FOOTBALL_DATA_API_KEY }}
+        run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-collection-only" --budget-minutes 3 --mode observations
+      - name: 保留仅采集路径的运行证据
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: collection-only-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/dimension-collection-only/hosted-run.json
+            ${{ runner.temp }}/dimension-collection-only/state/hosted-observation.json
+            ${{ runner.temp }}/dimension-collection-only/state/hosted-market-observation.json
+          include-hidden-files: false
+          if-no-files-found: warn
+          retention-days: 30
+
   live:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.collection_only != true)
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
@@ -68,14 +112,33 @@ jobs:
           FOOTBALL_DATA_API_KEY: ${{ vars.FOOTBALL_DATA_API_KEY || secrets.FOOTBALL_DATA_API_KEY }}
         run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-live" --budget-minutes 3 --mode "$HOSTED_MODE"
       - name: 研究轨道生成每日1X2冻结快照和真实FT复盘（不触发正式预测外发）
+        id: research_daily
         # hosted.mjs 只要任一 lane 是 partial（抓取限流、单源失败）就 exit 1，而 partial 是常态。
         # 用 success() 会让日报根本不生成、后续推送无文件可用；这里改为 always()，
         # 由日报自身校验输入，缺数据时它会明确报错而不是静默不生成。
         if: always() && env.HOSTED_MODE == 'research'
         run: node collector/research-daily-report.mjs --root "$RUNNER_TEMP/dimension-live"
       - name: 将研究日报同步至受保护Web并核验同reportId（需独立QA准入）
-        if: success() && env.HOSTED_MODE == 'research' && vars.VANTIS_RESEARCH_WEB_ENABLED == 'true'
-        run: node collector/publish-research-daily.mjs --root "$RUNNER_TEMP/dimension-live"
+        # A partial collector may exit 1 while producing a valid research ledger.
+        # Only a successfully generated, fresh, hash-verified daily file may be sent.
+        if: always() && !cancelled() && env.HOSTED_MODE == 'research' && steps.research_daily.outcome == 'success' && vars.VANTIS_RESEARCH_WEB_ENABLED == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="$RUNNER_TEMP/dimension-live/reports/research-daily/latest.json"
+          test -s "$REPORT"
+          node --input-type=module - "$REPORT" <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          import { validateDailyResearch } from './website/research-daily-store.mjs';
+          const content = await readFile(process.argv[2], 'utf8');
+          if (Buffer.byteLength(content, 'utf8') > 750_000) throw Error('RESEARCH_REPORT_TOO_LARGE');
+          const report = JSON.parse(content);
+          await validateDailyResearch(report, { now: Date.now(), fresh: true });
+          if (report.codeSha !== process.env.GITHUB_SHA) throw Error('RESEARCH_COMMIT_MISMATCH');
+          console.log(JSON.stringify({ status: 'validated', reportId: report.reportId,
+            beijingDay: report.beijingDay, commercialReleaseGate: report.commercialReleaseGate }));
+          NODE
+          node collector/publish-research-daily.mjs --root "$RUNNER_TEMP/dimension-live"
       - name: 计算北京日期（跨 runner 幂等键）
         id: bjday
         # step 的自定义 if 在没有 status 函数时仍隐含 success()；hosted.mjs partial 会 exit 1，
