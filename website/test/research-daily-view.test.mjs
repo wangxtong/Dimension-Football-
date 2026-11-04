@@ -15,7 +15,7 @@ test('research layout and main navigation expose accessible, responsive evidence
   assert.match(html,/@media\(max-width:600px\)/);
   assert.match(index,/class="decision-flow"/);
   assert.match(css,/\.decision-step/);
-  assert.doesNotMatch(html+client+index,/666888/);
+  assert.doesNotMatch(html+client+index,/(?:password|api[_-]?key|token)\s*[:=]\s*['\"][^'\"]+['\"]/i);
   assert.doesNotMatch(client,/\.innerHTML\s*=/);
 });
 class El{
