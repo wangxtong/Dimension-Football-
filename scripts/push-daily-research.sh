@@ -41,19 +41,19 @@ SHA="$(curl -fsS -H @"$GH_HEADER" \
   'https://api.github.com/repos/wangxtong/Dimension-Football-/commits/main' \
   | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])')" \
   || fail "无法读取 main HEAD"
-log "[1/5] fixtures lane sha=$SHA"
+log "[1/6] fixtures lane sha=$SHA"
 node "$REPO_ROOT/collector/orchestrate.mjs" --lane fixtures --mode private-research \
   --state "$STATE_DIR/state.json" --out "$OUT_DIR" > "$RUNTIME_ROOT/fixtures.log" 2>&1 \
   || { tail -n 20 "$RUNTIME_ROOT/fixtures.log"; fail "fixtures lane"; }
 tail -n 3 "$RUNTIME_ROOT/fixtures.log"
 
-log "[2/5] results lane"
+log "[2/6] results lane"
 node "$REPO_ROOT/collector/orchestrate.mjs" --lane results --mode private-research \
   --state "$STATE_DIR/state.json" --out "$OUT_DIR" > "$RUNTIME_ROOT/results.log" 2>&1 \
   || { tail -n 20 "$RUNTIME_ROOT/results.log"; fail "results lane"; }
 tail -n 2 "$RUNTIME_ROOT/results.log"
 
-log "[3/5] daily report"
+log "[3/6] daily report"
 GITHUB_SHA="$SHA" node "$REPO_ROOT/collector/research-daily-report.mjs" --root "$RUNTIME_ROOT" \
   > "$RUNTIME_ROOT/report.log" 2>&1 \
   || { tail -n 20 "$RUNTIME_ROOT/report.log"; fail "daily report"; }
@@ -61,19 +61,19 @@ tail -n 1 "$RUNTIME_ROOT/report.log"
 [ -f "$OUT_DIR/research-daily/latest.md" ] || fail "日报未生成: $OUT_DIR/research-daily/latest.md"
 
 if [ "$DRY_RUN" = "1" ]; then
-  log "[4/5] telegram SKIPPED (dry-run)"
-  log "[5/5] page sync SKIPPED (dry-run)"
+  log "[4/6] telegram SKIPPED (dry-run)"
+  log "[5/6] page sync SKIPPED (dry-run)"
   log "DONE (dry-run) 日报=$OUT_DIR/research-daily/latest.md"
   exit 0
 fi
 
-log "[4/5] telegram"
+log "[4/6] telegram"
 node "$REPO_ROOT/collector/publish-research-telegram.mjs" --root "$RUNTIME_ROOT" \
   > "$RUNTIME_ROOT/telegram.log" 2>&1 \
   || { tail -n 20 "$RUNTIME_ROOT/telegram.log"; fail "telegram"; }
 tail -n 2 "$RUNTIME_ROOT/telegram.log"
 
-log "[5/5] page sync -> $TARGET_BRANCH:docs/latest-daily.md"
+log "[5/6] page sync -> $TARGET_BRANCH:docs/latest-daily.md"
 python3 - "$OUT_DIR/research-daily/latest.md" "$TARGET_BRANCH" "$GH_HEADER" <<'PY' || fail "page sync"
 import base64, json, subprocess, sys
 src, branch, header = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -89,5 +89,17 @@ res = json.loads(subprocess.check_output(['curl', '-fsS', '-X', 'PUT', '-H', '@'
     '-H', 'Content-Type: application/json', '-d', json.dumps(body), url]).decode())
 print('page commit:', ((res.get('commit') or {}).get('sha') or res.get('message', ''))[:10])
 PY
+
+log "[6/6] site KV sync"
+if [ -f "$ENV_FILE" ] && grep -q '^CLOUDFLARE_KV_NAMESPACE_ID=' "$ENV_FILE"; then
+  if bash "$REPO_ROOT/scripts/sync-site-kv.sh" >> "$RUNTIME_ROOT/site-kv.log" 2>&1; then
+    tail -n 1 "$RUNTIME_ROOT/site-kv.log"
+  else
+    tail -n 5 "$RUNTIME_ROOT/site-kv.log"
+    log "WARN 站点 KV 同步失败：线上页面会停在上一期，但账本与 Telegram 不受影响"
+  fi
+else
+  log "站点 KV 未配置，跳过"
+fi
 
 log "DONE  日报=$OUT_DIR/research-daily/latest.md  状态=$STATE_DIR/state.json"
