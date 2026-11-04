@@ -53,7 +53,7 @@ table{font-size:12px}th{font-weight:650;font-size:11px;letter-spacing:.025em;col
 .decision-step>strong{font-size:15px;font-weight:700;line-height:1.35}
 .decision-step>small{font-size:11px;color:#74897b;line-height:1.55}
 .decision-step::after{content:"→";position:absolute;right:15px;top:17px;color:#a3bbaa}
-.decision-step:last-child::after{content:"✓";color:#967640}
+.decision-step:last-child::after{content:"→";color:#967640}
 .external-audit-note{font-size:11px;color:#62786b;line-height:1.8;margin-top:11px;max-width:900px}
 .external-audit-note a{color:#936b31;text-decoration:underline;text-underline-offset:2px}
 @media(max-width:1180px){.decision-step{padding:14px}.decision-step>strong{font-size:13px}}
