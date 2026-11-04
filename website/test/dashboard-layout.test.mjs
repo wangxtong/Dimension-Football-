@@ -18,6 +18,9 @@ test('dashboard keeps existing data bindings and exposes complete fast navigatio
   assert.match(page, /data-view="missing"/);
   assert.match(page, /role="tablist"/);
   assert.match(page, /aria-live="polite"/);
+  const script = await asset('app.mjs');
+  assert.match(script, /top-report-id/);
+  assert.match(script, /top-report-generated/);
 });
 
 test('site layout is responsive and accessible in reduced-motion mode', async () => {
