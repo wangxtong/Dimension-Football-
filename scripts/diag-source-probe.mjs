@@ -1,0 +1,27 @@
+import { fetchPublicFixtures } from '../collector/sources/public-fixtures.mjs';
+import { fetchFootballFixtures } from '../collector/sources/fixtures.mjs';
+import { fetchApiFootballFixtures } from '../collector/sources/api-football.mjs';
+import { fetchSportmonksFixtures } from '../collector/sources/sportmonks.mjs';
+import { collectFootballDataHistory } from '../collector/sources/football-data-history.mjs';
+import { fetchMarketSourceAudit } from '../collector/sources/market-sources.mjs';
+import { fetchPredictionSignals } from '../collector/sources/signals.mjs';
+import { fetchHkjcEvidence } from '../collector/sources/hkjc.mjs';
+const nowISO = new Date().toISOString();
+const rows = [];
+const compact = value => String(value ?? '').replace(/[\r\n|]/g, ' ').slice(0, 320);
+const limitedFetch = (url,init={}) => fetch(url,{...init,signal:AbortSignal.any([AbortSignal.timeout(7500), ...(init.signal?[init.signal]:[])])});
+const summary = row => ({count:Array.isArray(row?.fixtures)?row.fixtures.length:Array.isArray(row?.history)?row.history.length:Array.isArray(row?.quotes)?row.quotes.length:Array.isArray(row?.signals)?row.signals.length:0,diagnostics:(row?.diagnostics||row?.sources||[]).map(d=>({source:d.id||d.source||d.sourceId||'',status:d.status||'',code:d.code||d.note||'',httpStatus:d.httpStatus??null,matchedCount:d.matchedCount??null})).slice(0,30)});
+async function run(name,fn) { try {const data=await fn();const s=summary(data);rows.push({name,status:s.diagnostics.some(d=>d.status==='available')?'READABLE':s.count?'READABLE_PARTIAL':'NO_DATA',count:s.count,diagnostics:s.diagnostics,error:s.diagnostics.filter(d=>d.code).map(d=>compact(d.source+': '+d.code+(d.httpStatus===null?'':' HTTP '+d.httpStatus))).join('; ').slice(0,950)||'NONE'});return data;}catch(e){rows.push({name,status:'FAILED',count:0,diagnostics:[],error:compact(e.name+': '+e.message)});return null;} }
+const common={nowISO,days:7,fetchImpl:limitedFetch};
+const pub=await run('OpenLigaDB / TheSportsDB public fixtures',()=>fetchPublicFixtures(common));
+const fixtures=Array.isArray(pub?.fixtures)?pub.fixtures.slice(0,30):[];
+await run('football-data.org fixture adapter (without API token)',()=>fetchFootballFixtures({...common,apiKey:''}));
+await run('API-Football fixture adapter (without API token)',()=>fetchApiFootballFixtures({...common,apiKey:''}));
+await run('Sportmonks fixture adapter (without API token)',()=>fetchSportmonksFixtures({...common,apiKey:''}));
+await run('football-data.org history adapter (without API token)',()=>collectFootballDataHistory({apiKey:'',days:14,fetchImpl:limitedFetch}));
+await run('Titan007 (M88/12Bet/SBOBET shared channel)',()=>fetchMarketSourceAudit({fixtures,nowISO,fetchImpl:limitedFetch}));
+await run('Statarea / 天天盈球 signals',()=>fetchPredictionSignals({fixtures,nowISO,fetchImpl:limitedFetch}));
+await run('HKJC official HDC odds',()=>fetchHkjcEvidence({fixtures,nowISO,fetchImpl:limitedFetch,remaining:()=>10000}));
+for (const name of ['The Odds API','iSports']) rows.push({name,status:'NOT_TESTED_AUTH_REQUIRED',count:0,diagnostics:[],error:'Provider token not injected into isolated diagnostic runner'});
+rows.push({name:'Macau SLOT',status:'NOT_PROBED_ACCESS_NOT_ADMITTED',count:0,diagnostics:[],error:'Excluded from network probes; admission restriction remains to be reviewed'});
+console.log(JSON.stringify({generatedAt:nowISO,environment:'clean GitHub Actions runner; no provider API credentials injected',candidateFixtureCount:fixtures.length,rows},null,2));
