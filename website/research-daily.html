@@ -2,21 +2,62 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>维度足球｜每日1X2研究预测</title>
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}body{font:15px/1.65 system-ui,sans-serif;background:#0c151b;color:#ecf4f3;margin:0;padding:18px}
-main{max-width:1120px;margin:0 auto}a{color:#c1e6b3}header{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
-h1{font-size:clamp(24px,5vw,34px);margin:20px 0 6px}h2{font-size:20px;margin:0 0 16px}p{margin:8px 0}
-.muted{color:#a5b9bd}.notice{border-left:4px solid #b5e08c;padding:10px 16px;background:#15261d}
-.panel{border:1px solid #324d49;background:#14252a;border-radius:12px;padding:22px;margin:20px 0}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.metric{padding:15px;background:#102128;border-radius:9px}.metric b{display:block;font-size:28px;color:#c0e9b1}
-table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;border-bottom:1px solid #36504c;padding:9px}th{color:#b9d6cf}
-.scroll{overflow:auto}button{border:1px solid #709b83;background:#1a3d30;border-radius:6px;padding:10px 20px;color:white;cursor:pointer}
-.badge{color:#ddc98f}footer{font-size:13px;margin:24px 0;color:#a5b9bd}
+:root { color-scheme: dark; --bg: #0c201c; --panel: #15332a; --panel-2: #1b4135; --line: #365849; --ink: #f3f1e7; --muted: #bed0c4; --gold: #d8bb7c; --green: #c1e1ba; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 20px; }
+body { font: 14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:radial-gradient(ellipse at 55% -10%,#25543d 0,transparent 42%),var(--bg); color:var(--ink); margin:0; padding:20px; font-variant-numeric: tabular-nums; }
+main { max-width: 1180px; margin: 0 auto; }
+a { color: var(--green); }
+a:hover { color: #f2ddb0; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; padding: 9px 0 21px; border-bottom: 1px solid var(--line); }
+header a { font-weight: 650; text-decoration: none; }
+button { color: #18392c; border:1px solid #e9ce98; background:#d8bb7c; border-radius:10px; padding:10px 18px; font:inherit; font-weight:700; cursor:pointer; }
+button:hover { background:#efd29a; }
+button:focus-visible,a:focus-visible { outline: 3px solid #edc476; outline-offset: 4px; }
+.hero { padding: 29px 31px; margin:24px 0; border:1px solid #55705c; background:linear-gradient(115deg,#194332,#28674b); border-radius:20px; }
+.kicker { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#e1cd9f; font-weight:750; }
+h1 { font-size:clamp(26px,4.5vw,38px); line-height:1.25; margin:11px 0; letter-spacing:-.02em; }
+h2 { font-size:21px; line-height:1.4; margin:0 0 10px; color:#f7efd6; }
+p { margin:9px 0; }
+.hero p { color:#d7e9dd; max-width:830px; }
+.notice { margin: 17px 0 0; border:1px solid #947f4e; border-left:4px solid #d6b573; border-radius:10px; padding:12px 16px; background:#29402d; color:#f3e7c8; }
+.muted { color:var(--muted); }
+.subnav { display:flex; flex-wrap:wrap; gap:9px; margin:18px 0 25px; }
+.subnav a { display:inline-flex; align-items:center; text-decoration:none; border-radius:10px; color:#e9e5cc; padding:8px 14px; border:1px solid var(--line); background:#1b392e; font-size:12px; }
+.subnav a:hover { border-color:var(--gold); }
+.panel { border:1px solid #38584a; background:var(--panel); border-radius:16px; padding:24px; margin:18px 0; box-shadow:0 8px 25px #08171050; }
+.panel-heading { display:flex; align-items:start; justify-content:space-between; gap:15px; flex-wrap:wrap; margin-bottom:14px; }
+.panel-heading p { max-width:780px; margin:0; }
+.caption { color:#d8bd87; text-transform:uppercase; font-size:11px; letter-spacing:.07em; font-weight:750; margin-bottom:6px; }
+.stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:18px 0; }
+.metric { min-width:0; padding:16px 18px; background:#102b25; border:1px solid #365b47; border-radius:12px; }
+.metric span { color:#bdd0bf; font-size:12px; }
+.metric b { display:block; font-size:clamp(24px,3vw,31px); color:#e5cd91; line-height:1.25; margin-top:6px; overflow-wrap:anywhere; }
+.scroll { max-width:100%; overflow-x:auto; border:1px solid var(--line); border-radius:12px; scrollbar-width:thin; }
+table { width:100%; min-width:720px; border-collapse:collapse; }
+#forecast-rows { font-variant-numeric:tabular-nums; }
+th,td { text-align:left; border-bottom:1px solid #365348; padding:12px 14px; line-height:1.55; }
+th { color:#f3e4bb; background:#1e4436; font-size:12px; white-space:nowrap; }
+td { color:#ebf1e9; font-size:13px; }
+tbody tr:nth-child(even) { background:#17392f; }
+tbody tr:last-child td { border-bottom:0; }
+tbody tr:hover { background:#24503e; }
+#forecast-rows td:nth-child(n+3):nth-child(-n+5) { font-weight:650; }
+#forecast-rows td:nth-child(6) { color:#e9d09a; font-weight:700; }
+.prob-leading { background:#275741; border-radius:5px; color:#fff3c5; }
+.table-hint { font-size:11px; color:#b6c9bf; }
+.release-note { border-radius:12px; padding:12px 16px; border:1px solid #8f7948; background:#233d2e; }
+.badge { color:#e8d092; }
+footer { font-size:12px; line-height:1.75; margin:30px 0 16px; padding-top:18px; border-top:1px solid var(--line); color:#b6cbbd; }
+@media(max-width:850px) { .stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { body { padding:12px; font-size:13px; } .hero { padding:21px 17px; border-radius:15px; margin:15px 0; } .panel { padding:17px 13px; border-radius:13px; } .subnav { gap:7px; } .subnav a { font-size:11px; padding:8px 10px; } .stats { gap:8px; } .metric { padding:12px; } .metric b { font-size:24px; } h2 { font-size:19px; } th,td { padding:10px 12px; } }
+@media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
 </style></head><body><main>
-<header><a href="/">← 维度足球 · 返回总览</a><button id="refresh" type="button">刷新研究日报</button></header>
-<h1>每日1X2研究预测</h1><p class="notice"><b>研究参考，非投注建议。</b> 模型概率尚未获得正式校准；不代表投注价值、确定性获胜或盈利建议。</p>
+<header><a href="/">← 维度足球 / 数据研究中心</a><button id="refresh" type="button">核验最新研究报告 ↻</button></header>
+<section class="hero"><div class="kicker">赛前冻结 / 可追溯研究</div><h1>每日胜平负研究</h1><p>独立展示当日赛前冻结概率、官方完赛后的方向结算，以及不同统计窗口的真实样本数量。</p><p class="notice"><b>研究参考，非投注建议。</b> 模型概率尚未获得正式校准；不代表投注价值、确定性获胜或盈利建议。</p></section><nav class="subnav" aria-label="本页快捷导航"><a href="#forecasts">① 赛前冻结</a><a href="#review">② 实际前瞻复盘</a><a href="#strict-rules">③ 严格盘口门禁</a></nav>
 <p class="muted" id="status" role="status" aria-live="polite">正在核验服务器上的研究报告…</p>
-<section class="panel"><h2>研究轨道 · 当日赛前冻结</h2><p id="meta"></p><p class="muted">下方仅显示实际赛前冻结并留存于不可变账本中的胜平负概率，不会根据赛后结果生成或修改预测。</p><div class="scroll"><table><thead><tr><th>联赛/球队</th><th>开赛（北京时间）</th><th>主胜</th><th>平局</th><th>客胜</th><th>研究方向</th></tr></thead><tbody id="forecast-rows"><tr><td colspan="6">读取中</td></tr></tbody></table></div></section>
-<section class="panel"><h2>真实前瞻赛后复盘</h2><div id="metrics" class="stats"></div><p class="muted">每日／7天／30天按北京时间的开赛日期统计；待FT、改期、无法验证的比赛不计入命中率。小样本只作描述，不给模型升级结论。</p><div class="scroll"><table><thead><tr><th>窗口</th><th>冻结</th><th>已评分</th><th>待FT</th><th>作废/无效</th><th>命中率</th><th>Brier</th><th>LogLoss</th></tr></thead><tbody id="results-rows"></tbody></table></div></section>
-<section class="panel"><h2>严格盘口（独立轨道）</h2><p>真实双独立来源＋供应商原生初盘，额外保留投注市场证据准入与独立复核；当前研究报告不发布任何严格盘口推荐。<strong>0场可以为0场。</strong></p></section>
+<section class="panel" id="forecasts"><div class="panel-heading"><div><div class="caption">研究轨道 / 赛前留痕</div><h2>当日胜平负预测冻结</h2></div></div><p id="meta"></p><p class="muted">下方仅显示实际赛前冻结并留存于不可变账本中的胜平负概率，不会根据赛后结果生成或修改预测。</p><p class="table-hint">表格可横向滚动查看全部概率与时间字段。</p><div class="scroll"><table><thead><tr><th>联赛/球队</th><th>开赛（北京时间）</th><th>主胜</th><th>平局</th><th>客胜</th><th>研究方向</th></tr></thead><tbody id="forecast-rows"><tr><td colspan="6">读取中</td></tr></tbody></table></div></section>
+<section class="panel" id="review"><div class="caption">真实前瞻 / 官方FT结算</div><h2>历史复盘与统计窗口</h2><div id="metrics" class="stats"></div><p class="muted">每日／7天／30天按北京时间的开赛日期统计；待FT、改期、无法验证的比赛不计入命中率。小样本只作描述，不给模型升级结论。</p><div class="scroll"><table><thead><tr><th>窗口</th><th>冻结</th><th>已评分</th><th>待FT</th><th>作废/无效</th><th>命中率</th><th>Brier</th><th>LogLoss</th></tr></thead><tbody id="results-rows"></tbody></table></div></section>
+<section class="panel" id="strict-rules"><div class="caption">额外资格 / 独立核验</div><h2>严格盘口与商业发布门禁</h2><p>真实双独立来源＋供应商原生初盘，额外保留投注市场证据准入与独立复核；当前研究报告不发布任何严格盘口推荐。<strong>0场可以为0场。</strong></p></section>
 <footer>研究报告单独按 reportId 与SHA验证，原商业RELEASE_GATE不作为研究显示资格；对外正式预测、付费或投注推荐门禁未解除。当前历史回测不计入真实前瞻。</footer>
 <script type="module" src="/research-daily-client.mjs"></script></main></body></html>
