@@ -17,7 +17,10 @@ function show(report){
   for(const match of report.forecasts.candidates){
     const tr=document.createElement('tr');cells(tr,[String(LEAGUES[match.league]||match.league)+' · '+match.home+' vs '+match.away,
       beijing(match.kickoff),formatPercent(match.probabilities.home),formatPercent(match.probabilities.draw),
-      formatPercent(match.probabilities.away),OUTCOMES[match.selection]||'未知']);table.append(tr);
+      formatPercent(match.probabilities.away),OUTCOMES[match.selection]||'未知']);
+    const lead=['home','draw','away'].reduce((best,key)=>match.probabilities[key]>match.probabilities[best]?key:best,'home');
+    tr.children[{home:2,draw:3,away:4}[lead]].classList.add('prob-leading');
+    table.append(tr);
   }
   if(!report.forecasts.total){const tr=document.createElement('tr');cells(tr,['本轮没有符合赛前冻结条件的研究预测，不补场','','','','','']);table.append(tr);}
   const rows=$('results-rows');rows.replaceChildren();
