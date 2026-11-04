@@ -128,15 +128,37 @@ export function buildDailyResearchReport({ document = null, ledger, nowISO, code
   const current = document && dayCN(document.generatedAt) === today;
   const predictions = current && ledger.exists ? chronology(document, ledger, nowMs) : [];
   const weatherRows = weather && typeof weather === 'object' && !Array.isArray(weather) ? weather : {};
+  // Match current input to earlier immutable freezes by full identity, not just team names.
+  // A duplicate or conflicting fixture identity must never contribute to a watchlist.
+  const sourceFixtureGroups = new Map();
+  if (current) for (const row of document.fixtures) {
+    const f = row?.fixture;
+    if (!f || typeof f.source !== 'string' || typeof f.id !== 'string') continue;
+    const key = f.source + ':' + f.id;
+    const group = sourceFixtureGroups.get(key) || [];
+    group.push(f); sourceFixtureGroups.set(key, group);
+  }
+  const identifiedFixture = frozen => {
+    const group = sourceFixtureGroups.get(frozen.source + ':' + frozen.fixtureId) || [];
+    if (group.length !== 1) return null;
+    const f = group[0];
+    return f.league === frozen.league && f.homeTeamId === frozen.homeTeamId && f.awayTeamId === frozen.awayTeamId
+      && validTime(f.kickoff) && new Date(f.kickoff).toISOString() === frozen.kickoff
+      && typeof f.home === 'string' && f.home.trim() && typeof f.away === 'string' && f.away.trim()
+      ? f : null;
+  };
   // validUntil 只有生成时刻+1h，会让所有已冻结但过期的场次被隐藏，
   // 导致日报长期显示「冻结 0 场」而账本 actually 有几十条。这里额外统计宽松口径，
   // 仅用于展示「已冻结的预测」，不参与 releasedCandidates / commercialGate 判定。
   const frozenLoose = ledger.events.map(event => ({ event, frozen: chooseFrozen(event, nowMs, { allowExpired: true }) }))
     .filter(row => row.frozen)
-    .map(({ event, frozen }) => ({ kickoffDay: dayCN(frozen.kickoff), league: frozen.league, source: frozen.source,
-      fixtureId: frozen.fixtureId, home: frozen.home, away: frozen.away, kickoff: frozen.kickoff,
-      selection: frozen.selection, probabilities: frozen.probabilities,
-      score: resolution(event, frozen, nowMs) }));
+    .map(({ event, frozen }) => {
+      const fixture = identifiedFixture(frozen);
+      return { kickoffDay: dayCN(frozen.kickoff), league: frozen.league, source: frozen.source,
+        fixtureId: frozen.fixtureId, ...(fixture ? { home: fixture.home, away: fixture.away } : {}),
+        kickoff: frozen.kickoff, probabilities: frozen.probabilities,
+        score: resolution(event, frozen, nowMs) };
+    });
   const all = ledger.events.map(event => ({ event, frozen: chooseFrozen(event, nowMs) }))
     .filter(row => row.frozen)
     .map(({ event, frozen }) => ({ kickoffDay: dayCN(frozen.kickoff), league: frozen.league, source: frozen.source,
@@ -191,6 +213,31 @@ export function renderDailyResearchMarkdown(report) {
       + scores + ' |');
   }
   if (!report.forecasts.total) lines.push('| — | — | — | — | — | — | 无合格赛前研究预测，不补场 |');
+  // Show verifiable early research already in the ledger without calling it a 36h
+  // eligible freeze or a market-backed tip. A report may correctly have 0 eligible
+  // games but 9+ model forecasts whose kickoff is 65–112 hours away.
+  const nowMs = Date.parse(report.generatedAt);
+  const futureResearch = (report.prospective?.frozenLooseList || [])
+    .filter(row => row && typeof row.home === 'string' && typeof row.away === 'string'
+      && row.home.trim() && row.away.trim() && validTime(row.kickoff)
+      && Date.parse(row.kickoff) > nowMs + 36 * 3600000
+      && Date.parse(row.kickoff) <= nowMs + 7 * 86400000
+      && validProbabilities(row.probabilities))
+    .sort((a, b) => a.kickoff.localeCompare(b.kickoff) || a.fixtureId.localeCompare(b.fixtureId))
+    .slice(0, 5);
+  if (futureResearch.length) {
+    lines.push('', '## 未来7天的远期模型观察（最多5场）', '',
+      '**非当期36小时合格冻结、非实时盘口、非投注建议。** 以下仅是当前报告中已经存在的早期不可变模型研究记录，不代表当前可成交预测。', '',
+      '| 研究赛事 | 开球(UTC) | 主胜概率 | 平概率 | 客胜概率 |',
+      '| --- | --- | ---: | ---: | ---: |');
+    for (const row of futureResearch) {
+      const safe = value => teamName(value).replace(/[|\\r\\n]/g, ' ');
+      lines.push('| ' + safe(row.home) + ' vs ' + safe(row.away) + ' | ' + row.kickoff + ' | '
+        + pct(row.probabilities.home) + ' | ' + pct(row.probabilities.draw) + ' | '
+        + pct(row.probabilities.away) + ' |');
+    }
+    lines.push('', '这些研究基线仍须等待开赛前真实报价、重新核验时效与正式门禁；不计入当日命中率和可发布候选。');
+  }
   lines.push('', '天气：Open-Meteo 免费接口（CC-BY-4.0），取开球整点（UTC）预报，按主队所在城市坐标获取；'
     + '查不到坐标显示“—”，不猜测、不插值。天气仅是展示附件，不参与概率、预期进球、大小球或比分计算。', '',
     '## 真实前瞻FT核账（每场只计一次）', '',
