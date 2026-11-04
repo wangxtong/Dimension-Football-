@@ -37,65 +37,32 @@ function mockTransport(calls, { age, oddsStatus = 200 } = {}) {
 const collect = (paths, fetchImpl, options = {}) => collectIntegratedEvidence({ ...paths, fixtures: structuredClone(sample.fixtures),
   nowISO: NOW, clock: () => NOW, env: {}, policy, fetchImpl, ...options });
 
-test('integrated Macau collection shares crawler accounting and retains both quotes and unavailable market states', async t => {
+test('P0 disabled source never reaches integrated network or cached quotation', async t => {
   const paths = await workspace(t), calls = [];
-  const result = await collect(paths, mockTransport(calls));
-  assert.equal(result.quotes.length, 24); assert.equal(new Set(result.quotes.map(row => row.fixtureId)).size, 12);
-  assert.equal(result.marketStates.filter(row => row.sourceId === 'macauslot').length, 1);
-  assert.equal(result.fixtureDiagnostics.filter(row => row.id === 'macauslot').length, 13);
-  assert.ok(result.quotes.every(row => row.sourceUpdatedAt === sample.options.sourceUpdatedAt && !row.opening));
-  assert.equal(calls.filter(url => new URL(url).hostname === 'www.macauslot.com').length, 3);
-  assert.equal(result.crawler.networkRequests, calls.filter(url => new URL(url).hostname !== 'info.cld.hkjc.com').length);
-  assert.ok(result.diagnostics.some(row => row.id === 'hkjc' && row.status === 'unavailable'));
+  await writeFile(`${paths.statePath}.macauslot-cooldown.json`,
+    JSON.stringify({ version: 1, sources: { macauslot: {
+      checkedAt: NOW, nextProbeAt: NEXT, code: 'rate_limited', httpStatus: 429,
+    } } }));
+  const evidence = await collect(paths, mockTransport(calls));
+  assert.equal(calls.filter(url => new URL(url).hostname === 'www.macauslot.com').length, 0);
+  assert.equal(evidence.quotes.filter(row => row.sourceId === 'macauslot').length, 0);
+  assert.equal(evidence.marketStates.filter(row => row.sourceId === 'macauslot').length, 0);
+  assert.equal(evidence.diagnostics.filter(row => row.id === 'macauslot' && row.code === 'ACCESS_BLOCKED').length, 1);
+  assert.ok(evidence.diagnostics.some(row => row.id === 'hkjc'));
 });
 
-test('the independent persisted Macau cooldown suppresses requests while retaining other source diagnostics', async t => {
-  const paths = await workspace(t), calls = [];
-  await writeFile(`${paths.statePath}.macauslot-cooldown.json`, JSON.stringify({ version: 1, sources: { macauslot: {
-    checkedAt: NOW, nextProbeAt: NEXT, code: 'rate_limited', httpStatus: 429,
-  } } }));
-  const result = await collect(paths, mockTransport(calls));
-  assert.equal(result.quotes.length, 0);
-  assert.ok(!calls.some(url => new URL(url).hostname === 'www.macauslot.com'));
-  assert.ok(result.diagnostics.some(row => row.id === 'macauslot' && row.code === 'source_cooldown' && row.nextProbeAt === NEXT));
-  assert.ok(result.diagnostics.some(row => row.id === 'hkjc'));
+test('explicit optional Macau collection is rejected before any fetch', async () => {
+  const { collectCrawledEvidence } = await import('../index.mjs');
+  let requests = 0;
+  await assert.rejects(collectCrawledEvidence({ fixtures: structuredClone(sample.fixtures),
+    nowISO: NOW, includeMacauslot: true, fetchImpl: () => { requests++; throw Error('unexpected'); } }), /ACCESS_BLOCKED/);
+  assert.equal(requests, 0);
 });
 
-test('crawler Retry-After persists across integrated rounds and does not repeat Macau data requests', async t => {
+test('arbitrary integrated options cannot turn blocked source on', async t => {
   const paths = await workspace(t), calls = [];
-  const first = await collect(paths, mockTransport(calls, { oddsStatus: 429 }));
-  const second = await collect(paths, mockTransport(calls));
-  assert.equal(calls.filter(url => url === MACAUSLOT_EVENTS).length, 1);
-  assert.equal(calls.filter(url => url === MACAUSLOT_ODDS).length, 1);
-  assert.ok(first.diagnostics.some(row => row.id === 'macauslot' && row.code === 'rate_limited'));
-  assert.ok(second.diagnostics.some(row => row.id === 'macauslot' && row.code === 'crawler_cooldown'));
-  assert.equal(first.quotes.length + second.quotes.length, 0);
-});
-
-test('Age remains available to the adapter freshness check and cannot be erased by crawler normalization', async t => {
-  const paths = await workspace(t), calls = [];
-  const result = await collect(paths, mockTransport(calls, { age: 600 }));
-  assert.equal(result.quotes.length, 0);
-  assert.ok(result.diagnostics.some(row => row.id === 'macauslot' && row.code === 'stale_snapshot'));
-  assert.equal(calls.filter(url => url === MACAUSLOT_ODDS).length, 0);
-});
-
-test('a Macau parser failure retains legacy crawler diagnostics and remains visible in parser health', async t => {
-  const paths = await workspace(t), calls = [], transport = mockTransport(calls);
-  const result = await collect(paths, async (url, init) => {
-    const response = await transport(url, init);
-    return url === MACAUSLOT_ODDS ? new Response('{}', { headers: response.headers }) : response;
-  });
-  assert.equal(result.quotes.length, 0);
-  assert.ok(result.diagnostics.some(row => row.id === 'macauslot' && row.code === 'invalid_snapshot'));
-  assert.ok(result.diagnostics.some(row => row.id === 'm88'));
-  assert.ok(result.crawler.parserIssues.some(row => row.sourceId === 'macauslot' && row.code === 'invalid_snapshot'));
-});
-
-test('adding Macau cannot create a second allocation of the crawler request budget', async t => {
-  const paths = await workspace(t), calls = [];
-  const result = await collect(paths, mockTransport(calls), { policy: { ...policy, maxRequests: 3 } });
-  assert.equal(result.crawler.maxRequests, 3); assert.equal(result.crawler.networkRequests, 3);
-  assert.equal(calls.filter(url => new URL(url).hostname !== 'info.cld.hkjc.com').length, 3);
-  assert.ok(result.diagnostics.some(row => row.id === 'macauslot' && row.code === 'crawler_budget_exhausted'));
+  const evidence = await collect(paths, mockTransport(calls), { includeMacauslot: true });
+  assert.equal(calls.filter(url => new URL(url).hostname === 'www.macauslot.com').length, 0);
+  assert.equal(evidence.diagnostics.find(row => row.id === 'macauslot').code, 'ACCESS_BLOCKED');
+  assert.equal(evidence.quotes.some(row => row.sourceId === 'macauslot'), false);
 });
