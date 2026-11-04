@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "kind": "research-evidence-rollup",
+  "seasonDefinition": "kickoff-utc-year",
+  "horizonBuckets": [
+    "h<2",
+    "h2-6",
+    "h6-24",
+    "h24-48",
+    "h48+",
+    "unknown"
+  ],
+  "overall": {
+    "n": 1,
+    "brier": 0.7940996864842917,
+    "brierSE": null,
+    "accuracy": 0,
+    "logLoss": 1.2436016735349789,
+    "predictedDrawCount": 0,
+    "actualDrawCount": 0
+  },
+  "bySeason": [
+    {
+      "key": "2026",
+      "n": 1,
+      "brier": 0.7940996864842917,
+      "brierSE": null,
+      "accuracy": 0,
+      "logLoss": 1.2436016735349789,
+      "predictedDrawCount": 0,
+      "actualDrawCount": 0
+    }
+  ],
+  "byHorizon": [
+    {
+      "key": "h<2",
+      "n": 1,
+      "brier": 0.7940996864842917,
+      "brierSE": null,
+      "accuracy": 0,
+      "logLoss": 1.2436016735349789,
+      "predictedDrawCount": 0,
+      "actualDrawCount": 0
+    }
+  ],
+  "byModel": [
+    {
+      "key": "94efb86e",
+      "n": 1,
+      "brier": 0.7940996864842917,
+      "brierSE": null,
+      "accuracy": 0,
+      "logLoss": 1.2436016735349789,
+      "predictedDrawCount": 0,
+      "actualDrawCount": 0
+    }
+  ],
+  "bySource": [
+    {
+      "key": "football-data.org",
+      "n": 1,
+      "brier": 0.7940996864842917,
+      "brierSE": null,
+      "accuracy": 0,
+      "logLoss": 1.2436016735349789,
+      "predictedDrawCount": 0,
+      "actualDrawCount": 0
+    }
+  ],
+  "byLeague": [
+    {
+      "key": "SA",
+      "n": 1,
+      "brier": 0.7940996864842917,
+      "brierSE": null,
+      "accuracy": 0,
+      "logLoss": 1.2436016735349789,
+      "predictedDrawCount": 0,
+      "actualDrawCount": 0
+    }
+  ],
+  "excluded": 0,
+  "blockers": [
+    "VARIANCE_NOT_COMPUTABLE",
+    "MODEL_NEVER_SELECTS_DRAW"
+  ],
+  "ledger": {
+    "assessmentStatus": "single-cohort",
+    "cohorts": [
+      [
+        "venue-poisson-v2",
+        2,
+        "94efb86e94fedae77b35bfea65c6a717c37007b726d5a0ee8af89b980b6f3a56",
+        "football-data.org",
+        "SA"
+      ]
+    ],
+    "coverage": {
+      "eligible": 2,
+      "evaluated": 1,
+      "skipped": 1,
+      "pending": 0,
+      "rate": 0.5
+    },
+    "metricsWithheldByMixedCohorts": false
+  }
+}
