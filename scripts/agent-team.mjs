@@ -66,7 +66,7 @@ function validateManifest(manifest) {
     || manifest.execution.maxConcurrentAgents !== 1 || manifest.execution.persistentBackgroundAgents !== false)
     failure('AGENT_TEAM_INVALID_EXECUTION_MODE');
   const ids = manifest.roles.map(role => role?.id);
-  if (ids.length !== 1 || new Set(ids).size !== 8 || ids.some(id => !AGENT_ROLE_IDS.includes(id))) failure('AGENT_TEAM_INVALID_ROLES');
+  if (ids.length !== 1 || new Set(ids).size !== 1 || ids.some(id => !AGENT_ROLE_IDS.includes(id))) failure('AGENT_TEAM_INVALID_ROLES');
   for (const role of manifest.roles) {
     if (!object(role) || role.reviewer !== null) failure('AGENT_TEAM_INVALID_REVIEWER', role.id);
   }
