@@ -66,10 +66,47 @@ async function boundedBody(request,limit) {
   finally{await reader.cancel().catch(()=>{});}
 }
 
+// KV 与 R2 形状不同：R2 的 get 返回带 size/etag/text() 的对象，KV 直接返回字符串。
+// 这里把 KV 包成 R2 形状，让 research-daily-store / hosted-publications 无需改分支。
+// 注意：KV 没有原子 CAS，onlyIf 只是尽力而为的检查；本 Worker 是唯一写入者，可接受。
+async function digestHex(text) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function kvAsBucket(kv) {
+  return {
+    async get(key) {
+      const value = await kv.get(key);
+      if (value === null || value === undefined) return null;
+      const text = typeof value === 'string' ? value : String(value);
+      return { size: new TextEncoder().encode(text).length, etag: await digestHex(text), text: async () => text };
+    },
+    async put(key, value, options) {
+      const text = typeof value === 'string' ? value : JSON.stringify(value);
+      const onlyIf = options?.onlyIf;
+      if (onlyIf?.etagDoesNotMatch === '*') {
+        const existing = await kv.get(key);
+        if (existing !== null && existing !== undefined) return null;
+      } else if (onlyIf?.etagMatches) {
+        const existing = await kv.get(key);
+        if (existing === null || existing === undefined || await digestHex(existing) !== onlyIf.etagMatches) return null;
+      }
+      await kv.put(key, text);
+      return { etag: await digestHex(text) };
+    },
+  };
+}
+function withKvBucket(env) {
+  if (env?.BUCKET && typeof env.BUCKET.get === 'function') return env;
+  if (env?.RESEARCH_KV && typeof env.RESEARCH_KV.get === 'function') return { ...env, BUCKET: kvAsBucket(env.RESEARCH_KV) };
+  return env;
+}
+
 export function createDashboard(assets, {clock=()=>Date.now(),fetchImpl=(...args)=>fetch(...args)}={}) {
   // Bounded per-isolate abuse protection. It is not a persistent/global rate limit.
   const attempts=new Map();
   return {async fetch(request,env) {
+    env = withKvBucket(env);
     const path=new URL(request.url).pathname,method=request.method;
     // The Bot reads the same research ledger as /api/research-daily and obeys the same
     // read-time revocation: stopping the uploader must also hide existing snapshots.
