@@ -396,6 +396,8 @@ function render() {
   if (!report) return;
   renderMarketObservation();
   $('today-date').textContent = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date()) + ' · 北京时间';
+  $('top-report-id').textContent = report.publication.reportId.slice(0, 12) + '…';
+  $('top-report-generated').textContent = `生成 ${time(report.generatedAt)}（北京时间） · ${isObservation() ? '赛程观察' : '研究报告'}`;
   $('count-fixtures').textContent = report.fixtures.length;
   $('schedule-summary').textContent = `${report.fixtures.length} 场真实赛程 · ${new Set(report.fixtures.map(row => row.fixture.league)).size} 个联赛`;
   // R1 has no authorized release path. Retained research candidates never fill
@@ -471,6 +473,7 @@ function load() {
       failedRefresh = true; $('sync-status').textContent = '暂时无法读取最新报告';
       if (report) render(); else {
         for (const id of ['count-fixtures', 'count-analysis', 'count-missing', 'collected-at']) $(id).textContent = '未取得';
+        $('top-report-id').textContent = '未取得'; $('top-report-generated').textContent = '未取得可信报告';
         $('feed-mode').textContent = '实时报告暂不可用'; $('data-age').textContent = '无法核验';
         $('cards').replaceChildren(el('p', '最新报告尚未就绪。可以稍后刷新，或查看采集任务状态。', 'empty'));
       }
