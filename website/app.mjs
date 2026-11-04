@@ -397,7 +397,7 @@ function render() {
   renderMarketObservation();
   $('today-date').textContent = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date()) + ' · 北京时间';
   $('top-report-id').textContent = report.publication.reportId.slice(0, 12) + '…';
-  $('top-report-generated').textContent = `生成 ${time(report.generatedAt)}（北京时间） · ${report.publicationKind === 'observations' ? '赛程观察' : '研究报告'}`;
+  $('top-report-generated').textContent = `生成 ${time(report.generatedAt)}（北京时间） · ${isObservation() ? '赛程观察' : '研究报告'}`;
   $('count-fixtures').textContent = report.fixtures.length;
   $('schedule-summary').textContent = `${report.fixtures.length} 场真实赛程 · ${new Set(report.fixtures.map(row => row.fixture.league)).size} 个联赛`;
   // R1 has no authorized release path. Retained research candidates never fill
