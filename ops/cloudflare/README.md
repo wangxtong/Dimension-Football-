@@ -62,3 +62,15 @@ curl -b <cookie> https://<你的域>/api/research-daily
 - 只开 `HOSTED_PUBLICATION_ENABLED` 不够，`/api/research-daily` 会 404 `RESEARCH_WEB_DISABLED`；两个开关都要 true。
 - 日报进 R2 需要先灌一次：`node collector/publish-research-daily.mjs` 写入 `research-daily/current.json` 与 `research-daily/reports/<reportId>.json`。
 - 不要把密码、token 写进仓库或提交信息。
+
+## 自定义域名：实测结论（2026-11-04）
+
+- `curl -H 'Host: football.fotpredict.xyz' https://dimension-football-research.anan220920shan.workers.dev/login` → **403**。workers.dev 端点校验 Host，**不能靠阿里云加一条 CNAME 指过来**。
+- 该 Cloudflare 账号下 **没有任何 zone**（`GET /zones` 返回空），且 token 无 `zone.create` 权限（POST 返回 403）。所以自定义域必须由账号 Owner 在控制台完成：
+  1. Cloudflare 控制台 → **Add a site** → 填 `fotpredict.xyz` → 选 Free 计划；
+  2. 记下 Cloudflare 给的两条 NS；
+  3. 到阿里云万网把 `fotpredict.xyz` 的 NS 从 `dns9/dns10.hichina.com` 改成这两条；
+  4. 等 zone 变 **Active**，再 Worker → Settings → Domains & Routes → Add custom domain 填 `football.fotpredict.xyz`。
+- **延迟不会因此变快**：workers.dev 从国内实测 5–8.6 秒，是国际链路问题；绑定自定义域只解决"能否稳定打开"，要真正低延迟需要国内主机 + 备案。这一点不要混淆。
+
+
