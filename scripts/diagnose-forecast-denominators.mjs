@@ -37,7 +37,7 @@ export function diagnoseForecastDenominators({ sourceManifest = null, document =
       marketStatus: label(market?.status) || 'NOT_RECORDED', marketReasons,
       historySample: pred?.sample && typeof pred.sample === 'object' && !Array.isArray(pred.sample)
         ? Object.fromEntries(Object.entries(pred.sample).filter(([k, v]) => typeof k === 'string' && Number.isFinite(v))) : null,
-      validationStatus: label(pred?.validation?.status) }};
+      validationStatus: label(pred?.validation?.status) };
   });
   const rejected = forecastRows.filter(x => x.forecastStatus !== 'forecast');
   const accepted = forecastRows.filter(x => x.forecastStatus === 'forecast');
