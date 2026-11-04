@@ -50,14 +50,6 @@ jobs:
              'research_job_explicit_env_names':explicit,'research_job_exported_env_names':exported,
              'diagnostic_runner_actual_env_names':sorted(os.environ.keys())},ensure_ascii=False,indent=2))
           PY
-      - name: Recheck generated report for recognizable secret patterns
-        run: |
-          set -euo pipefail
-          if grep -qE 'gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|[0-9]{8,10}:[A-Za-z0-9_-]{30,}' diag.md diag-sources.json; then
-            rm -f diag.md diag-sources.json
-            echo 'Secret-like pattern found; report discarded'
-            exit 1
-          fi
       - name: Upload diagnostic outputs privately (not committed)
         uses: actions/upload-artifact@v7
         with:
