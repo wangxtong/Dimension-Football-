@@ -7,8 +7,8 @@ import { checkAgentTeam, readAgentRole, runAgentTeamCli } from '../../scripts/ag
 
 function manifest() {
   return { controller: 'A1', releaseGate: 'BLOCKED', commonPrompt: 'docs/agents/COMMON.md', progressTemplate: 'docs/agents/PROGRESS-TEMPLATE.md',
-    execution: { mode: 'session-supervised', maxConcurrentAgents: 7, persistentBackgroundAgents: false, remoteOperationsOwner: 'A1' },
-    roles: Array.from({ length: 8 }, (_, n) => ({ id: `A${n + 1}`, prompt: `docs/agents/A${n + 1}.md`, reviewer: n === 7 ? 'A1' : 'A8' })) };
+    execution: { mode: 'session-supervised', maxConcurrentAgents: 1, persistentBackgroundAgents: false, remoteOperationsOwner: 'A1' },
+    roles: [{ id: 'A1', prompt: 'docs/agents/A1.md', reviewer: null }] };
 }
 async function save(root, path, text) { await mkdir(dirname(join(root, path)), { recursive: true }); await writeFile(join(root, path), text); }
 async function fixture(t) {
@@ -31,22 +31,22 @@ async function snapshot(root, prefix = '') {
   return result;
 }
 
-test('the complete team is checked and selected text is returned literally without changing any repository file', async t => {
+test('the sole A1 role is checked and selected text is returned literally without changing any repository file', async t => {
   const setup = await fixture(t); setup.config.architecture = { optional: 'A field this reader does not interpret' };
   setup.config.roles.reverse(); setup.config.roles[0].extra = { future: true }; await setup.update();
   const before = await snapshot(setup.rootDirectory), out = [], errors = [];
-  const checked = await checkAgentTeam(setup); assert.equal(checked.status, 'valid'); assert.equal(checked.roleCount, 8);
-  assert.equal(checked.releaseGate, 'BLOCKED'); assert.equal(checked.checkedFiles.length, 11);
-  const text = await readAgentRole('A7', setup);
-  assert.equal(text, '# 共同指令\n发布门禁持续阻断。\n\n# A7 岗位\n仅展示文字，不执行 $(touch NOT_ALLOWED) 或启动任务。\n');
+  const checked = await checkAgentTeam(setup); assert.equal(checked.status, 'valid'); assert.equal(checked.roleCount, 1);
+  assert.equal(checked.releaseGate, 'BLOCKED'); assert.equal(checked.checkedFiles.length, 4);
+  const text = await readAgentRole('A1', setup);
+  assert.equal(text, '# 共同指令\n发布门禁持续阻断。\n\n# A1 岗位\n仅展示文字，不执行 $(touch NOT_ALLOWED) 或启动任务。\n');
   assert.equal(await runAgentTeamCli(['--check'], { ...setup, stdout: value => out.push(value), stderr: value => errors.push(value) }), 0);
   assert.equal(JSON.parse(out[0]).execution.persistentBackgroundAgents, false);
-  assert.equal(await runAgentTeamCli(['--role', 'A7'], { ...setup, stdout: value => out.push(value), stderr: value => errors.push(value) }), 0);
+  assert.equal(await runAgentTeamCli(['--role', 'A1'], { ...setup, stdout: value => out.push(value), stderr: value => errors.push(value) }), 0);
   assert.equal(out[1], text); assert.deepEqual(errors, []); assert.deepEqual(await snapshot(setup.rootDirectory), before);
 });
 
 test('missing manifest, common prompt, template or role file cannot be reported as a complete team', async t => {
-  for (const target of ['config/agent-team.json', 'docs/agents/COMMON.md', 'docs/agents/PROGRESS-TEMPLATE.md', 'docs/agents/A4.md']) {
+  for (const target of ['config/agent-team.json', 'docs/agents/COMMON.md', 'docs/agents/PROGRESS-TEMPLATE.md', 'docs/agents/A1.md']) {
     const setup = await fixture(t); await rm(join(setup.rootDirectory, target));
     await assert.rejects(checkAgentTeam(setup), { code: 'AGENT_TEAM_FILE_MISSING' });
   }
@@ -76,15 +76,15 @@ test('file and parent-directory symlinks are refused even when the target is rea
 });
 
 test('duplicates, missing roles and a substituted unknown role cannot satisfy the eight-role contract', async t => {
-  for (const change of [config => { config.roles.pop(); }, config => { config.roles[7].id = 'A1'; }, config => { config.roles[7].id = 'A9'; }]) {
+  for (const change of [config => { config.roles.pop(); }, config => { config.roles.push({ ...config.roles[0] }); }, config => { config.roles[0].id = 'A2'; }]) {
     const setup = await fixture(t); change(setup.config); await setup.update();
     await assert.rejects(checkAgentTeam(setup), { code: 'AGENT_TEAM_INVALID_ROLES' });
   }
 });
 
 test('self-review or an unassigned reviewer is rejected independently of valid role files', async t => {
-  for (const reviewer of ['A7', 'A9', null]) {
-    const setup = await fixture(t); setup.config.roles[6].reviewer = reviewer; await setup.update();
+  for (const reviewer of ['A1', 'A8', 'external']) {
+    const setup = await fixture(t); setup.config.roles[0].reviewer = reviewer; await setup.update();
     await assert.rejects(checkAgentTeam(setup), { code: 'AGENT_TEAM_INVALID_REVIEWER' });
   }
 });
@@ -95,7 +95,7 @@ test('controller, gate and supervision constraints cannot be changed while the r
     [config => { config.execution.remoteOperationsOwner = 'A7'; }, 'AGENT_TEAM_INVALID_CONTROLLER'],
     [config => { config.releaseGate = 'GREEN'; }, 'AGENT_TEAM_RELEASE_GATE_CHANGED'],
     [config => { config.execution.mode = 'unattended'; }, 'AGENT_TEAM_INVALID_EXECUTION_MODE'],
-    [config => { config.execution.maxConcurrentAgents = 8; }, 'AGENT_TEAM_INVALID_EXECUTION_MODE'],
+    [config => { config.execution.maxConcurrentAgents = 2; }, 'AGENT_TEAM_INVALID_EXECUTION_MODE'],
     [config => { config.execution.persistentBackgroundAgents = true; }, 'AGENT_TEAM_INVALID_EXECUTION_MODE'],
   ];
   for (const [change, code] of cases) {
@@ -106,8 +106,8 @@ test('controller, gate and supervision constraints cannot be changed while the r
 test('unknown roles and extra CLI instructions fail safely; help does not require any repository access', async () => {
   const output = [], errors = [], options = { rootDirectory: '/no-such-agent-team-root', stdout: value => output.push(value), stderr: value => errors.push(value) };
   assert.equal(await runAgentTeamCli(['--help'], options), 0); assert.match(output[0], /不会执行提示词/);
-  await assert.rejects(readAgentRole('A9', options), { code: 'AGENT_TEAM_UNKNOWN_ROLE' });
-  assert.equal(await runAgentTeamCli(['--role', 'A9'], options), 1); assert.equal(errors.pop(), 'AGENT_TEAM_UNKNOWN_ROLE\n');
+  await assert.rejects(readAgentRole('A2', options), { code: 'AGENT_TEAM_UNKNOWN_ROLE' });
+  assert.equal(await runAgentTeamCli(['--role', 'A2'], options), 1); assert.equal(errors.pop(), 'AGENT_TEAM_UNKNOWN_ROLE\n');
   for (const args of [[], ['--check', '--role', 'A1'], ['--role', 'A1', '--root', '/tmp'], ['--run', 'touch'], ['--help', '--check']]) {
     assert.equal(await runAgentTeamCli(args, options), 1); assert.equal(errors.pop(), 'AGENT_TEAM_INVALID_ARGUMENTS\n');
   }
