@@ -33,8 +33,9 @@ export function activationPlan({ env, providerPolicy, sourcePolicy, nowISO }) {
 export function activationMarkdown(report) {
   return `# 数据源应用验收\n\n状态：${report.status}；检查时间：${report.checkedAt}\n\n`
     + '配置存在不等于授权有效；data_received 仅表示本轮收到匹配材料，不代表正式预测候选。\n\n'
+    + '商业盘口源（sportmonks / the-odds-api / isports）为可选增强：未配置不阻断赛程采集，也不参与 canCollect 判定；其缺失只影响盘口独立核验与严格候选，不影响研究预测产出。\n\n'
     + '| 数据源 | 状态 | 请求数 | 匹配材料数 | 所需变量 |\n| --- | --- | ---: | ---: | --- |\n'
-    + report.providers.map(row => `| ${row.name} | ${row.status} | ${row.requests} | ${row.observationCount} | ${row.envName || '需先取得接口协议与授权'} |`).join('\n')
+    + report.providers.map(row => `| ${row.name} | ${row.status} | ${row.requests} | ${row.observationCount} | ${row.envName || '可选增强（未配置不阻断采集）'} |`).join('\n')
     + `\n\n赛程凭据：${report.fixtures.map(row => `${row.id}=${row.configured ? '已配置' : '未配置'}${row.enabled ? '' : '（已禁用）'}`).join('；')}。\n`
     + `\n真实赛程文件：${report.fixtureFileConfigured ? '已声明，采集时校验' : '未配置'}。\n`
     + (report.collection ? `\n本轮采集状态：${report.collection.status}；输入池 ${report.collection.fixtures} 场；正式候选 ${report.collection.candidates} 场。\n` : '\n未执行真实采集。\n')
