@@ -1,21 +1,15 @@
-# 八岗位运行手册
+# 维度足球唯一岗位：A1 总控审计总监
 
-A1 为项目总监，A2 来源、A3 数据、A4 模型、A5 盘口、A6 产品与 Web/Telegram、A7 运维、A8 独立质量审计。岗位注册表为 [config/agent-team.json](../../config/agent-team.json)。
+现行有效角色只有 **A1**。配置见 `config/agent-team.json`，专属角色词见 [A1-DIRECTOR.md](A1-DIRECTOR.md)，通用纪律见 [COMMON.md](COMMON.md)。
 
-每次指派先加载 [COMMON.md](COMMON.md)，再加载注册表指定的岗位文件。A1 使用 A1-DIRECTOR.md 作为自身总控指令。不得只传岗位名称而遗漏共同纪律、任务范围与验收。
+## 只读检查和读取
+```bash
+node scripts/agent-team.mjs --check
+node scripts/agent-team.mjs --role A1
+```
+`--role` 仅接受 A1；其他A编号返回 `AGENT_TEAM_UNKNOWN_ROLE`。这些命令不会启动后台进程、执行模型预测、推送Telegram或部署网站。
 
-只读装载命令：`node scripts/agent-team.mjs --check` 校验岗位配置；`node scripts/agent-team.mjs --role A2` 输出该岗位的共同指令和专属提示词；`--help` 查看用法。命令不执行提示词、不启动智能体、不联网或写文件。实际岗位装载证据见 [首次交接](ASSIGNMENTS-2026-11-01.md)，模块职责见 [七层架构](../PROJECT-FRAMEWORK.md)。
+## 负责内容
+A1统一负责信息源、身份与历史数据、预测模型、盘口审核、赛前冻结、官方FT复盘、Web和Telegram、GitHub CI、Cloudflare运行、风险和商业验收。需要外部验证时可独立审查，但不注册新的编号智能体。
 
-## 启动与交接
-1. A1 确认基线、唯一负责人、独立工作区和文件归属。
-2. 拼接“共同指令 + 岗位指令 + 本次任务范围”，向实际会话中的智能体下发；智能体回报已加载、范围、交接人及阻断。
-3. 最多 7 个并发含 A1；空出名额后启动下一岗位。岗位配置本身不会创建常驻服务。
-4. A2 原始采集交 A3，A3 数据交 A4/A5；A6 按已验证契约实现用户交付，A7提供运行与存储，A8独立验收，A1统一裁决。
-5. 每一环节使用 [进度模板](PROGRESS-TEMPLATE.md)。源码提交仅表示待复核，不自动设为已验证。
-
-## 与旧记录的关系
-2026-11-01 起 A6 同时负责 Web 和 Telegram，A8 改为独立质量、安全与商业验收。旧验收记录里的“A8 网站”是当时的历史岗位，不回写其历史事实。当前任务所有者按新注册表分配。
-
-## 首批任务与发布边界
-八个岗位的具体首批任务见各角色文件。信息源和模型研究优先；本次岗位设置不代表澳门源、模型升级或 ECS 已部署。
-保持现有 Site、登录、通知目标和 BLOCKED 门禁。任何现有未提交代码均保留，不能作为岗位配置变更一并发布。
+所有变更须对齐实际主仓与部署SHA，保留原始证据和回滚能力；正式商业门禁保持 `BLOCKED`。
