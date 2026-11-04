@@ -5,11 +5,7 @@ import { browserResourceTarget } from '../browser-runtime/index.mjs';
 
 const DAY = 86_400_000, BODY_LIMIT = 1_500_000, ROBOTS_LIMIT = 64_000;
 const MACAU_ORIGIN = 'https://www.macauslot.com';
-const MACAU_PATHS = Object.freeze({
-  '/soccer/json/realtime/threeinone_event_cn_fb.json': BODY_LIMIT,
-  '/soccer/json/realtime/threeinone_odds_cn_fb.json': 4 * 1024 * 1024,
-});
-const ORIGINS = ['https://livestatic.titan007.com', 'https://www.statarea.com', 'https://www.ttyingqiu.com', MACAU_ORIGIN];
+const ORIGINS = ['https://livestatic.titan007.com', 'https://www.statarea.com', 'https://www.ttyingqiu.com'];
 export const CRAWLER_CODES = new Set(['robots_denied', 'robots_unavailable', 'access_challenge', 'authorization_required',
   'access_denied', 'rate_limited', 'http_unavailable', 'redirect_blocked', 'crawler_cooldown', 'crawler_budget_exhausted',
   'crawler_cancelled', 'crawler_timeout', 'crawler_response_too_large', 'crawler_network_unavailable',
@@ -36,6 +32,8 @@ const emptyState = () => ({ version: 1, origins: {}, robots: {}, cache: {} });
 // Capability allowlist: the crawler cannot become an arbitrary URL/credential proxy.
 export function crawlerTarget(value, method = 'GET', body) {
   let url; try { url = new URL(value); } catch { fail('crawler_target_denied'); }
+  // Deny this previously unadmitted origin before cached reads, robots or live HTTP.
+  if (url.origin === MACAU_ORIGIN) fail('crawler_target_denied');
   if (url.username || url.password || url.hash || !ORIGINS.includes(url.origin)) fail('crawler_target_denied');
   let id;
   if (url.origin === ORIGINS[0] && method === 'GET'
@@ -46,11 +44,9 @@ export function crawlerTarget(value, method = 'GET', body) {
     && /^\/predictions(?:\/date\/20\d{2}-\d{2}-\d{2}\/competition)?$/.test(url.pathname)) id = 'statarea';
   if (url.origin === ORIGINS[2] && url.pathname === '/query/hall/jdList' && method === 'POST' && !url.search
     && body === 'raceStatus=0&amountMode=3&sortType=10&raceType=1&gameId=0&pageNo=1&pageSize=30') id = 'tiantian';
-  if (url.origin === MACAU_ORIGIN && method === 'GET' && !url.search && Object.hasOwn(MACAU_PATHS, url.pathname)) id = 'macauslot';
   if (!id || method === 'GET' && body != null) fail('crawler_target_denied');
   return { id, origin: url.origin, url: url.href, key: url.origin + url.pathname, method,
-    responseMaxBytes: id === 'macauslot' ? MACAU_PATHS[url.pathname] : BODY_LIMIT,
-    ...(id === 'macauslot' ? { responseTimeoutMs: 12_000 } : {}) };
+    responseMaxBytes: BODY_LIMIT };
 }
 
 function safeHeaders(input) {
@@ -68,6 +64,8 @@ async function readCrawlerState(path) {
   const state = emptyState();
   for (const kind of ['origins', 'robots']) {
     for (const [origin, row] of Object.entries(value[kind])) {
+      // Quarantine legacy denied-origin state without reviving its old cache.
+      if (origin === MACAU_ORIGIN) continue;
       if (!ORIGINS.includes(origin) || !row || !timestamp(row.checkedAt)) invalid();
       if (kind === 'origins') {
         if (!(CRAWLER_CODES.has(row.code) || row.code === 'ok') || row.nextAllowedAt !== null && !timestamp(row.nextAllowedAt)) invalid();
@@ -80,6 +78,9 @@ async function readCrawlerState(path) {
   }
   if (Object.keys(value.cache).length > 12) invalid();
   for (const [key, entry] of Object.entries(value.cache)) {
+    // Drop only the known blocked origin. Unknown other keys still fail closed.
+    let parsed; try { parsed = new URL(key); } catch { invalid(); }
+    if (parsed.origin === MACAU_ORIGIN) continue;
     let target;
     try { target = crawlerTarget(key); } catch { invalid(); }
     if (!entry || typeof entry.text !== 'string' || Buffer.byteLength(entry.text) > target.responseMaxBytes
@@ -156,7 +157,7 @@ export async function withPublicCrawler({ statePath, policy = DEFAULT_CRAWLER_PO
       const delay = Math.max(0, interval - elapsed);
       // Only the two registered Macau JSON endpoints may need the site's
       // documented 10-second interval. Never lower a longer robots directive.
-      if (delay >= remaining() || delay > (origin === MACAU_ORIGIN ? 10_000 : 6000)) fail('crawl_delay_exceeds_budget');
+      if (delay >= remaining() || delay > (6000)) fail('crawl_delay_exceeds_budget');
       await pause(delay, requestSignal); check(requestSignal); ready(origin);
       if (networkRequests >= policy.maxRequests) fail('crawler_budget_exhausted');
       networkRequests++; lastStart.set(origin, performance.now());
