@@ -3,11 +3,11 @@ import { lstat, open, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const AGENT_ROLE_IDS = Object.freeze(Array.from({ length: 8 }, (_, i) => `A${i + 1}`));
+export const AGENT_ROLE_IDS = Object.freeze(['A1']);
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST = 'config/agent-team.json';
 const FILE_LIMIT = 1024 * 1024;
-const HELP = '用法：node scripts/agent-team.mjs --check | --role A1..A8 | --help\n只读检查八岗位配置或输出 COMMON 与岗位文本；不会执行提示词、联网或启动后台智能体。\n';
+const HELP = '用法：node scripts/agent-team.mjs --check | --role A1 | --help\n只读检查A1单一岗位配置或输出 COMMON 与岗位文本；不会执行提示词、联网或启动后台智能体。\n';
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 function failure(code, field = null) {
   throw Object.assign(new Error(field ? `${code}: ${field}` : code), { code, field });
@@ -63,12 +63,12 @@ function validateManifest(manifest) {
   if (manifest.controller !== 'A1' || manifest.execution?.remoteOperationsOwner !== 'A1') failure('AGENT_TEAM_INVALID_CONTROLLER');
   if (manifest.releaseGate !== 'BLOCKED') failure('AGENT_TEAM_RELEASE_GATE_CHANGED');
   if (!object(manifest.execution) || manifest.execution.mode !== 'session-supervised'
-    || manifest.execution.maxConcurrentAgents !== 7 || manifest.execution.persistentBackgroundAgents !== false)
+    || manifest.execution.maxConcurrentAgents !== 1 || manifest.execution.persistentBackgroundAgents !== false)
     failure('AGENT_TEAM_INVALID_EXECUTION_MODE');
   const ids = manifest.roles.map(role => role?.id);
-  if (ids.length !== 8 || new Set(ids).size !== 8 || ids.some(id => !AGENT_ROLE_IDS.includes(id))) failure('AGENT_TEAM_INVALID_ROLES');
+  if (ids.length !== 1 || new Set(ids).size !== 1 || ids.some(id => !AGENT_ROLE_IDS.includes(id))) failure('AGENT_TEAM_INVALID_ROLES');
   for (const role of manifest.roles) {
-    if (!object(role) || !AGENT_ROLE_IDS.includes(role.reviewer) || role.reviewer === role.id) failure('AGENT_TEAM_INVALID_REVIEWER', role.id);
+    if (!object(role) || role.reviewer !== null) failure('AGENT_TEAM_INVALID_REVIEWER', role.id);
   }
   return manifest;
 }
@@ -91,11 +91,11 @@ async function loadAgentTeam({ rootDirectory = DEFAULT_ROOT } = {}) {
 /** Configuration validation only; this result does not grant publication or execution authority. */
 export async function checkAgentTeam(options = {}) {
   const { manifest, references } = await loadAgentTeam(options);
-  return { version: 1, status: 'valid', controller: 'A1', roleCount: 8, roleIds: [...AGENT_ROLE_IDS], releaseGate: 'BLOCKED',
-    execution: { mode: 'session-supervised', maxConcurrentAgents: 7, persistentBackgroundAgents: false, remoteOperationsOwner: 'A1' },
+  return { version: 1, status: 'valid', controller: 'A1', roleCount: 1, roleIds: [...AGENT_ROLE_IDS], releaseGate: 'BLOCKED',
+    execution: { mode: 'session-supervised', maxConcurrentAgents: 1, persistentBackgroundAgents: false, remoteOperationsOwner: 'A1' },
     roles: AGENT_ROLE_IDS.map(id => { const role = manifest.roles.find(value => value.id === id); return { id, reviewer: role.reviewer, prompt: role.prompt }; }),
     checkedFiles: [MANIFEST, ...new Set(references.map(reference => reference.path))],
-    meaning: 'Configuration and local Markdown files only; no agents started and no production release authorized.' };
+    meaning: 'A1-only role registry and local Markdown; no background agents started and no production release authorized.' };
 }
 export async function readAgentRole(roleId, options = {}) {
   if (!AGENT_ROLE_IDS.includes(roleId)) failure('AGENT_TEAM_UNKNOWN_ROLE');

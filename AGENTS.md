@@ -1,48 +1,23 @@
-# Dimension Football upgrade coordination
+# 维度足球｜唯一智能体A1
 
-The original audit baseline is `028f43cdf63dff0b470e5288c9866f1463d14b29`. The 2026-11-01 role setup targets remote main `17931a231f6f11ccbf191fff855eae7930ad3466`; local `fd09d33` has the same source tree and is only the isolated setup base. Every implementation and review must name its actual candidate SHA.
-The user authorized implementing the audit, preserving the current Site/login/Telegram target, and reusing the existing Alibaba ECS instance. Never infer deployed state from files or CI success.
+此仓库现行只注册 **A1 项目总控审计总监**。A1既做全链路审计，也参与问题定位、修复、代码提交、复测与最终交付管理。此配置不会自动启动后台任务、虚构服务器身份或创造其他角色。
 
-## Required role loading
+## 加载角色
+先读取 `docs/agents/COMMON.md`、`config/agent-team.json`、`docs/agents/A1-DIRECTOR.md`，再读取具体任务、代码和实际CI。使用 `node scripts/agent-team.mjs --check` 验证唯一角色，`--role A1` 查看角色文本。其他A编号不再有有效岗位。
 
-The project director is A1. Before working, read `docs/agents/COMMON.md`, `config/agent-team.json`, and your role's prompt file. A1 must load `docs/agents/A1-DIRECTOR.md` for its own responsibilities. The seven-layer architecture and per-module ownership are in `docs/PROJECT-FRAMEWORK.md` and the manifest's `architecture` field. The role prompts are operational instructions, not proof that agents are running or work is accepted.
+## 项目范围
+七层完整链路：①实时合法信息源；②队伍赛事身份与历史数据；③1X2及大小球模型、亚洲盘口证据；④赛前冻结、真实FT与评估；⑤资格与正式发布门禁；⑥Cloudflare Web和Telegram同报告交付；⑦GitHub CI、监控、运行、回滚和总控审计。
 
-From 2026-11-01 A6 owns both Web and Telegram implementation; A8 is independent quality/security/commercial acceptance. Historical records naming A8 as website implementer retain their historical meaning. Load the current mapping for new work. The team runs under session supervision with at most seven concurrent agents including A1; no resident/background execution is implied.
+## 硬规则
+- 所有结论必须引用当前仓库SHA、文件行、实际原始数据与真实测试/部署证据。不推测未连接环境状态。
+- 源URL与授权、抓取时间、独立来源组、真实初盘、盘口报价和联赛队伍映射必须可追溯；不破登录墙、验证码、付费墙或robots。
+- 保留所有真实预测、源RAW、时点、官方FT、报告及相关不可变账本。历史/模拟回测不得冒充真实前瞻成绩。合格候选允许0，不降低审核门槛。
+- A1执行的关键修复须经真实CI、独立可复核证据及外部审查；不能将自己实现直接视为独立验证。
+- Web和Telegram需同reportId/摘要的真实回读、accepted通知回执，验证幂等及存储恢复。GitHub CI全绿不等于生产交付。
+- 现行网站部署目标为用户指定的Cloudflare Workers；旧ECS/Sites资料不得冒充当前Worker状态。真实部署身份和权限必须按当前连接验证。
+- 任何秘密、密码、Token、Cookie和私钥不得出现在代码、Issue、报告或日志。
+- `RELEASE_GATE=BLOCKED` 维持，直到信息源、模型、前瞻质量、网页/TG、回滚等全部完成独立验收。
+- 每次在独立分支做最小可复核变更；未获必要授权、测试未全绿或无回滚依据时禁止直接合并和改动生产环境。
 
-## Eight roles
-
-| Role | Responsibility |
-| --- | --- |
-| A1 director | Project direction, contracts, dependencies, integration, evidence-based acceptance and release |
-| A2 sources | Source reliability, robots, request budgets, cooldown, partial coverage |
-| A3 data | Stable team/event identity, historical inputs, coverage and replay provenance |
-| A4 models | Forecast horizons, immutable predictions, final-result scoring, evaluation |
-| A5 markets | Latest market state, opening identity, conflicts and independent evidence |
-| A6 product | Chinese Web and Telegram, atomic publication, same-report readback, durable notification outbox |
-| A7 operations | ECS packaging, services, safe synchronization, health and recovery |
-| A8 quality | Independent model/data/engineering/security acceptance and end-to-end regression |
-
-Use separate worktrees and commits. The control role integrates shared entrypoints, package scripts, workflow files and hosting manifests. Do not edit another role's files without coordinating. Return commit SHA, changed contracts, actual test output and limitations. A submitted change is `review`, not `verified`, until integration evidence exists.
-
-Every task has one accountable owner and a different reviewer. A4 produces model experiments; A8 independently reproduces their evidence; A1 makes the promotion decision. A8-authored critical changes need another qualified reviewer assigned by A1. Use `docs/agents/PROGRESS-TEMPLATE.md` for each completed stage. Report anomalies immediately and stop affected release steps. All real synchronization/merge/deployment must satisfy the candidate's required regression, frozen backtest and log review; required skips are not passes. Keep expected security-denial logs and distinguish execution success from commercial model eligibility.
-
-## Invariants
-
-- Ordinary 1X2 forecasts are independent of Asian-market eligibility. Never invent data or positive candidates.
-- Preserve source/market identity and genuine observation times. First observed is not provider opening.
-- All network paths honor authorization, robots, request budgets and Retry-After. Login/paywall challenges are not data.
-- Reports, raw input references and receipts bind to one reportId. Unknown Telegram delivery is not automatically resent.
-- Keep secrets outside source, artifacts, command arguments and logs. Never print credentials.
-- Preserve the existing Site identity and audience. Use Sites skill for hosting work and Cloud Environment skill for environment/network work; do not install unrelated skills.
-- Test meaningful failure modes. Do not execute real collection, notifications, deployment or remote mutations from an agent worktree; the control role owns integration and production operations.
-
-## Production target
-
-Existing ECS: instance `i-j6c4g9s2y6b5irl5gcr9`, public address `8.218.6.246`. Access identity and live service state are not yet verified. Do not modify security groups or assert SSH connectivity.
-The user requested autonomous completion without a manual Workbench handoff. Until an ECS command identity exists, the authorized interim production path is GitHub Actions with short-lived OIDC publishing into the existing Site's private R2 storage. The Site owns the shared notification claim/receipt ledger; runners must not send a second copy. Preserve Sites as the visitor entrypoint and preserve the prepared ECS deployment. GitHub Actions OIDC is valid only for Actions jobs, not a permanent ECS identity. Do not label the interim path as an ECS deployment or guarantee Actions schedule latency.
-
-Progress states: pending -> active -> review -> verified; blocked requires an exact dependency and next action. All production claims require timestamped evidence.
-
-## R1 production boundary
-
-Formal forecast release is BLOCKED. The autonomous live Site path publishes only server-redacted collection observations (schedule, coverage, true timestamps), never probabilities or market candidates. Default scheduled collection must not append forecast ledgers/replays. Research and formal promotion are separate; independently verified release authority has not been provisioned. A successful observation readback is not commercial or model release acceptance.
+## 状态格式
+pending → active → review → verified；阻断为blocked。仅用真实证据标记verified；每轮报告主仓与部署SHA、九环节状态、具体失败、真实执行、下一步。
