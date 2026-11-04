@@ -1,0 +1,23 @@
+{
+  // Cloudflare Workers 部署配置。构建命令：npm run cloudflare:build
+  // 前置：先在 R2 建同名桶 dimension-football-research，否则部署会报 bucket not found。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dimension-football-research",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-11-03",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    // 两个开关缺一不可：少了 VANTIS_RESEARCH_WEB_ENABLED，/api/research-daily 会返回 RESEARCH_WEB_DISABLED 404。
+    "HOSTED_PUBLICATION_ENABLED": "true",
+    "VANTIS_RESEARCH_WEB_ENABLED": "true"
+  },
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "dimension-football-research"
+    }
+  ]
+}
