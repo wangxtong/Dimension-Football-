@@ -231,7 +231,7 @@ export function renderDailyResearchMarkdown(report) {
       '| 研究赛事 | 开球(UTC) | 主胜概率 | 平概率 | 客胜概率 |',
       '| --- | --- | ---: | ---: | ---: |');
     for (const row of futureResearch) {
-      const safe = value => teamName(value).replace(/[|\\r\\n]/g, ' ');
+      const safe = value => teamName(value).replace(/[|\r\n]/g, ' ');
       lines.push('| ' + safe(row.home) + ' vs ' + safe(row.away) + ' | ' + row.kickoff + ' | '
         + pct(row.probabilities.home) + ' | ' + pct(row.probabilities.draw) + ' | '
         + pct(row.probabilities.away) + ' |');
