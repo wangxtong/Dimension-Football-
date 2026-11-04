@@ -22,3 +22,7 @@ artifacts/
 *.log
 __pycache__/
 *.pyc
+# Cloudflare 本地开发：.dev.vars 含真实 secret，绝不能提交
+.dev.vars
+.wrangler/
+dist/
