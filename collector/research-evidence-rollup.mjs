@@ -83,7 +83,7 @@ export async function buildRollupFromLedger({ directory, nowISO, horizonHours = 
   const evaluation = await evaluatePredictionLedger({ directory, nowISO, horizonHours, toleranceHours });
   const rollup = rollupProspectiveEvidence({ evaluations: evaluation.evaluations });
   return { ...rollup, ledger: { assessmentStatus: evaluation.assessmentStatus, cohorts: evaluation.cohorts,
-    eligible: evaluation.eligible, pending: evaluation.pending, skipped: evaluation.skipped,
+    coverage: evaluation.coverage ?? null,
     metricsWithheldByMixedCohorts: evaluation.assessmentStatus === 'blocked-mixed-cohorts' },
     blockers: [...rollup.blockers, ...(evaluation.assessmentStatus === 'blocked-mixed-cohorts' ? ['MIXED_MODEL_COHORTS'] : [])] };
 }
