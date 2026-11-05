@@ -5,6 +5,7 @@ import { runPublic } from './public.mjs';
 import { runCli, SAFE_ERRORS } from './run.mjs';
 import { fetchPublicResults } from './sources/public-fixtures.mjs';
 import { collectFootballDataHistory } from './sources/football-data-history.mjs';
+import { enableFootballDataQuota, safeFootballDataDiagnostics } from './sources/football-data-quota.mjs';
 import { verifyAcquisitionSnapshot } from './data/acquisition-snapshot.mjs';
 import { verifyReplayBundle } from './data/run-manifest.mjs';
 import { prepareForecastHistory, BACKTEST_HORIZONS, FORECAST_MODEL } from './forecast.mjs';
@@ -13,6 +14,13 @@ import { isoMillis } from './policy.mjs';
 import { configureEnvironmentProxy } from './network.mjs';
 import { requireGreenForecastDelivery } from './publication-release-gate.mjs';
 
+async function persistFootballHistoryDiagnostics(statePath,lane,result,checkedAt) {
+  const path=statePath+'.football-data-history.json'; let state;
+  try {state=await readJson(path);} catch(error){if(error.code!=='ENOENT')throw error;state={version:1,lanes:{}};}
+  if(state?.version!==1 || !state.lanes || typeof state.lanes!=='object' || Array.isArray(state.lanes))throw Error('ORCHESTRATION_STATE_INVALID');
+  state.lanes[lane]={checkedAt,diagnostics:safeFootballDataDiagnostics(result?.diagnostics)};
+  await atomicJson(path,state);
+}
 const LANES = new Set(['fixtures', 'markets', 'delivery', 'results']);
 const HELP = '用法：node collector/orchestrate.mjs --lane fixtures|markets|delivery|results [--mode publish|private-research] [--state FILE] [--out DIR] [--budget-minutes N]\nprivate-research 仅冻结和结算私有研究，不能执行 delivery，不构成正式发布。默认报告目录 /var/lib/vantis/reports；--help 不访问网络、不写文件。\n';
 const BLOCKERS = new Set(['FIXTURE_CACHE_EXPIRED', 'FIXTURE_CACHE_MISSING', 'ACQUISITION_SNAPSHOT_CHANGED', 'INVALID_ACQUISITION_SNAPSHOT',
@@ -92,6 +100,7 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
   let release = null, outcome;
   try {
     if (!Number.isFinite(isoMillis(clock()))) throw new Error('INVALID_NOW');
+    enableFootballDataQuota(fetchImpl);
     if (signal?.aborted) throw new Error('CANCELLED');
     release = await acquireLock(`${statePath}.orchestration`);
     const args = () => {
@@ -144,7 +153,8 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
       if (managed && footballDataKey && options.mode === 'private-research') {
         try {
           const extra = await dep.collectHistory({ apiKey: footballDataKey.trim(), nowISO: clock(),
-            fetchImpl, signal, timeoutMs: 12_000 });
+            fetchImpl, signal, remaining, timeoutMs: 12_000 });
+          await persistFootballHistoryDiagnostics(statePath,'fixtures',extra,clock());
           if (extra && Array.isArray(extra.history) && extra.history.length) {
             const merged = new Map(fallbackHistory.map(row => [row.source + ':' + row.id, row]));
             for (const row of extra.history) merged.set(row.source + ':' + row.id, row);
@@ -182,7 +192,8 @@ export async function runOrchestration(argv = [], { env = process.env, cwd = pro
         try {
           const observedAt = new Date(clock()).toISOString();
           const fd = await dep.collectHistory({ apiKey: resultsKey.trim(), nowISO: clock(),
-            fetchImpl, signal, timeoutMs: 12_000, days: 7 });
+            fetchImpl, signal, remaining, timeoutMs: 12_000, days: 7 });
+          await persistFootballHistoryDiagnostics(statePath,'results',fd,clock());
           for (const row of fd?.history || []) imported.push({ ...row, resultObservedAt: observedAt, fetchedAt: observedAt });
         } catch { /* 同源结果补齐失败时仍按既有 openligadb 流程结算 */ }
       }
@@ -243,3 +254,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   catch { console.error('调度入口失败：INVALID_ORCHESTRATION_ARGUMENTS'); process.exitCode = 1; }
   finally { process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop); }
 }
+
+
