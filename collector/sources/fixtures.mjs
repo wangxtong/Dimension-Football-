@@ -3,6 +3,7 @@
 // Authentication is supplied only as X-Auth-Token to the official API host.
 import { FAILURE_CODES, retryAfterMs } from './health.mjs';
 import { withEventIdentity } from '../data/identity.mjs';
+import { footballDataQuota } from './football-data-quota.mjs';
 export const fixtureLeagues = Object.freeze(['PL', 'PD', 'SA', 'BL1', 'FL1']);
 const DAY = 86400000;
 const MAX_FIXTURES = 3000;
@@ -111,7 +112,7 @@ function normalizeMatches(payload, league, checkedAt, now, until) {
   return {fixtures, receivedCount: payload.matches.length, rejectedCount};
 }
 
-async function fetchLeague({league, apiKey, now, checkedAt, window, fetchImpl}) {
+async function fetchLeague({league, apiKey, now, checkedAt, window, fetchImpl, signal, remaining}) {
   const url = new URL(`https://api.football-data.org/v4/competitions/${league}/matches`);
   url.searchParams.set('dateFrom', window.dateFrom);
   url.searchParams.set('dateTo', window.dateTo);
@@ -125,16 +126,21 @@ async function fetchLeague({league, apiKey, now, checkedAt, window, fetchImpl}) 
     httpStatus: null, matchedCount: 0, receivedCount: null,
     reason: '缺少 FOOTBALL_DATA_API_KEY；需要 football-data.org 授权令牌。',
   }};
-  const controller = new AbortController();
+  const controller = new AbortController(), quota = footballDataQuota(fetchImpl);
+  const requestSignal = AbortSignal.any([controller.signal,signal].filter(Boolean));
   let timer, httpStatus = null, responseAt = null, retryMs = null;
   try {
+    // Queue first, then start the six-second network-only deadline.
+    await quota?.acquire({signal,remaining});
     const operation = (async () => {
       const response = await fetchImpl(url.href, {
-        method: 'GET', redirect: 'manual', signal: controller.signal,
+        method: 'GET', redirect: 'manual', signal: requestSignal,
         headers: {'X-Auth-Token': apiKey, Accept: 'application/json', 'User-Agent': 'DimensionFootball-Collector/1.0'},
       });
+      quota?.observe(response);
       httpStatus = Number.isInteger(response?.status) ? response.status : null;
-      retryMs = retryAfterMs(response.headers?.get('retry-after'), now);
+      retryMs = retryAfterMs(response.headers?.get('retry-after'), Date.now())
+        ?? retryAfterMs(response.headers?.get('x-requestcounter-reset'), Date.now());
       if (!response?.ok) throw new FixtureSourceError(
         httpStatus === 401 ? 'authorization_required' : httpStatus === 403 ? 'access_denied'
           : httpStatus === 429 ? 'rate_limited' : 'http_unavailable', httpStatus);
@@ -170,7 +176,7 @@ async function fetchLeague({league, apiKey, now, checkedAt, window, fetchImpl}) 
 }
 
 /** Fetch each league once; one failure does not discard another league's data. */
-export async function fetchFootballFixtures({apiKey = '', nowISO = new Date().toISOString(), fetchImpl = fetch, days = 7} = {}) {
+export async function fetchFootballFixtures({apiKey = '', nowISO = new Date().toISOString(), fetchImpl = fetch, days = 7, signal, remaining = () => Infinity} = {}) {
   const now = Date.parse(nowISO);
   if (!Number.isFinite(now) || typeof fetchImpl !== 'function' || !Number.isInteger(days) || days < 1 || days > 14) {
     throw new TypeError('Invalid fixture request: days must be an integer from 1 to 14');
@@ -178,9 +184,11 @@ export async function fetchFootballFixtures({apiKey = '', nowISO = new Date().to
   if (typeof apiKey !== 'string' || apiKey.length > 256 || /[\r\n]/.test(apiKey)) throw new TypeError('Invalid fixture API key');
   const checkedAt = new Date(now).toISOString(), window = fixtureWindow(now, days);
   const results = await Promise.all(fixtureLeagues.map(league => fetchLeague({
-    league, apiKey: apiKey.trim(), now, checkedAt, window, fetchImpl,
+    league, apiKey: apiKey.trim(), now, checkedAt, window, fetchImpl, signal, remaining,
   })));
   const fixtures = results.flatMap(result => result.fixtures).sort((a, b) => a.kickoff.localeCompare(b.kickoff) || a.id.localeCompare(b.id));
   if (fixtures.length > MAX_FIXTURES) throw new RangeError('Fixture limit exceeded (3000); data was not truncated');
   return {fixtures, diagnostics: results.map(result => result.diagnostic), window, checkedAt};
 }
+
+
