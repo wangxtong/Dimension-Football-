@@ -9,7 +9,7 @@ on:
         default: observations
         options: [observations, research]
       collection_only:
-        description: '仅采集观察并保存附件；不发送 Telegram、日报或其他通知'
+        description: '静默采集观察或更新研究看板并保存附件；不发送 Telegram、日报通知或其他消息'
         type: boolean
         required: false
         default: false
@@ -42,7 +42,7 @@ concurrency:
 jobs:
   collection-only:
     # Keep this job in the existing workflow so its OIDC workflow_ref stays allowed.
-    # No digest, research publication, Telegram, or other notification steps run here.
+    # Observation collection or research Web sync only: no digest, Telegram, repository writes, or other notifications.
     if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.collection_only == true
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -53,6 +53,7 @@ jobs:
       COLLECTOR_COMMIT: ${{ github.sha }}
       RELEASE_GATE: BLOCKED
       HOSTED_MARKET_OBSERVATIONS: 'true'
+      HOSTED_MODE: ${{ inputs.mode || 'observations' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -61,11 +62,49 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: 仅采集并核验网站观察报告（不执行通知）
+      - name: 静默采集观察或冻结研究并核账（不执行通知）
         env:
           FOOTBALL_DATA_API_TOKEN: ${{ vars.FOOTBALL_DATA_API_TOKEN || secrets.FOOTBALL_DATA_API_TOKEN }}
           FOOTBALL_DATA_API_KEY: ${{ vars.FOOTBALL_DATA_API_KEY || secrets.FOOTBALL_DATA_API_KEY }}
-        run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-collection-only" --budget-minutes 3 --mode observations
+        run: node collector/hosted.mjs --root "$RUNNER_TEMP/dimension-collection-only" --budget-minutes 3 --mode "$HOSTED_MODE"
+      - name: 生成研究日报（仅研究模式；不执行通知）
+        id: research_daily
+        # A partial lane can leave valid evidence, but a failed restore or checkpoint
+        # must not replace the online research report with an empty reconstruction.
+        if: always() && !cancelled() && env.HOSTED_MODE == 'research'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/dimension-collection-only"
+          test -s "$ROOT/hosted-run.json"
+          node --input-type=module - "$ROOT/hosted-run.json" <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const run = JSON.parse(await readFile(process.argv[2], 'utf8'));
+          if (run.mode !== 'private-research' || !['complete', 'partial', 'idle'].includes(run.status)
+            || run.RELEASE_GATE !== 'BLOCKED' || run.forecastPublished !== false
+            || run.publicationStatus !== 'not_attempted' || !Number.isSafeInteger(run.revision) || run.revision < 1)
+            throw Error('RESEARCH_STATE_NOT_CONFIRMED');
+          NODE
+          node collector/research-daily-report.mjs --root "$ROOT"
+      - name: 核验研究日报并仅同步网站（不发送 Telegram）
+        if: always() && !cancelled() && env.HOSTED_MODE == 'research' && steps.research_daily.outcome == 'success' && vars.VANTIS_RESEARCH_WEB_ENABLED == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="$RUNNER_TEMP/dimension-collection-only/reports/research-daily/latest.json"
+          test -s "$REPORT"
+          node --input-type=module - "$REPORT" <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          import { validateDailyResearch } from './website/research-daily-store.mjs';
+          const content = await readFile(process.argv[2], 'utf8');
+          if (Buffer.byteLength(content, 'utf8') > 750_000) throw Error('RESEARCH_REPORT_TOO_LARGE');
+          const report = JSON.parse(content);
+          await validateDailyResearch(report, { now: Date.now(), fresh: true });
+          if (report.codeSha !== process.env.GITHUB_SHA) throw Error('RESEARCH_COMMIT_MISMATCH');
+          console.log(JSON.stringify({ status: 'validated', reportId: report.reportId,
+            beijingDay: report.beijingDay, commercialReleaseGate: report.commercialReleaseGate }));
+          NODE
+          node collector/publish-research-daily.mjs --root "$RUNNER_TEMP/dimension-collection-only"
       - name: 保留仅采集路径的运行证据
         if: always()
         uses: actions/upload-artifact@v7
@@ -75,6 +114,8 @@ jobs:
             ${{ runner.temp }}/dimension-collection-only/hosted-run.json
             ${{ runner.temp }}/dimension-collection-only/state/hosted-observation.json
             ${{ runner.temp }}/dimension-collection-only/state/hosted-market-observation.json
+            ${{ runner.temp }}/dimension-collection-only/reports/research-daily/latest.json
+            ${{ runner.temp }}/dimension-collection-only/reports/research-daily/latest.md
           include-hidden-files: false
           if-no-files-found: warn
           retention-days: 30
@@ -285,3 +326,5 @@ jobs:
           R2 保存观察报告与当前状态，既有预测账本不删除。
           网站成功仅以同 reportId、同报告摘要、hosted/available 实际回读为准；本工作流不表示 ECS 已部署。
           EOF
+
+
