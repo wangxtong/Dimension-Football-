@@ -1,3 +1,4 @@
+import { footballDataQuota } from './football-data-quota.mjs';
 // football-data.org 免费档历史结果：把已完赛比赛转成内部 history 行，供赛前 1X2 模型使用。
 // 为什么需要它：免费采集默认只能从 OpenLigaDB 拿到德甲历史，其余四大联赛没有样本，
 // 结果就是每天赛程很多、可预测 0 场。football-data 免费档的 matches 端点可以取到
@@ -31,20 +32,23 @@ function historyRow(match, league, fetchedAt) {
     fetchedAt };
 }
 
-async function fetchLeagueHistory({ league, apiKey, dateFrom, dateTo, fetchImpl, timeoutMs, signal, fetchedAt }) {
+async function fetchLeagueHistory({ league, apiKey, dateFrom, dateTo, fetchImpl, timeoutMs, signal, remaining, fetchedAt }) {
   const url = new URL(HOST + '/' + league + '/matches');
   url.searchParams.set('status', 'FINISHED');
   url.searchParams.set('dateFrom', dateFrom);
   url.searchParams.set('dateTo', dateTo);
   const diagnostic = { id: 'football-data.org', league, url: url.href, status: 'unavailable',
     code: 'HISTORY_FETCH_FAILED', matchedCount: 0, receivedCount: null };
-  let response;
+  let response; const quota=footballDataQuota(fetchImpl);
   try {
+    // Waiting for a quota slot does not start the network timeout.
+    await quota?.acquire({signal,remaining});
     response = await fetchImpl(url.href, {
       headers: { 'X-Auth-Token': apiKey, accept: 'application/json' }, redirect: 'error',
       signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)].filter(Boolean)),
     });
-  } catch { return { history: [], diagnostic: { ...diagnostic, code: 'HISTORY_FETCH_UNCONFIRMED' } }; }
+    quota?.observe(response);
+  } catch (error) { return { history: [], diagnostic: { ...diagnostic, code: error?.code==='budget_exhausted'?'HISTORY_BUDGET_EXHAUSTED':signal?.aborted?'HISTORY_CANCELLED':'HISTORY_FETCH_UNCONFIRMED' } }; }
   if (!response.ok) {
     await response.body?.cancel();
     return { history: [], diagnostic: { ...diagnostic, code: 'HISTORY_HTTP_' + response.status, httpStatus: response.status } };
@@ -65,7 +69,7 @@ async function fetchLeagueHistory({ league, apiKey, dateFrom, dateTo, fetchImpl,
 
 // 返回内部 history 行与每个联赛的采集诊断；任一联赛失败都不影响其余联赛。
 export async function collectFootballDataHistory({ apiKey, leagues = HISTORY_LEAGUES, days = 420,
-  fetchImpl = fetch, timeoutMs = 20_000, signal, nowISO = new Date().toISOString(),
+  fetchImpl = fetch, timeoutMs = 20_000, signal, remaining = () => Infinity, nowISO = new Date().toISOString(),
   maxPerLeague = 400 } = {}) {
   const result = { version: 1, history: [], diagnostics: [] };
   if (typeof apiKey !== 'string' || !apiKey.trim()) {
@@ -79,7 +83,7 @@ export async function collectFootballDataHistory({ apiKey, leagues = HISTORY_LEA
   const seen = new Set();
   for (const league of leagues) {
     const { history, diagnostic } = await fetchLeagueHistory({ league, apiKey: apiKey.trim(), dateFrom, dateTo,
-      fetchImpl, timeoutMs, signal, fetchedAt });
+      fetchImpl, timeoutMs, signal, remaining, fetchedAt });
     result.diagnostics.push(diagnostic);
     let kept = 0;
     for (const row of history) {
@@ -89,3 +93,5 @@ export async function collectFootballDataHistory({ apiKey, leagues = HISTORY_LEA
   }
   return result;
 }
+
+
