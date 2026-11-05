@@ -117,7 +117,22 @@ function chronology(doc, ledger, nowMs, { allowExpired = false } = {}) {
   }
   return pool.sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff) || a.fixtureId.localeCompare(b.fixtureId));
 }
-export function buildDailyResearchReport({ document = null, ledger, nowISO, codeSha, weather = null }) {
+// Only fixed, allowlisted explanations leave the collector, never raw text.
+export function researchAcquisitionLimitations(document, collection = null) {
+  const linked=collection?.publication?.reportId===document?.publication?.reportId ? collection : null;
+  const rows=[...(Array.isArray(document?.diagnostics)?document.diagnostics:[]),
+    ...(Array.isArray(linked?.diagnostics)?linked.diagnostics:[])];
+  const attempts=Array.isArray(linked?.sourceManagement?.attempts)?linked.sourceManagement.attempts:[];
+  const unavailable=rows.some(row=>row?.code==='NO_USABLE_FIXTURE_SOURCE');
+  const limited=attempts.some(row=>row?.code==='rate_limited' || (Array.isArray(row?.leagues) && row.leagues.some(league=>league?.httpStatus===429)))
+    || rows.some(row=>row?.httpStatus===429 || ['rate_limited','HISTORY_HTTP_429'].includes(row?.code));
+  if(!Array.isArray(document?.fixtures))return [];
+  if(document.fixtures.length===0 && limited)return ['本轮采集：主赛程源限流（HTTP 429），本轮未取得新研究赛程；原冻结及结算记录保留。'];
+  if(document.fixtures.length===0 && unavailable)return ['本轮采集：赛程源不可用，本轮未取得新研究赛程；原冻结及结算记录保留。'];
+  if(document.fixtures.length>0 && (limited || unavailable))return ['本轮采集：部分赛程来源不可用，仅展示实际取得且通过核验的场次。'];
+  return [];
+}
+export function buildDailyResearchReport({ document = null, ledger, nowISO, codeSha, weather = null, collection = null }) {
   if (!validTime(nowISO) || !COMMIT.test(codeSha || '') || !ledger || !Array.isArray(ledger.events))
     throw new Error('RESEARCH_INPUT_INVALID');
   const today = dayCN(nowISO), nowMs = Date.parse(nowISO);
@@ -162,7 +177,7 @@ export function buildDailyResearchReport({ document = null, ledger, nowISO, code
       releasedCandidates: 0, reviewed: false, note: '严格盘口必须独立验真双源和供应商原生初盘；本研究报表不替盘口授权或正式发布。' },
     commercialReleaseGate: 'BLOCKED', researchGate: 'INDEPENDENT_OF_COMMERCIAL',
     externalTelegramSent: false,
-    limitations: ['天气为开球整点（UTC）的 Open-Meteo 预报（免费、无key、CC-BY-4.0），按主队所在城市坐标获取；查不到坐标显示“—”，不猜测；天气不参与概率、预期进球、大小球或比分计算，也不写入冻结账本。',
+    limitations: [...researchAcquisitionLimitations(document,collection), '天气为开球整点（UTC）的 Open-Meteo 预报（免费、无key、CC-BY-4.0），按主队所在城市坐标获取；查不到坐标显示“—”，不猜测；天气不参与概率、预期进球、大小球或比分计算，也不写入冻结账本。',
       '结果按真实赛前冻结账本及事后实际取得的90分钟FT计算；未取得FT的保持pending。',
       '每日、7日、30日为北京时间赛事开赛日窗口；同场只计最早合格冻结一次，按联赛/版本查看避免混合解释。',
       '研究模型未经正式校准，当前输出不代表投注建议或正式预测发布。',
@@ -223,14 +238,17 @@ export async function produceDailyResearchReport({ root, nowISO = new Date().toI
   let document = null;
   try { document = await readJson(join(out, 'predictions.json')); }
   catch (error) { if (error.code !== 'ENOENT') throw error; }
+  let collection = null;
+  try { collection = await readJson(join(out, 'latest.json')); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
   const ledger = await readPredictionLedger({ directory });
-  let report = buildDailyResearchReport({ document, ledger, nowISO, codeSha });
+  let report = buildDailyResearchReport({ document, collection, ledger, nowISO, codeSha });
   if (report.forecasts.total && process.env.WEATHER_ENABLED !== '0') {
     try {
       const matches = report.forecasts.candidates.map(row => ({ key: row.source + ':' + row.fixtureId,
         home: row.home, kickoff: row.kickoff }));
       const attached = await attachWeather(matches, { venueByKey: venueFor });
-      report = buildDailyResearchReport({ document, ledger, nowISO, codeSha, weather: attached.weather });
+      report = buildDailyResearchReport({ document, collection, ledger, nowISO, codeSha, weather: attached.weather });
     } catch {
       // 天气属于展示附件：获取失败保留无天气版本，绝不阻断日报。
     }
@@ -256,3 +274,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     }
   }
 }
+
+
