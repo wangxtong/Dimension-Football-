@@ -1,119 +1,118 @@
-# 维度足球
+# 维度足球 · 1X2 研究预测
 
-用公开赛程和历史比分算胜平负概率，冻结后再记赛果。这是研究记录，不是投注建议，也不能当成已经打赢收盘价。
+一个**可复核**的足球胜平负研究与预测项目：把公开赛程、历史比分与盘口证据，走同一条确定性链路算成概率，冻结进不可变账本，再生成每日研究日报并分发。目标不是"猜得准"，而是**每一个数字都能追回到它的输入、代码版本和冻结时刻**。
 
-商业发布门禁是 `BLOCKED`。研究日报可以看，不能当成付费推荐。
+## 三条铁律
 
-## 怎么读一张预测
+| 铁律 | 含义 | 代码里的体现 |
+| --- | --- | --- |
+| 不补场 | 样本不足就输出 `SKIP` 并写明原因，绝不用模糊匹配或默认概率填坑 | `LEAGUE_HISTORY_INSUFFICIENT` 等逐场原因码 |
+| 不改预测 | 预测一旦冻结进账本，赛后只能追加结果，不能回改概率 | `reports/forecast-ledger/<hash>` 不可变记录 |
+| 不冒充校准 | 模型 `calibrated:false`，商业发布门禁 `BLOCKED`，研究不等于投注建议 | `commercialReleaseGate: BLOCKED` |
 
-| 词 | 意思 |
-| --- | --- |
-| 盘口 | 让球线。`-1.5` 是主队让一球半，`+0.5` 是受让半球，`大2.5` 是总进球至少 3 球 |
-| 水位 | 这一边的欧洲赔率。`1.465` 表示押 1，赢了共拿回 1.465，净赚 0.465 |
-| 打平线 | `1 ÷ 水位`。水位 1.465 要求胜率至少 68%，低于这个数就是负期望 |
-| 去水 | 把庄家抽成拿掉之后的隐含概率。三项赔率倒数之和大于 100%，多出来的是水钱 |
-| 把握 | 模型给这一边的概率。表上如果做过和去水的加权，就不再是模型原值 |
-| 1 单位 | 研究注码，用来记盈亏。不是下单金额 |
+## 预测整体框架
 
-判断一注值不值得留，看两件事，不是只看它比去水高出几个点：
+```
+ 数据源                身份与历史              模型                账本                报告                分发
+┌─────────┐      ┌─────────────┐      ┌──────────┐      ┌─────────┐      ┌─────────┐      ┌─────────┐
+│ 赛程 API  │ ───▶ │ 球队/赛事身份 │ ───▶ │ 泊松基线   │ ───▶ │ 冻结预测  │ ───▶ │ 研究日报  │ ───▶ │ Telegram │
+│ 历史比分  │      │ 主客场切分    │      │ 时间衰减   │      │ 逐场结果  │      │ 命中/误差 │      │ 站点看板  │
+│ 盘口证据  │      │ 覆盖与新鲜度  │      │ 收缩平滑   │      │ 评分回执  │      │ reportId │      │ 每日归档  │
+└─────────┘      └─────────────┘      └──────────┘      └─────────┘      └─────────┘      └─────────┘
+      ▲                                                          │
+      └─────────────── 采集失败/冷却/预算耗尽都记录，不静默跳过 ──┘
+```
 
-1. 模型概率要高过 `1 ÷ 水位`。只比去水高，水钱仍然可以把期望吃掉。
-2. 两队都要有够样本。见过的场次不够，输出 `SKIP`，不填一个默认概率。
+### 1. 数据层：只采授权来源，失败要留痕
 
-让球倾向是从胜平负映过来的启发式，不是校准过的亚盘概率。代码在 `collector/daily-picks.mjs`，输出必须标成研究参考。
+官方赛程（football-data.org / API-Football / Sportmonks 任一可用即采）、五联赛历史比分、球探公开快照盘口、香港赛马会第一方让球报价。每次请求受 `config/sources.json` 的来源顺序、连续失败阈值、指数退避与 `Retry-After` 冷却约束；登录墙与验证页被识别为破坏页，**不会当成数据**。
 
-## 模型
+### 2. 身份与历史层：先对齐，再计算
 
-现在的模型是 `venue-poisson-v2`：主客场分开的泊松进球，加时间衰减和收缩。不调用第三方预测接口，也不使用伤停和阵容。概率未校准，`calibrated` 为 `false`。
+跨供应商球队名必须命中精确别名表，未识别的名字保留"来源不足"，不做模糊匹配。历史按主客场切分，并逐项检查样本量、联赛样本与记录新鲜度——任何一项不足直接产生原因码，不降级成默认值。
+
+### 3. 模型层：`venue-poisson-v2`
+
+主客场分离的泊松进球基线，带时间衰减与收缩平滑。
 
 | 参数 | 值 | 作用 |
 | --- | --- | --- |
 | `lookbackDays` | 540 | 历史回看窗口 |
 | `halfLifeDays` | 180 | 时间衰减半衰期 |
-| `priorMatches` | 6 | 收缩强度 |
+| `priorMatches` | 6 | 收缩先验强度 |
 | `minimumLeagueMatches` | 40 | 联赛样本下限 |
 | `minimumTeamMatches` | 6 | 单队样本下限 |
-| `minimumVenueMatches` | 2 | 主场或客场样本下限 |
-| `maximumTeamAgeDays` | 120 | 记录太旧就不用 |
+| `minimumVenueMatches` | 2 | 主/客场样本下限 |
+| `maximumTeamAgeDays` | 120 | 记录陈旧阈值 |
+| `calibrated` | `false` | **概率未校准** |
 
-样本不够的原因码包括 `LEAGUE_HISTORY_INSUFFICIENT`。不足就跳过这场，不用模糊队名或默认概率补上。
+模型不经第三方预测 API 代算，也不使用伤停与阵容数据（免费源不提供）。
 
-## 三条铁律
+### 4. 账本层：`reportId` 是唯一身份
 
-| 铁律 | 含义 |
+每份预测写成 `{record, sha256}` 存进 `reports/forecast-ledger/<hash>/`，分 `predictions` / `results` / `scores` 三类。`reportId = sha256(记录去掉 reportId 后规范化)`——改一个字节就对不上，因此"事后美化"在结构上不可能。
+
+### 5. 报告层：四个统计窗口，样本不合并
+
+`prospective` 按北京时间的开赛日切窗口：`oneDay`（仅当天）、`sevenDays`、`thirtyDays`。待 FT、改期、无法核验的比赛不计入命中率。指标定义：`hitRate`（最高概率方向命中比例）、`brier`（三分类平方误差和）、`logLoss`（自然对数损失）。统计联赛固定五个：英超 `PL`、西甲 `PD`、意甲 `SA`、德甲 `BL1`、法甲 `FL1`。
+
+### 6. 分发层：一次生成，多处只读
+
+`scripts/push-daily-research.sh` 五步编排：赛程 lane → 赛果 lane → 生成研究日报 → Telegram 推送 → 站点页面同步。推送按 `beijingDay + codeSha + status=accepted` 幂等，同一天不会重复发。站点只读日报，不参与计算。
+
+### 7. 门禁层：研究可以发，商业必须拦
+
+研究日报允许对外展示，但正式预测、付费与投注推荐受 `RELEASE_GATE` 拦截。门禁拦的是"研究→商业发布"，不是采集。
+
+## 当前实测状态（2026-11-04）
+
+| 项 | 实际值 |
 | --- | --- |
-| 不补场 | 样本不够就输出 `SKIP` 并写明原因 |
-| 不改预测 | 冻结进账本之后，赛后只能追加比分，不能改概率 |
-| 不冒充校准 | 未校准的概率不能写成已经打过市场 |
+| 账本记录 | 825 条 JSON，9 份运行时状态 |
+| 已评分前瞻样本 | **4 场** |
+| 方向命中率 | `0` |
+| Brier | `0.8265282518511182`（三分类盲猜约 0.667，**当前劣于盲猜**）|
+| LogLoss | `1.3214` |
+| 最近日报 | `c23a698f823c…`，`beijingDay 2026-11-03`，赛前冻结 0 场 |
+| 商业发布门禁 | `BLOCKED` |
+| 自动推送 | 每日 10:10 北京时间，10:20 兜底补发 |
 
-每份预测写成 `{record, sha256}`，放在 `reports/forecast-ledger/<hash>/`。`reportId` 是记录去掉自身之后的哈希，改一个字节就对不上。
+4 场样本没有任何统计意义；上表如实记录，不用它证明模型好坏。
 
-## 数据怎么走
-
-```text
-赛程 / 历史比分 / 盘口
-        ↓
-球队别名对齐，对不上就停
-        ↓
-主客场泊松 → 胜平负概率
-        ↓
-冻结进账本
-        ↓
-研究日报 → Telegram、站点只读
-```
-
-来源只用授权接口：football-data.org、API-Football、Sportmonks。登录墙和验证页不算数据。采集失败、冷却和预算耗尽都要留痕，不静默跳过。收盘价不进决策。
-
-统计只覆盖五个联赛：英超 `PL`、西甲 `PD`、意甲 `SA`、德甲 `BL1`、法甲 `FL1`。窗口按北京时间切：当天、7 天、30 天，不合并样本。待定、改期、核不上的场次不进命中率。
-
-## 已经量过的结果
-
-截止 2026-11-04，已评分的前瞻样本只有 4 场。这个数没有统计意义，写在这里是为了不把小样本说成优势。
-
-| 项 | 值 |
-| --- | --- |
-| 账本记录 | 825 条 JSON |
-| 已评分前瞻样本 | 4 场 |
-| 方向命中率 | 0 |
-| Brier | 0.827（三分类盲猜约 0.667，当时差于盲猜） |
-| LogLoss | 1.321 |
-| 商业发布 | `BLOCKED` |
-
-## 本地跑
-
-需要 Node.js 24+。环境变量不会从 `.env` 自动读入。
+## 本地跑一遍
 
 ```sh
-npm test
-npm run collect -- --demo
-npm run fixtures:public
-npm run collect:public
+npm test                        # 982 个用例，离线
+npm run collect -- --demo      # 完全离线的模拟赛程，报告醒目标注"模拟"
+npm run fixtures:public         # 官方公开源，有限赛程样本
+npm run collect:public          # 公开源采集 + 基础预测
 ```
 
-正式采集要配一家赛程服务：`FOOTBALL_DATA_API_TOKEN`、`API_FOOTBALL_KEY` 或 `SPORTMONKS_API_TOKEN`。
-
-```sh
-node --env-file=.env.local collector/run.mjs
-```
-
-每日链路是 `scripts/push-daily-research.sh`：赛程、赛果、研究日报、Telegram、站点。同一天按北京日期、代码版本和已接受状态去重，不重复推送。
+正式采集需配置一家赛程服务（`FOOTBALL_DATA_API_TOKEN` / `API_FOOTBALL_KEY` / `SPORTMONKS_API_TOKEN`）。环境变量不会从 `.env` 自动加载，本地用 `node --env-file=.env.local collector/run.mjs`。需要 Node.js **24+**。
 
 ## 目录
 
 ```text
-collector/     采集、预测、账本、评分、日报
-config/        来源、预算、限速
-website/       只读看板
-scripts/       每日链路
-ops/site/      站点部署
-docs/          方法、来源、运维
+collector/          采集、身份核验、预测、账本、评分、报告
+collector/forecast.mjs          venue-poisson-v2 模型与原因码
+collector/model-readiness.mjs   五联赛统计口径
+config/             来源优先级、预算、时效、爬虫限速
+website/            看板 Worker（登录、研究日报页、账本读数）
+scripts/            每日链路编排、站点登录验收、运行时快照
+ops/site/           独立站点部署包（不绑定任何云厂商）
+deploy/             ECS 制品构建与运维工具
+docs/               预测方法、来源、运维、协作与轮次记录
 ```
 
-| 想看 | 文件 |
+## 文档索引
+
+| 想知道 | 看 |
 | --- | --- |
-| 概率怎么算 | [docs/FORECASTING.md](docs/FORECASTING.md) |
-| 日报口径 | [docs/RESEARCH_DAILY_1X2.md](docs/RESEARCH_DAILY_1X2.md) |
-| 来源与冷却 | [docs/SOURCE_MANAGEMENT.md](docs/SOURCE_MANAGEMENT.md) |
-| 发布门禁 | [docs/RELEASE_GATE_FORECAST.md](docs/RELEASE_GATE_FORECAST.md) |
-| 每日推送 | [docs/DAILY_RESEARCH_PUSH.md](docs/DAILY_RESEARCH_PUSH.md) |
-| 部署 | [docs/OPERATIONS.md](docs/OPERATIONS.md) |
+| 预测怎么算的 | [docs/FORECASTING.md](docs/FORECASTING.md) |
+| 研究日报口径 | [docs/RESEARCH_DAILY_1X2.md](docs/RESEARCH_DAILY_1X2.md) |
+| 来源准入与冷却 | [docs/SOURCE_MANAGEMENT.md](docs/SOURCE_MANAGEMENT.md) |
+| 商业门禁 | [docs/RELEASE_GATE_FORECAST.md](docs/RELEASE_GATE_FORECAST.md) |
+| 每日推送链路 | [docs/DAILY_RESEARCH_PUSH.md](docs/DAILY_RESEARCH_PUSH.md) |
+| 站点与 Telegram | [docs/DELIVERY.md](docs/DELIVERY.md) |
+| 部署与运维 | [docs/OPERATIONS.md](docs/OPERATIONS.md)、[ops/site/README.md](ops/site/README.md) |
+| 双 agent 协作 | [docs/COLLAB.md](docs/COLLAB.md) |
